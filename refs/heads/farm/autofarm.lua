@@ -7,7 +7,6 @@ local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TextChatService = game:GetService("TextChatService")
 
 -- =========================
 -- SISTEMA DE ACESSO E TAGS
@@ -18,19 +17,29 @@ local AccessLevels = {
         ids = {4885351053}, 
         color = Color3.fromRGB(255, 50, 50),
         tag = "[DEV]",
-        priority = 3
+        priority = 4,
+        canHideTag = true
     },
     Support = { 
         ids = {609332724}, 
         color = Color3.fromRGB(0, 170, 255),
         tag = "[SUPPORT]",
-        priority = 2
+        priority = 3,
+        canHideTag = true
+    },
+    VIP = {
+        ids = {}, -- Adicione IDs VIP aqui
+        color = Color3.fromRGB(255, 215, 0),
+        tag = "[VIP]",
+        priority = 2,
+        canHideTag = true
     },
     User = { 
         ids = {}, 
         color = Color3.fromRGB(0, 255, 150),
         tag = "[USER]",
-        priority = 1
+        priority = 1,
+        canHideTag = false
     }
 }
 
@@ -49,6 +58,7 @@ local ScriptUsers = {}
 local TagCache = {}
 local ENABLED = false
 local MENU_KEY = Enum.KeyCode.B
+local LocalHideTag = false -- Se o usuário local escolheu esconder a tag
 
 -- =========================
 -- CONFIGURAÇÃO DAS TECLAS
@@ -134,39 +144,39 @@ local function showNotification(message, color)
     end)
 end
 
-local function createHeadTag(player, accessData)
-    if not player or not player.Character then return end
+local function createHeadTag(otherPlayer, accessData, hideTag)
+    if not otherPlayer or not otherPlayer.Character then return end
     
-    if TagCache[player] then
-        TagCache[player]:Destroy()
-        TagCache[player] = nil
+    -- Remover tag existente
+    if TagCache[otherPlayer] then
+        TagCache[otherPlayer].gui:Destroy()
+        TagCache[otherPlayer] = nil
     end
     
-    local character = player.Character
+    -- Se o usuário escolheu esconder a tag, não criar
+    if hideTag then return end
+    
+    local character = otherPlayer.Character
     local head = character:FindFirstChild("Head")
     if not head then return end
     
+    -- Criar tag simplificada - BALÃO MAIS ALTO
     local tagGui = Instance.new("BillboardGui")
     tagGui.Name = "BondspTag"
     tagGui.Adornee = head
     tagGui.AlwaysOnTop = true
-    tagGui.Size = UDim2.new(0, 200, 0, 50)
-    tagGui.StudsOffset = Vector3.new(0, 2.5, 0)
-    tagGui.MaxDistance = 100
+    tagGui.Size = UDim2.new(0, 80, 0, 30)
+    tagGui.StudsOffset = Vector3.new(0, 2.8, 0) -- Aumentado de 2.0 para 2.8
+    tagGui.MaxDistance = 150
     tagGui.Parent = head
     
-    local container = Instance.new("Frame", tagGui)
-    container.Size = UDim2.new(1, 0, 1, 0)
-    container.BackgroundTransparency = 1
-    
-    local tagFrame = Instance.new("Frame", container)
-    tagFrame.Size = UDim2.new(0, 80, 0, 24)
-    tagFrame.Position = UDim2.new(0.5, -40, 0, 0)
-    tagFrame.BackgroundColor3 = accessData.color
+    local tagFrame = Instance.new("Frame", tagGui)
+    tagFrame.Size = UDim2.new(1, 0, 1, 0)
+    tagFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
     tagFrame.BackgroundTransparency = 0.2
     
     local tagCorner = Instance.new("UICorner", tagFrame)
-    tagCorner.CornerRadius = UDim.new(0, 8)
+    tagCorner.CornerRadius = UDim.new(0, 6)
     
     local tagStroke = Instance.new("UIStroke", tagFrame)
     tagStroke.Color = accessData.color
@@ -177,129 +187,102 @@ local function createHeadTag(player, accessData)
     tagLabel.Text = accessData.tag
     tagLabel.BackgroundTransparency = 1
     tagLabel.Font = Enum.Font.GothamBold
-    tagLabel.TextSize = 12
-    tagLabel.TextColor3 = Color3.new(1, 1, 1)
-    tagLabel.TextStrokeTransparency = 0.5
+    tagLabel.TextSize = 14
+    tagLabel.TextColor3 = accessData.color
+    tagLabel.TextStrokeTransparency = 0.7
     tagLabel.TextStrokeColor3 = Color3.new(0, 0, 0)
     
-    local nameFrame = Instance.new("Frame", container)
-    nameFrame.Size = UDim2.new(0, 120, 0, 20)
-    nameFrame.Position = UDim2.new(0.5, -60, 0, 25)
-    nameFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 40)
-    nameFrame.BackgroundTransparency = 0.3
-    
-    local nameCorner = Instance.new("UICorner", nameFrame)
-    nameCorner.CornerRadius = UDim.new(0, 6)
-    
-    local nameLabel = Instance.new("TextLabel", nameFrame)
-    nameLabel.Size = UDim2.new(1, 0, 1, 0)
-    nameLabel.Text = player.DisplayName
-    nameLabel.BackgroundTransparency = 1
-    nameLabel.Font = Enum.Font.GothamMedium
-    nameLabel.TextSize = 11
-    nameLabel.TextColor3 = Color3.new(1, 1, 1)
-    
-    local scriptIndicator = Instance.new("Frame", container)
-    scriptIndicator.Size = UDim2.new(0, 100, 0, 18)
-    scriptIndicator.Position = UDim2.new(0.5, -50, 0, 45)
-    scriptIndicator.BackgroundColor3 = Color3.fromRGB(0, 255, 100)
-    scriptIndicator.BackgroundTransparency = 0.8
-    
-    local indicatorCorner = Instance.new("UICorner", scriptIndicator)
-    indicatorCorner.CornerRadius = UDim.new(0, 6)
-    
-    local indicatorLabel = Instance.new("TextLabel", scriptIndicator)
-    indicatorLabel.Size = UDim2.new(1, 0, 1, 0)
-    indicatorLabel.Text = "🛠️ USING SCRIPT"
-    indicatorLabel.BackgroundTransparency = 1
-    indicatorLabel.Font = Enum.Font.GothamBold
-    indicatorLabel.TextSize = 10
-    indicatorLabel.TextColor3 = Color3.new(1, 1, 1)
-    
-    tagFrame.Size = UDim2.new(0, 0, 0, 24)
-    tagFrame.Position = UDim2.new(0.5, 0, 0, 0)
+    -- Efeito de entrada
+    tagFrame.Size = UDim2.new(0, 0, 0, 0)
+    tagFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
     
     local tween = TweenService:Create(tagFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Size = UDim2.new(0, 80, 0, 24),
-        Position = UDim2.new(0.5, -40, 0, 0)
+        Size = UDim2.new(1, 0, 1, 0),
+        Position = UDim2.new(0, 0, 0, 0)
     })
     tween:Play()
     
-    local pulseConnection
-    pulseConnection = RunService.Heartbeat:Connect(function()
-        local time = tick()
-        local pulse = math.sin(time * 3) * 0.1 + 0.9
-        tagFrame.BackgroundTransparency = 0.2 + (0.1 * (1 - pulse))
-    end)
-    
-    TagCache[player] = {
+    TagCache[otherPlayer] = {
         gui = tagGui,
-        pulse = pulseConnection
+        accessData = accessData
     }
     
+    -- Conectar eventos para recriar tag quando personagem mudar
     local function cleanup()
-        if TagCache[player] then
-            if TagCache[player].pulse then
-                TagCache[player].pulse:Disconnect()
-            end
-            if TagCache[player].gui then
-                TagCache[player].gui:Destroy()
-            end
-            TagCache[player] = nil
+        if TagCache[otherPlayer] then
+            TagCache[otherPlayer].gui:Destroy()
+            TagCache[otherPlayer] = nil
         end
     end
     
-    player.CharacterAdded:Connect(function()
+    otherPlayer.CharacterAdded:Connect(function()
         cleanup()
         task.wait(1)
-        createHeadTag(player, accessData)
+        createHeadTag(otherPlayer, accessData, hideTag)
     end)
     
-    player.CharacterRemoving:Connect(cleanup)
+    otherPlayer.CharacterRemoving:Connect(cleanup)
 end
 
+-- Função para detectar outros usuários do script
 local function detectOtherScriptUsers()
     for _, otherPlayer in ipairs(Players:GetPlayers()) do
         if otherPlayer ~= player then
+            -- Verificar se tem o GUI do script
             local playerGui = otherPlayer:FindFirstChild("PlayerGui")
             if playerGui then
                 local scriptGui = playerGui:FindFirstChild("bondsp_keys")
                 if scriptGui then
+                    -- É usuário do script!
                     local accessLevel, accessData = getAccessLevel(otherPlayer.UserId)
+                    
+                    -- Verificar se usuário escolheu esconder tag
+                    local hideTag = false
+                    if accessData.canHideTag then
+                        -- Verificar configuração salva ou solicitar
+                        -- Por enquanto, assumimos que não está escondido
+                    end
+                    
                     ScriptUsers[otherPlayer.UserId] = {
                         player = otherPlayer,
                         accessLevel = accessLevel,
                         accessData = accessData,
-                        tagVisible = true,
+                        hideTag = hideTag,
                         detectedAt = os.time()
                     }
-                    createHeadTag(otherPlayer, accessData)
+                    
+                    createHeadTag(otherPlayer, accessData, hideTag)
                 end
             end
         end
     end
 end
 
+-- Monitorar entrada/saída de usuários
 local function monitorScriptUsers()
-    while task.wait(3) do
+    while task.wait(2) do
+        -- Verificar novos jogadores
         for _, otherPlayer in ipairs(Players:GetPlayers()) do
             if otherPlayer ~= player and not ScriptUsers[otherPlayer.UserId] then
                 local playerGui = otherPlayer:FindFirstChild("PlayerGui")
                 if playerGui then
                     local scriptGui = playerGui:FindFirstChild("bondsp_keys")
                     if scriptGui then
+                        -- Novo usuário detectado
                         local accessLevel, accessData = getAccessLevel(otherPlayer.UserId)
+                        
                         ScriptUsers[otherPlayer.UserId] = {
                             player = otherPlayer,
                             accessLevel = accessLevel,
                             accessData = accessData,
-                            tagVisible = true
+                            hideTag = false,
+                            detectedAt = os.time()
                         }
                         
-                        createHeadTag(otherPlayer, accessData)
+                        createHeadTag(otherPlayer, accessData, false)
                         
                         showNotification(
-                            string.format("%s entrou com o script! (%s)", 
+                            string.format("%s está usando o script %s", 
                                 otherPlayer.Name, accessData.tag),
                             accessData.color
                         )
@@ -308,6 +291,7 @@ local function monitorScriptUsers()
             end
         end
         
+        -- Limpar usuários que saíram
         for userId, userData in pairs(ScriptUsers) do
             if userId ~= localPlayerId then
                 local stillInGame = false
@@ -320,14 +304,9 @@ local function monitorScriptUsers()
                 
                 if not stillInGame then
                     if TagCache[userData.player] then
-                        TagCache[userData.player]:Destroy()
+                        TagCache[userData.player].gui:Destroy()
                     end
                     ScriptUsers[userId] = nil
-                    
-                    showNotification(
-                        string.format("%s saiu do jogo", userData.player.Name),
-                        Color3.fromRGB(255, 100, 100)
-                    )
                 end
             end
         end
@@ -335,26 +314,31 @@ local function monitorScriptUsers()
 end
 
 -- =========================
--- CONFIGURAÇÃO INICIAL DAS TAGS
+-- INICIALIZAÇÃO DAS TAGS
 -- =========================
 
 localAccessLevel, localAccessData = getAccessLevel(localPlayerId)
+
+-- Registrar usuário local
 ScriptUsers[localPlayerId] = {
     player = player,
     accessLevel = localAccessLevel,
     accessData = localAccessData,
-    tagVisible = true,
-    lastSeen = os.time()
+    hideTag = LocalHideTag
 }
 
+-- Não criar tag para si mesmo (a menos que queira ver)
+-- createHeadTag(player, localAccessData, LocalHideTag)
+
+-- Detectar outros usuários
 task.wait(1)
-createHeadTag(player, localAccessData)
 detectOtherScriptUsers()
 
+-- Iniciar monitoramento
 task.spawn(monitorScriptUsers)
 
 showNotification(
-    string.format("Script iniciado! Acesso: %s", localAccessData.tag),
+    string.format("Script iniciado | Acesso: %s", localAccessData.tag),
     localAccessData.color
 )
 
@@ -500,6 +484,113 @@ globalBtn.MouseButton1Click:Connect(function()
 end)
 
 -- =========================
+-- OPÇÃO PARA ESCONDER TAG (VIP+) - COM TOGGLE ON/OFF
+-- =========================
+
+local hideTagContainer
+if localAccessData.canHideTag then
+    hideTagContainer = Instance.new("Frame", content)
+    hideTagContainer.Size = UDim2.new(0.9, 0, 0, 50)
+    hideTagContainer.BackgroundTransparency = 1
+    hideTagContainer.LayoutOrder = 2
+    
+    local hideTagBtn = Instance.new("TextButton", hideTagContainer)
+    hideTagBtn.Size = UDim2.new(1, 0, 1, 0)
+    hideTagBtn.Text = ""
+    hideTagBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+    hideTagBtn.AutoButtonColor = false
+    Instance.new("UICorner", hideTagBtn).CornerRadius = UDim.new(0, 8)
+    
+    -- Toggle para exibição de tag
+    local tagToggleCircle = Instance.new("Frame", hideTagBtn)
+    tagToggleCircle.Size = UDim2.new(0, 20, 0, 20)
+    tagToggleCircle.Position = UDim2.new(0, 15, 0.5, -10)
+    tagToggleCircle.BackgroundColor3 = LocalHideTag and Color3.fromRGB(255, 80, 80) or Color3.fromRGB(80, 200, 120)
+    Instance.new("UICorner", tagToggleCircle).CornerRadius = UDim.new(1, 0)
+    
+    -- Posicionar toggle corretamente baseado no estado
+    if LocalHideTag then
+        tagToggleCircle.Position = UDim2.new(0, 15, 0.5, -10) -- Esquerda (OFF)
+    else
+        tagToggleCircle.Position = UDim2.new(1, -40, 0.5, -10) -- Direita (ON)
+    end
+    
+    local hideIcon = Instance.new("TextLabel", hideTagBtn)
+    hideIcon.Size = UDim2.new(0, 30, 1, 0)
+    hideIcon.Position = UDim2.new(0, 45, 0, 0)
+    hideIcon.Text = "🏷️"
+    hideIcon.BackgroundTransparency = 1
+    hideIcon.Font = Enum.Font.GothamBold
+    hideIcon.TextSize = 16
+    hideIcon.TextColor3 = Color3.new(1, 1, 1)
+    
+    local hideLabel = Instance.new("TextLabel", hideTagBtn)
+    hideLabel.Size = UDim2.new(1, -85, 1, 0)
+    hideLabel.Position = UDim2.new(0, 80, 0, 0)
+    hideLabel.Text = LocalHideTag and "Tag: OFF" or "Tag: ON"
+    hideLabel.BackgroundTransparency = 1
+    hideLabel.Font = Enum.Font.GothamMedium
+    hideLabel.TextSize = 14
+    hideLabel.TextColor3 = Color3.new(1, 1, 1)
+    hideLabel.TextXAlignment = Enum.TextXAlignment.Left
+    
+    -- Status text
+    local statusText = Instance.new("TextLabel", hideTagBtn)
+    statusText.Size = UDim2.new(1, -85, 0, 15)
+    statusText.Position = UDim2.new(0, 80, 0, 20)
+    statusText.Text = LocalHideTag and "Sua tag está oculta" or "Sua tag está visível"
+    statusText.BackgroundTransparency = 1
+    statusText.Font = Enum.Font.Gotham
+    statusText.TextSize = 11
+    statusText.TextColor3 = LocalHideTag and Color3.fromRGB(255, 150, 150) or Color3.fromRGB(150, 255, 150)
+    statusText.TextXAlignment = Enum.TextXAlignment.Left
+    
+    hideTagBtn.MouseEnter:Connect(function()
+        hideTagBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 80)
+    end)
+    
+    hideTagBtn.MouseLeave:Connect(function()
+        hideTagBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+    end)
+    
+    hideTagBtn.MouseButton1Click:Connect(function()
+        LocalHideTag = not LocalHideTag
+        
+        -- Animar o toggle
+        if LocalHideTag then
+            local tween = TweenService:Create(tagToggleCircle, TweenInfo.new(0.2), {
+                BackgroundColor3 = Color3.fromRGB(255, 80, 80),
+                Position = UDim2.new(0, 15, 0.5, -10)
+            })
+            tween:Play()
+            hideLabel.Text = "Tag: OFF"
+            statusText.Text = "Sua tag está oculta"
+            statusText.TextColor3 = Color3.fromRGB(255, 150, 150)
+        else
+            local tween = TweenService:Create(tagToggleCircle, TweenInfo.new(0.2), {
+                BackgroundColor3 = Color3.fromRGB(80, 200, 120),
+                Position = UDim2.new(1, -40, 0.5, -10)
+            })
+            tween:Play()
+            hideLabel.Text = "Tag: ON"
+            statusText.Text = "Sua tag está visível"
+            statusText.TextColor3 = Color3.fromRGB(150, 255, 150)
+        end
+        
+        -- Atualizar tag própria
+        ScriptUsers[localPlayerId].hideTag = LocalHideTag
+        if TagCache[player] then
+            TagCache[player].gui:Destroy()
+            TagCache[player] = nil
+        end
+        
+        if not LocalHideTag then
+            createHeadTag(player, localAccessData, false)
+        end
+    end)
+end
+
+-- =========================
 -- FUNÇÃO PARA CRIAR CONTROLE DE KEY
 -- =========================
 
@@ -618,7 +709,7 @@ local function createKeyControl(keyName, keyData, layoutOrder)
     
     RunService.RenderStepped:Connect(function()
         if dragging then
-            local mouse = game:GetService("Players").LocalPlayer:GetMouse()
+            local mouse = player:GetMouse()
             local sliderAbsolute = intervalSlider.AbsolutePosition
             local sliderSize = intervalSlider.AbsoluteSize
             
@@ -689,11 +780,12 @@ movementTitle.Font = Enum.Font.GothamSemibold
 movementTitle.TextSize = 13
 movementTitle.TextColor3 = Color3.new(1, 1, 1)
 movementTitle.TextXAlignment = Enum.TextXAlignment.Left
-movementTitle.LayoutOrder = 2
+movementTitle.LayoutOrder = localAccessData.canHideTag and 3 or 2
 
 local movementKeys = {"W", "A", "S", "D", "SPACE"}
+local startOrder = localAccessData.canHideTag and 3 or 2
 for i, keyName in ipairs(movementKeys) do
-    createKeyControl(keyName, Keys[keyName], 2 + i)
+    createKeyControl(keyName, Keys[keyName], startOrder + i)
 end
 
 -- =========================
@@ -704,7 +796,7 @@ local separator = Instance.new("Frame", content)
 separator.Size = UDim2.new(0.9, 0, 0, 1)
 separator.BackgroundColor3 = Color3.fromRGB(60, 60, 65)
 separator.BorderSizePixel = 0
-separator.LayoutOrder = #movementKeys + 3
+separator.LayoutOrder = startOrder + #movementKeys + 1
 
 -- =========================
 -- SEÇÃO DE AÇÕES
@@ -718,11 +810,11 @@ actionsTitle.Font = Enum.Font.GothamSemibold
 actionsTitle.TextSize = 13
 actionsTitle.TextColor3 = Color3.new(1, 1, 1)
 actionsTitle.TextXAlignment = Enum.TextXAlignment.Left
-actionsTitle.LayoutOrder = #movementKeys + 4
+actionsTitle.LayoutOrder = startOrder + #movementKeys + 2
 
 local actionKeys = {"1", "2", "3", "4"}
 for i, keyName in ipairs(actionKeys) do
-    createKeyControl(keyName, Keys[keyName], #movementKeys + 4 + i)
+    createKeyControl(keyName, Keys[keyName], startOrder + #movementKeys + 2 + i)
 end
 
 -- =========================
@@ -732,7 +824,7 @@ end
 local usersSection = Instance.new("Frame", content)
 usersSection.Size = UDim2.new(0.9, 0, 0, 200)
 usersSection.BackgroundColor3 = Color3.fromRGB(30, 35, 40)
-usersSection.LayoutOrder = #movementKeys + #actionKeys + 5
+usersSection.LayoutOrder = startOrder + #movementKeys + #actionKeys + 3
 Instance.new("UICorner", usersSection).CornerRadius = UDim.new(0, 8)
 
 local usersTitle = Instance.new("TextLabel", usersSection)
@@ -773,6 +865,7 @@ local function updateUserList()
     
     local userCount = 0
     
+    -- Adicionar usuário local
     local localEntry = Instance.new("Frame", usersListContainer)
     localEntry.Size = UDim2.new(1, -10, 0, 30)
     localEntry.BackgroundColor3 = Color3.fromRGB(40, 45, 50)
@@ -800,8 +893,29 @@ local function updateUserList()
     localName.TextColor3 = Color3.new(1, 1, 1)
     localName.TextXAlignment = Enum.TextXAlignment.Left
     
+    if LocalHideTag then
+        local tagStatus = Instance.new("TextLabel", localEntry)
+        tagStatus.Size = UDim2.new(0, 50, 1, 0)
+        tagStatus.Position = UDim2.new(1, -55, 0, 0)
+        tagStatus.Text = "Tag: OFF"
+        tagStatus.BackgroundTransparency = 1
+        tagStatus.Font = Enum.Font.Gotham
+        tagStatus.TextSize = 10
+        tagStatus.TextColor3 = Color3.fromRGB(255, 150, 150)
+    else
+        local tagStatus = Instance.new("TextLabel", localEntry)
+        tagStatus.Size = UDim2.new(0, 50, 1, 0)
+        tagStatus.Position = UDim2.new(1, -55, 0, 0)
+        tagStatus.Text = "Tag: ON"
+        tagStatus.BackgroundTransparency = 1
+        tagStatus.Font = Enum.Font.Gotham
+        tagStatus.TextSize = 10
+        tagStatus.TextColor3 = Color3.fromRGB(150, 255, 150)
+    end
+    
     userCount = userCount + 1
     
+    -- Adicionar outros usuários
     for userId, userData in pairs(ScriptUsers) do
         if userId ~= localPlayerId and userData.player then
             userCount = userCount + 1
@@ -832,6 +946,26 @@ local function updateUserList()
             userName.TextSize = 11
             userName.TextColor3 = Color3.fromRGB(200, 200, 200)
             userName.TextXAlignment = Enum.TextXAlignment.Left
+            
+            if userData.hideTag then
+                local tagStatus = Instance.new("TextLabel", userEntry)
+                tagStatus.Size = UDim2.new(0, 40, 1, 0)
+                tagStatus.Position = UDim2.new(1, -45, 0, 0)
+                tagStatus.Text = "OFF"
+                tagStatus.BackgroundTransparency = 1
+                tagStatus.Font = Enum.Font.Gotham
+                tagStatus.TextSize = 9
+                tagStatus.TextColor3 = Color3.fromRGB(255, 150, 150)
+            else
+                local tagStatus = Instance.new("TextLabel", userEntry)
+                tagStatus.Size = UDim2.new(0, 40, 1, 0)
+                tagStatus.Position = UDim2.new(1, -45, 0, 0)
+                tagStatus.Text = "ON"
+                tagStatus.BackgroundTransparency = 1
+                tagStatus.Font = Enum.Font.Gotham
+                tagStatus.TextSize = 9
+                tagStatus.TextColor3 = Color3.fromRGB(150, 255, 150)
+            end
         end
     end
     
@@ -858,14 +992,14 @@ end)
 
 local footer = Instance.new("TextLabel", content)
 footer.Size = UDim2.new(0.9, 0, 0, 40)
-footer.Text = string.format("💡 Pressione [B] para abrir/fechar\n🔑 Seu acesso: %s", localAccessData.tag)
+footer.Text = string.format("💡 Pressione [B] para abrir/fechar\n🔑 Seu acesso: %s | Tag: %s", localAccessData.tag, LocalHideTag and "OFF" or "ON")
 footer.BackgroundTransparency = 1
 footer.Font = Enum.Font.Gotham
 footer.TextSize = 11
 footer.TextColor3 = Color3.fromRGB(150, 150, 150)
 footer.TextYAlignment = Enum.TextYAlignment.Top
 footer.TextWrapped = true
-footer.LayoutOrder = #movementKeys + #actionKeys + 6
+footer.LayoutOrder = startOrder + #movementKeys + #actionKeys + 4
 
 -- =========================
 -- FUNÇÕES DO SCRIPT
@@ -885,8 +1019,6 @@ local function activateTool(slot)
         tool:Activate()
     end
 end
-
-local lastUpdate = tick()
 
 RunService.RenderStepped:Connect(function()
     local currentTime = tick()
@@ -966,7 +1098,7 @@ player.CharacterAdded:Connect(function(char)
 end)
 
 -- =========================
--- INICIALIZAÇÃO
+-- INICIALIZAÇÃO FINAL
 -- =========================
 
 updateUserList()
@@ -974,5 +1106,5 @@ updateUserList()
 print("====================================")
 print(string.format("BONDSP AUTO KEYS - Acesso: %s", localAccessData.tag))
 print("Pressione B para abrir o menu")
-print("Usuários do script serão marcados")
+print("Tags visíveis para outros usuários")
 print("====================================")
