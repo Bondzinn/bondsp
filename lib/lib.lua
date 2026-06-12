@@ -45,14 +45,28 @@ end
 -- ==================== HTTP REQUESTS (API BACKEND) ====================
 function lib.request(method, endpoint, body)
     local url = (_config.apiBase or "") .. endpoint
+
+    -- GET: usa HttpGet simples (mais compatível com executores)
+    if method == "GET" and not body then
+        local ok, res = pcall(function()
+            return game:HttpGet(url)
+        end)
+        if not ok then
+            lib.warn("Request falhou [GET " .. endpoint .. "]: " .. tostring(res))
+            return nil
+        end
+        return lib.decode(res)
+    end
+
+    -- POST: usa HttpService
+    local HttpService = game:GetService("HttpService")
     local ok, res = pcall(function()
         return HttpService:RequestAsync({
             Url     = url,
             Method  = method,
             Headers = {
-                ["Content-Type"]  = "application/json",
+                ["Content-Type"]    = "application/json",
                 ["X-Panel-Version"] = _config.version or "1.0.0",
-                ["X-Game-Id"]     = tostring(game.PlaceId)
             },
             Body = body and lib.encode(body) or nil
         })
