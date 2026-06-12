@@ -13,7 +13,7 @@ local _httpCache   = {}   -- cache de respostas HTTP    { [url] = { data, timest
 local HTTP_CACHE_TTL = 30 -- segundos
 
 local HttpService = game:GetService("HttpService")
-local RAW_BASE    = "https://raw.githubusercontent.com/Bondzinn/bondsp/main/"
+local RAW_BASE    = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/"
 
 -- ==================== INIT ====================
 function lib.init(config)
