@@ -2,6 +2,7 @@
     288 Panel — lib.lua
     Biblioteca central. Fornece HTTP, cache, JSON, logs e helpers de UI.
     Carregada pelo Panel.lua via HttpGet.
+    Versão corrigida - Sem BindToClose e funções server-side
 ]]
 
 local lib = {}
@@ -13,12 +14,14 @@ local _httpCache   = {}   -- cache de respostas HTTP    { [url] = { data, timest
 local HTTP_CACHE_TTL = 30 -- segundos
 
 local HttpService = game:GetService("HttpService")
-local RAW_BASE    = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/"
+local RunService = game:GetService("RunService")
+local RAW_BASE    = "https://raw.githubusercontent.com/Bondzinn/288-Panel/main/"
 
 -- ==================== INIT ====================
 function lib.init(config)
     _config = config or {}
     lib.log("lib.lua iniciada — API: " .. (_config.apiBase or "?"))
+    lib.log("Ambiente: " .. (RunService:IsServer() and "Servidor" or "Cliente"))
 end
 
 -- ==================== LOGS ====================
@@ -30,13 +33,28 @@ function lib.warn(msg)
     warn("[288] " .. tostring(msg))
 end
 
+function lib.error(msg)
+    error("[288] " .. tostring(msg))
+end
+
 -- ==================== JSON ====================
 function lib.encode(t)
-    return HttpService:JSONEncode(t)
+    local success, result = pcall(function()
+        return HttpService:JSONEncode(t)
+    end)
+    if success then
+        return result
+    else
+        lib.warn("JSON encode falhou: " .. tostring(result))
+        return "{}"
+    end
 end
 
 function lib.decode(s)
-    local ok, r = pcall(function() return HttpService:JSONDecode(s) end)
+    if not s or s == "" then return nil end
+    local ok, r = pcall(function() 
+        return HttpService:JSONDecode(s) 
+    end)
     if ok then return r end
     lib.warn("JSON decode falhou: " .. tostring(r))
     return nil
@@ -44,47 +62,49 @@ end
 
 -- ==================== HTTP REQUESTS (API BACKEND) ====================
 function lib.request(method, endpoint, body)
-    local url = (_config.apiBase or "") .. endpoint
-
-    local req = (syn and syn.request)
-        or http_request
-        or request
-
-    if not req then
-        lib.warn("Executor não suporta HTTP request")
+    if not _config.apiBase then
+        lib.warn("API Base não configurada")
         return nil
     end
+    
+    local url = _config.apiBase .. endpoint
 
-    local res = req({
-        Url = url,
-        Method = method,
-        Headers = {
-            ["Content-Type"] = "application/json",
-            ["X-Panel-Version"] = _config.version or "1.0.0",
-        },
-        Body = body and HttpService:JSONEncode(body) or nil
-    })
-
-    if not res then
-        return nil
+    -- GET: usa HttpGet simples (mais compatível com executores)
+    if method == "GET" and not body then
+        local ok, res = pcall(function()
+            return game:HttpGet(url)
+        end)
+        if not ok then
+            lib.warn("Request falhou [GET " .. endpoint .. "]: " .. tostring(res))
+            return nil
+        end
+        return lib.decode(res)
     end
 
-    -- compatibilidade com diferentes formatos
-    local raw = res.Body or res.body
-    if not raw then
-        return nil
-    end
-
-    local ok, decoded = pcall(function()
-        return HttpService:JSONDecode(raw)
+    -- POST: usa HttpService
+    local ok, res = pcall(function()
+        return HttpService:RequestAsync({
+            Url     = url,
+            Method  = method,
+            Headers = {
+                ["Content-Type"]    = "application/json",
+                ["X-Panel-Version"] = _config.version or "1.0.0",
+            },
+            Body = body and lib.encode(body) or nil
+        })
     end)
 
     if not ok then
-        lib.warn("JSON inválido em: " .. endpoint)
+        lib.warn("Request falhou [" .. method .. " " .. endpoint .. "]: " .. tostring(res))
         return nil
     end
 
-    return decoded
+    if not res.Success then
+        lib.warn("HTTP " .. tostring(res.StatusCode) .. " em " .. endpoint)
+        return nil
+    end
+
+    return lib.decode(res.Body)
 end
 
 -- ==================== CACHE HTTP ====================
@@ -101,6 +121,100 @@ function lib.cachedGet(endpoint)
     return data
 end
 
+function lib.clearCache()
+    _httpCache = {}
+    lib.log("Cache HTTP limpo")
+end
+
+-- ==================== SANDBOX PARA MÓDULOS ====================
+-- Cria um ambiente seguro para executar módulos (bloqueia funções server-side)
+function lib.createSandbox(modulePath)
+    local sandbox = {
+        -- Funções permitidas
+        print = print,
+        warn = warn,
+        task = task,
+        pcall = pcall,
+        xpcall = xpcall,
+        wait = wait,
+        spawn = spawn,
+        delay = delay,
+        
+        -- Bibliotecas padrão
+        string = string,
+        table = table,
+        math = math,
+        os = { time = os.time, date = os.date, clock = os.clock, difftime = os.difftime },
+        
+        -- Serviços seguros (readonly)
+        game = game,
+        workspace = workspace,
+        Players = game:GetService("Players"),
+        ReplicatedStorage = game:GetService("ReplicatedStorage"),
+        Lighting = game:GetService("Lighting"),
+        TweenService = game:GetService("TweenService"),
+        UserInputService = game:GetService("UserInputService"),
+        RunService = RunService,
+        HttpService = HttpService,
+        
+        -- Construtores
+        Instance = Instance,
+        Color3 = Color3,
+        Color3fromRGB = Color3.fromRGB,
+        Color3fromHSV = Color3.fromHSV,
+        UDim = UDim,
+        UDim2 = UDim2,
+        Vector2 = Vector2,
+        Vector3 = Vector3,
+        CFrame = CFrame,
+        Ray = Ray,
+        Rect = Rect,
+        Region3 = Region3,
+        Enum = Enum,
+        
+        -- Lib exposta para módulos
+        lib = lib,
+        
+        -- Variáveis de ambiente
+        _ENV = {},
+        _G = {},
+    }
+    
+    -- Bloquear funções server-side específicas
+    local blockedFunctions = {
+        "BindToClose",
+        "OnShutdown",
+        "SetStudioScale",
+        "GetStudioScale",
+        "SetMasterVolume",
+        "GetMasterVolume"
+    }
+    
+    for _, funcName in ipairs(blockedFunctions) do
+        sandbox[funcName] = nil
+    end
+    
+    -- Metatable para capturar acessos não permitidos
+    setmetatable(sandbox, {
+        __index = function(_, key)
+            if key == "BindToClose" then
+                error("BindToClose não pode ser usado no cliente", 2)
+            end
+            -- Permite acesso a outras globais mas com warn
+            if _G[key] ~= nil then
+                lib.warn("⚠️ Módulo tentou acessar variável global não permitida: " .. tostring(key))
+                return nil
+            end
+            return nil
+        end,
+        __newindex = function(_, key, value)
+            lib.warn("⚠️ Módulo tentou criar variável global: " .. tostring(key))
+        end
+    })
+    
+    return sandbox
+end
+
 -- ==================== LOAD MODULE (LAZY) ====================
 -- Carrega um módulo do GitHub pelo path relativo.
 -- Usa cache para não fazer múltiplos HttpGet do mesmo módulo.
@@ -110,23 +224,92 @@ function lib.loadModule(path)
     end
 
     local url = RAW_BASE .. path
-    local ok, result = pcall(function()
-        return loadstring(game:HttpGet(url))()
+    lib.log("Carregando módulo: " .. path)
+    
+    local code, err = pcall(function()
+        return game:HttpGet(url)
     end)
-
-    if not ok then
-        lib.warn("Falha ao carregar módulo [" .. path .. "]: " .. tostring(result))
+    
+    if not code then
+        lib.warn("Falha ao baixar módulo [" .. path .. "]: " .. tostring(err))
         return nil
+    end
+    
+    if not code or code == "" then
+        lib.warn("Módulo vazio: " .. path)
+        return nil
+    end
+    
+    -- Pré-processar o código para remover BindToClose
+    local safeCode = code
+    if string.find(safeCode, "BindToClose") then
+        lib.warn("⚠️ Removendo BindToClose do módulo: " .. path)
+        safeCode = string.gsub(safeCode, ":BindToClose%s*%(", ":--BindToCloseRemoved(")
+        safeCode = string.gsub(safeCode, "game%s*%.BindToClose", "game.--BindToCloseRemoved")
+        safeCode = string.gsub(safeCode, "BindToClose%s*=", "--BindToCloseRemoved=")
+    end
+    
+    -- Criar ambiente seguro
+    local sandbox = lib.createSandbox(path)
+    
+    -- Compilar código
+    local fn, compileErr = loadstring(safeCode)
+    if not fn then
+        -- Tentar sem remoção de BindToClose
+        fn, compileErr = loadstring(code)
+        if not fn then
+            lib.warn("Erro ao compilar módulo [" .. path .. "]: " .. tostring(compileErr))
+            return nil
+        end
+    end
+    
+    -- Executar no sandbox
+    setfenv(fn, sandbox)
+    local success, result = pcall(fn)
+    
+    if not success then
+        lib.warn("Falha ao executar módulo [" .. path .. "]: " .. tostring(result))
+        -- Se falhar por BindToClose, tentar novamente com código sanitizado
+        if string.find(tostring(result), "BindToClose") then
+            lib.warn("Tentando novamente com sanitização adicional...")
+            local moreSafeCode = string.gsub(code, "BindToClose", "nil")
+            fn, compileErr = loadstring(moreSafeCode)
+            if fn then
+                setfenv(fn, sandbox)
+                success, result = pcall(fn)
+            end
+        end
+        if not success then
+            return nil
+        end
     end
 
     -- Validação de estrutura mínima
-    if type(result) ~= "table" or not result.Name or not result.Enable then
-        lib.warn("Módulo inválido (estrutura incorreta): " .. path)
-        return nil
+    if type(result) ~= "table" then
+        -- Tenta converter para table se necessário
+        result = result or {}
+    end
+    
+    -- Validação dos campos obrigatórios
+    if not result.Name then
+        result.Name = path:match("([^/]+)%.lua$") or "Módulo sem nome"
+        lib.warn("Módulo sem nome: " .. path .. ", usando: " .. result.Name)
+    end
+    
+    if not result.Enable then
+        result.Enable = function() 
+            lib.log(result.Name .. " habilitado (placeholder)")
+        end
+    end
+    
+    if not result.Disable then
+        result.Disable = function() 
+            lib.log(result.Name .. " desabilitado (placeholder)")
+        end
     end
 
     _moduleCache[path] = result
-    lib.log("Módulo carregado: " .. result.Name)
+    lib.log("✅ Módulo carregado: " .. result.Name)
     return result
 end
 
@@ -180,39 +363,58 @@ function lib.applyPadding(instance, px)
     return pad
 end
 
+function lib.applyShadow(instance, size, transparency)
+    local shadow = Instance.new("UIShadow")
+    shadow.Size = size or 4
+    shadow.Transparency = transparency or 0.5
+    shadow.Parent = instance
+    return shadow
+end
+
 -- ==================== NOTIFICAÇÃO FLUTUANTE ====================
-function lib.showNotification(screenGui, message, duration)
+function lib.showNotification(screenGui, message, duration, isError)
     duration = duration or 3
+    isError = isError or false
+    
     local notif = Instance.new("Frame")
-    notif.Size             = UDim2.new(0, 320, 0, 48)
-    notif.Position         = UDim2.new(0.5, -160, 1, -80)
-    notif.BackgroundColor3 = Color3.fromRGB(30, 30, 38)
+    notif.Size             = UDim2.new(0, 340, 0, 48)
+    notif.Position         = UDim2.new(0.5, -170, 1, -80)
+    notif.BackgroundColor3 = isError and Color3.fromRGB(80, 30, 30) or Color3.fromRGB(30, 30, 38)
     notif.Parent           = screenGui
+    notif.ZIndex = 100
     lib.applyCorner(notif, 10)
-    lib.applyStroke(notif, Color3.fromRGB(80, 80, 120), 1)
+    lib.applyStroke(notif, isError and Color3.fromRGB(200, 50, 50) or Color3.fromRGB(80, 80, 120), 1)
 
     local label = Instance.new("TextLabel")
     label.Size                = UDim2.new(1, -20, 1, 0)
     label.Position            = UDim2.new(0, 10, 0, 0)
     label.BackgroundTransparency = 1
-    label.Text                = message
+    label.Text                = (isError and "❌ " or "✓ ") .. message
     label.TextColor3          = Color3.fromRGB(220, 220, 230)
     label.TextScaled          = true
     label.Font                = Enum.Font.Gotham
     label.Parent              = notif
 
-    task.delay(duration, function()
-        if notif and notif.Parent then notif:Destroy() end
+    -- Animação de entrada
+    notif.Position = UDim2.new(0.5, -170, 1, -60)
+    task.spawn(function()
+        task.wait(duration)
+        if notif and notif.Parent then
+            notif:Destroy()
+        end
     end)
+    
+    return notif
 end
 
 -- ==================== TOGGLE SWITCH ====================
-function lib.createToggle(parent, labelText, yOffset, isActive, onToggle)
+function lib.createToggle(parent, labelText, yOffset, isActive, onToggle, isDisabled)
     local container = Instance.new("Frame")
     container.Size             = UDim2.new(1, -12, 0, 48)
     container.Position         = UDim2.new(0, 6, 0, yOffset)
     container.BackgroundColor3 = Color3.fromRGB(32, 32, 40)
     container.Parent           = parent
+    container.BackgroundTransparency = isDisabled and 0.5 or 0
     lib.applyCorner(container, 8)
 
     local label = Instance.new("TextLabel")
@@ -220,7 +422,7 @@ function lib.createToggle(parent, labelText, yOffset, isActive, onToggle)
     label.Position          = UDim2.new(0, 12, 0, 0)
     label.BackgroundTransparency = 1
     label.Text              = labelText
-    label.TextColor3        = Color3.fromRGB(210, 210, 215)
+    label.TextColor3        = isDisabled and Color3.fromRGB(120, 120, 130) or Color3.fromRGB(210, 210, 215)
     label.TextSize          = 14
     label.Font              = Enum.Font.GothamBold
     label.TextXAlignment    = Enum.TextXAlignment.Left
@@ -235,6 +437,7 @@ function lib.createToggle(parent, labelText, yOffset, isActive, onToggle)
     track.Position         = UDim2.new(1, -56, 0.5, -12)
     track.BackgroundColor3 = isActive and trackOn or trackOff
     track.Parent           = container
+    track.BackgroundTransparency = isDisabled and 0.5 or 0
     lib.applyCorner(track, 12)
 
     local knob = Instance.new("Frame")
@@ -242,27 +445,30 @@ function lib.createToggle(parent, labelText, yOffset, isActive, onToggle)
     knob.Position         = isActive and UDim2.new(1, -23, 0.5, -10) or UDim2.new(0, 3, 0.5, -10)
     knob.BackgroundColor3 = Color3.new(1, 1, 1)
     knob.Parent           = track
+    knob.BackgroundTransparency = isDisabled and 0.3 or 0
     lib.applyCorner(knob, 10)
 
-    local hitbox = Instance.new("TextButton")
-    hitbox.Size               = UDim2.new(1, 0, 1, 0)
-    hitbox.BackgroundTransparency = 1
-    hitbox.Text               = ""
-    hitbox.Parent             = track
+    if not isDisabled then
+        local hitbox = Instance.new("TextButton")
+        hitbox.Size               = UDim2.new(1, 0, 1, 0)
+        hitbox.BackgroundTransparency = 1
+        hitbox.Text               = ""
+        hitbox.Parent             = track
 
-    local active = isActive
-    hitbox.MouseButton1Click:Connect(function()
-        active = not active
-        track.BackgroundColor3 = active and trackOn or trackOff
-        knob.Position = active and UDim2.new(1, -23, 0.5, -10) or UDim2.new(0, 3, 0.5, -10)
-        onToggle(active)
-    end)
+        local active = isActive
+        hitbox.MouseButton1Click:Connect(function()
+            active = not active
+            track.BackgroundColor3 = active and trackOn or trackOff
+            knob.Position = active and UDim2.new(1, -23, 0.5, -10) or UDim2.new(0, 3, 0.5, -10)
+            if onToggle then onToggle(active) end
+        end)
+    end
 
     return container
 end
 
 -- ==================== ACTION BUTTON ====================
-function lib.createButton(parent, labelText, yOffset, callback)
+function lib.createButton(parent, labelText, yOffset, callback, buttonText)
     local container = Instance.new("Frame")
     container.Size             = UDim2.new(1, -12, 0, 48)
     container.Position         = UDim2.new(0, 6, 0, yOffset)
@@ -285,16 +491,37 @@ function lib.createButton(parent, labelText, yOffset, callback)
     btn.Size             = UDim2.new(0, 88, 0, 32)
     btn.Position         = UDim2.new(1, -98, 0.5, -16)
     btn.BackgroundColor3 = Color3.fromRGB(0, 140, 200)
-    btn.Text             = "▶ EXECUTAR"
+    btn.Text             = buttonText or "▶ EXECUTAR"
     btn.TextColor3       = Color3.new(1, 1, 1)
     btn.TextSize         = 12
     btn.Font             = Enum.Font.GothamBold
     btn.Parent           = container
     lib.applyCorner(btn, 6)
 
-    btn.MouseEnter:Connect(function() btn.BackgroundColor3 = Color3.fromRGB(0, 160, 220) end)
-    btn.MouseLeave:Connect(function() btn.BackgroundColor3 = Color3.fromRGB(0, 140, 200) end)
-    btn.MouseButton1Click:Connect(callback)
+    btn.MouseEnter:Connect(function() 
+        if not btn.Disabled then
+            btn.BackgroundColor3 = Color3.fromRGB(0, 160, 220)
+        end
+    end)
+    btn.MouseLeave:Connect(function() 
+        if not btn.Disabled then
+            btn.BackgroundColor3 = Color3.fromRGB(0, 140, 200)
+        end
+    end)
+    
+    btn.MouseButton1Click:Connect(function()
+        if callback and not btn.Disabled then
+            local success, err = pcall(callback)
+            if not success then
+                lib.warn("Erro no callback do botão: " .. tostring(err))
+                local player = game:GetService("Players").LocalPlayer
+                local gui = player:WaitForChild("PlayerGui"):FindFirstChild("288Panel")
+                if gui then
+                    lib.showNotification(gui, "Erro: " .. tostring(err), 3, true)
+                end
+            end
+        end
+    end)
 
     return container
 end
@@ -318,16 +545,19 @@ function lib.buildHomeFrame(parent, userData, apiBase)
     avatar.Parent           = frame
     lib.applyCorner(avatar, 45)
     lib.applyStroke(avatar, lib.getRankColor(userData.rank), 2)
+    avatar.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
 
     task.spawn(function()
-        local ok, img = pcall(function()
+        local success, img = pcall(function()
             return Players:GetUserThumbnailAsync(
                 LocalPlayer.UserId,
                 Enum.ThumbnailType.HeadShot,
                 Enum.ThumbnailSize.Size420x420
             )
         end)
-        if ok and img then avatar.Image = img end
+        if success and img and img ~= "" then 
+            avatar.Image = img 
+        end
     end)
 
     -- Nome
@@ -366,14 +596,17 @@ function lib.buildHomeFrame(parent, userData, apiBase)
     infoLabel.Parent            = frame
 
     -- Atualiza info a cada 2s
+    local running = true
     task.spawn(function()
-        while infoLabel and infoLabel.Parent do
-            local stats = lib.cachedGet("/stats")
-            local ping  = LocalPlayer:GetPing() or 0
+        while running and infoLabel and infoLabel.Parent do
+            local success, stats = pcall(lib.cachedGet, "/stats")
+            local ping = 0
+            local successPing, p = pcall(function() return LocalPlayer:GetPing() end)
+            if successPing then ping = p end
             local online = (stats and stats.online) or #Players:GetPlayers()
             local total  = (stats and stats.totalUsers) or 0
             infoLabel.Text = string.format(
-                "Ping: %dms   •   Online: %d   •   Total: %d\n[INSERT] para abrir/fechar",
+                "🏓 Ping: %dms   •   👥 Online: %d   •   📊 Total: %d\n🔘 [INSERT] para abrir/fechar",
                 math.floor(ping), online, total
             )
             task.wait(4)
@@ -382,8 +615,8 @@ function lib.buildHomeFrame(parent, userData, apiBase)
 
     -- Announcements
     task.spawn(function()
-        local ann = lib.cachedGet("/announcements")
-        if ann and ann[1] then
+        local success, ann = pcall(lib.cachedGet, "/announcements")
+        if success and ann and ann[1] and ann[1].message then
             local annLabel = Instance.new("TextLabel")
             annLabel.Size              = UDim2.new(1, -40, 0, 50)
             annLabel.Position          = UDim2.new(0, 20, 0, 310)
@@ -392,18 +625,22 @@ function lib.buildHomeFrame(parent, userData, apiBase)
             annLabel.TextSize          = 13
             annLabel.Font              = Enum.Font.Gotham
             annLabel.TextWrapped       = true
-            annLabel.Text              = "📢 " .. (ann[1].message or "")
+            annLabel.Text              = "📢 " .. tostring(ann[1].message)
             annLabel.Parent            = frame
             lib.applyCorner(annLabel, 8)
             lib.applyPadding(annLabel, 8)
         end
+    end)
+    
+    -- Cleanup
+    frame.Destroying:Connect(function()
+        running = false
     end)
 
     return frame
 end
 
 -- ==================== FRAME BUILDER: CATEGORIA ====================
--- Carrega todos os módulos de uma categoria e monta a grade de toggles/botões.
 function lib.buildCategoryFrame(parent, category, modules, userData)
     local frame = Instance.new("Frame")
     frame.Size             = UDim2.new(1, 0, 1, 0)
@@ -459,34 +696,59 @@ function lib.buildCategoryFrame(parent, category, modules, userData)
     end
 
     for i, modDef in ipairs(catModules) do
-        -- VIP gate por módulo
         local isVipLocked = modDef.RequireVip and not userData.vip
-
+        
         task.spawn(function()
             local modTable = lib.loadModule(modDef.Path)
-            if not modTable then return end
+            if not modTable then
+                -- Mostrar módulo como indisponível
+                lib.createToggle(
+                    scroll,
+                    "❌ " .. (modDef.Name or modDef.Path),
+                    0,
+                    false,
+                    nil,
+                    true
+                )
+                return
+            end
 
             lib.createToggle(
                 scroll,
                 (isVipLocked and "🔒 " or "") .. modTable.Name,
                 0,
-                modTable.Enabled,
+                modTable.Enabled or false,
                 function(state)
                     if isVipLocked then
-                        lib.showNotification(
-                            game:GetService("Players").LocalPlayer
-                                :WaitForChild("PlayerGui"):WaitForChild("288Panel"),
-                            "🔒 Requer VIP!"
-                        )
+                        local player = game:GetService("Players").LocalPlayer
+                        local gui = player:WaitForChild("PlayerGui"):FindFirstChild("288Panel")
+                        if gui then
+                            lib.showNotification(gui, "🔒 Este módulo requer VIP!", 3, true)
+                        end
                         return
                     end
-                    if state then
-                        modTable:Enable()
-                    else
-                        modTable:Disable()
+                    
+                    local success, err = pcall(function()
+                        if state then
+                            if modTable.Enable then modTable:Enable() end
+                        else
+                            if modTable.Disable then modTable:Disable() end
+                        end
+                    end)
+                    
+                    if not success then
+                        lib.warn("Erro ao " .. (state and "habilitar" or "desabilitar") .. " módulo " .. modTable.Name .. ": " .. tostring(err))
+                        local player = game:GetService("Players").LocalPlayer
+                        local gui = player:WaitForChild("PlayerGui"):FindFirstChild("288Panel")
+                        if gui then
+                            lib.showNotification(gui, "Erro no módulo: " .. tostring(err), 3, true)
+                        end
+                        return
                     end
+                    
                     modTable.Enabled = state
-                end
+                end,
+                isVipLocked
             )
         end)
     end
@@ -506,7 +768,7 @@ function lib.buildPlaceholderFrame(parent, name)
     label.Size              = UDim2.new(1, -40, 0, 60)
     label.Position          = UDim2.new(0, 20, 0.4, 0)
     label.BackgroundTransparency = 1
-    label.Text              = name .. "\nEm breve..."
+    label.Text              = name .. "\n🚧 Em breve... 🚧"
     label.TextColor3        = Color3.fromRGB(130, 130, 140)
     label.TextScaled        = true
     label.Font              = Enum.Font.Gotham
@@ -514,6 +776,36 @@ function lib.buildPlaceholderFrame(parent, name)
     label.Parent            = frame
 
     return frame
+end
+
+-- ==================== UTILITÁRIOS GERAIS ====================
+function lib.getPlayerGui()
+    local player = game:GetService("Players").LocalPlayer
+    if not player then return nil end
+    return player:FindFirstChild("PlayerGui")
+end
+
+function lib.isModuleLoaded(path)
+    return _moduleCache[path] ~= nil
+end
+
+function lib.unloadModule(path)
+    if _moduleCache[path] then
+        -- Tentar desabilitar primeiro
+        local mod = _moduleCache[path]
+        if mod and mod.Disable then
+            pcall(mod.Disable, mod)
+        end
+        _moduleCache[path] = nil
+        lib.log("Módulo descarregado: " .. path)
+        return true
+    end
+    return false
+end
+
+function lib.reloadModule(path)
+    lib.unloadModule(path)
+    return lib.loadModule(path)
 end
 
 return lib
