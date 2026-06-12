@@ -1,5 +1,5 @@
 --[[
-    288 Panel - Entry Point (VERSÃO CORRIGIDA PARA REQUISIÇÕES)
+    288 Panel - Entry Point (FINAL - CORRIGIDO)
 ]]
 
 -- ==================== CONFIGURAÇÃO ====================
@@ -17,31 +17,42 @@ local LocalPlayer = Players.LocalPlayer
 
 -- ==================== FUNÇÕES HTTP CORRIGIDAS ====================
 
--- Função segura para enviar POST
+-- Função segura para POST - GARANTE que o body é string
 function httpPost(url, data)
-    -- Garantir que data é uma string JSON válida
-    local jsonData = HttpService:JSONEncode(data or {})
+    -- Converter data para string JSON com segurança
+    local jsonString = "{}"
+    
+    if data then
+        local success, result = pcall(function()
+            return HttpService:JSONEncode(data)
+        end)
+        if success then
+            jsonString = result
+        end
+    end
+    
+    -- Garantir que é string
+    jsonString = tostring(jsonString)
+    
+    print("[DEBUG] POST URL:", url)
+    print("[DEBUG] POST Body:", jsonString)
     
     local success, result = pcall(function()
-        return game:HttpPost(url, jsonData, false, "application/json")
+        return game:HttpPost(url, jsonString, false, "application/json")
     end)
     
-    if success and result and result ~= "" and result ~= "nil" then
-        local ok, decoded = pcall(function()
-            return HttpService:JSONDecode(result)
-        end)
-        if ok then 
-            return decoded 
-        else
-            -- Se falhar, tentar limpar o resultado
-            local cleaned = string.gsub(result, "^nil$", "")
-            if cleaned ~= "" then
-                local ok2, decoded2 = pcall(function()
-                    return HttpService:JSONDecode(cleaned)
-                end)
-                if ok2 then return decoded2 end
+    if success and result then
+        print("[DEBUG] POST Response:", result)
+        if result ~= "" and result ~= "nil" then
+            local ok, decoded = pcall(function()
+                return HttpService:JSONDecode(result)
+            end)
+            if ok then
+                return decoded
             end
         end
+    else
+        print("[DEBUG] POST Failed:", result)
     end
     
     return nil
@@ -49,38 +60,55 @@ end
 
 -- Função segura para GET
 function httpGet(url)
+    print("[DEBUG] GET URL:", url)
+    
     local success, result = pcall(function()
         return game:HttpGet(url)
     end)
     
     if success and result and result ~= "" and result ~= "nil" then
+        print("[DEBUG] GET Response:", result)
         local ok, decoded = pcall(function()
             return HttpService:JSONDecode(result)
         end)
-        if ok then return decoded end
+        if ok then
+            return decoded
+        end
     end
     
     return nil
 end
 
 -- ==================== FUNÇÃO DE REQUISIÇÃO PRINCIPAL ====================
-function safeRequest(method, endpoint, body)
+function safeRequest(method, endpoint, data)
     local url = API_BASE .. endpoint
     
     if method == "POST" then
-        local result = httpPost(url, body or {})
-        if result then 
-            return result 
+        -- Certificar que data é uma tabela
+        local body = data or {}
+        
+        -- Log dos dados sendo enviados
+        print("[288] Enviando POST para", endpoint)
+        print("[288] Dados:", HttpService:JSONEncode(body))
+        
+        local result = httpPost(url, body)
+        
+        if result then
+            print("[288] POST resposta:", HttpService:JSONEncode(result))
+            return result
         end
         
-        -- Fallback para simulação
+        -- Fallback
         if endpoint == "/session/start" then
-            return { sessionId = "local_" .. tostring(os.time()) .. "_" .. tostring(LocalPlayer.UserId) }
+            local fallbackId = "local_" .. tostring(os.time()) .. "_" .. tostring(LocalPlayer.UserId)
+            print("[288] Usando fallback session:", fallbackId)
+            return { sessionId = fallbackId }
         end
         return { success = true }
     end
     
     if method == "GET" then
+        print("[288] Enviando GET para", endpoint)
         return httpGet(url)
     end
     
@@ -219,25 +247,33 @@ lib.init({ apiBase = API_BASE, version = VERSION })
 local sessionId = nil
 
 local function startSession()
-    local res = safeRequest("POST", "/session/start", {
+    -- Dados para enviar
+    local postData = {
         userid = LocalPlayer.UserId,
         username = LocalPlayer.Name,
         version = VERSION,
         game = tostring(game.PlaceId),
         device = lib.getDevice()
-    })
+    }
+    
+    print("[288] Iniciando sessão com dados:", postData)
+    
+    local res = safeRequest("POST", "/session/start", postData)
+    
+    print("[288] Resposta do servidor:", res)
     
     if res and res.sessionId then
         sessionId = res.sessionId
-        lib.log("Sessão iniciada: " .. sessionId)
+        lib.log("✅ Sessão iniciada: " .. sessionId)
     else
         sessionId = "local_" .. tostring(os.time()) .. "_" .. tostring(LocalPlayer.UserId)
-        lib.log("Usando sessão local: " .. sessionId)
+        lib.log("⚠️ Usando sessão local: " .. sessionId)
     end
 end
 
 local function heartbeat()
     if not sessionId then return end
+    
     pcall(function()
         safeRequest("POST", "/session/heartbeat", {
             sessionId = sessionId,
@@ -247,9 +283,17 @@ local function heartbeat()
 end
 
 -- Verificar usuário
-local userData = safeRequest("GET", "/user/" .. LocalPlayer.UserId)
+local userData = nil
 
-if not userData or not userData.userid then
+print("[288] Buscando dados do usuário:", LocalPlayer.UserId)
+
+local userResponse = safeRequest("GET", "/user/" .. LocalPlayer.UserId)
+
+print("[288] Resposta do servidor:", userResponse)
+
+if userResponse and userResponse.userid then
+    userData = userResponse
+else
     userData = {
         userid = LocalPlayer.UserId,
         username = LocalPlayer.Name,
@@ -257,7 +301,7 @@ if not userData or not userData.userid then
         vip = false,
         banned = false
     }
-    lib.log("Usando dados de usuário simulados")
+    lib.log("⚠️ Usando dados de usuário simulados")
 end
 
 if userData.banned then
