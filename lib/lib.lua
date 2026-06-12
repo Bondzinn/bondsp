@@ -46,43 +46,45 @@ end
 function lib.request(method, endpoint, body)
     local url = (_config.apiBase or "") .. endpoint
 
-    -- GET: usa HttpGet simples (mais compatível com executores)
-    if method == "GET" and not body then
-        local ok, res = pcall(function()
-            return game:HttpGet(url)
-        end)
-        if not ok then
-            lib.warn("Request falhou [GET " .. endpoint .. "]: " .. tostring(res))
-            return nil
-        end
-        return lib.decode(res)
+    local req = (syn and syn.request)
+        or http_request
+        or request
+
+    if not req then
+        lib.warn("Executor não suporta HTTP request")
+        return nil
     end
 
-    -- POST: usa HttpService
-    local HttpService = game:GetService("HttpService")
-    local ok, res = pcall(function()
-        return HttpService:RequestAsync({
-            Url     = url,
-            Method  = method,
-            Headers = {
-                ["Content-Type"]    = "application/json",
-                ["X-Panel-Version"] = _config.version or "1.0.0",
-            },
-            Body = body and lib.encode(body) or nil
-        })
+    local res = req({
+        Url = url,
+        Method = method,
+        Headers = {
+            ["Content-Type"] = "application/json",
+            ["X-Panel-Version"] = _config.version or "1.0.0",
+        },
+        Body = body and HttpService:JSONEncode(body) or nil
+    })
+
+    if not res then
+        return nil
+    end
+
+    -- compatibilidade com diferentes formatos
+    local raw = res.Body or res.body
+    if not raw then
+        return nil
+    end
+
+    local ok, decoded = pcall(function()
+        return HttpService:JSONDecode(raw)
     end)
 
     if not ok then
-        lib.warn("Request falhou [" .. method .. " " .. endpoint .. "]: " .. tostring(res))
+        lib.warn("JSON inválido em: " .. endpoint)
         return nil
     end
 
-    if not res.Success then
-        lib.warn("HTTP " .. tostring(res.StatusCode) .. " em " .. endpoint)
-        return nil
-    end
-
-    return lib.decode(res.Body)
+    return decoded
 end
 
 -- ==================== CACHE HTTP ====================
