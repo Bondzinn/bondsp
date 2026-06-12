@@ -262,7 +262,7 @@ local ContentCorner = Instance.new("UICorner")
 ContentCorner.CornerRadius = UDim.new(0, 10)
 ContentCorner.Parent = ContentFrame
 
--- ==================== HOME FRAME ====================
+-- ==================== HOME FRAME PERSONALIZADA ====================
 local HomeFrame = Instance.new("Frame")
 HomeFrame.Size = UDim2.new(1, 0, 1, 0)
 HomeFrame.BackgroundTransparency = 1
