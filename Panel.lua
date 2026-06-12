@@ -1,279 +1,91 @@
---[[
-    288 Panel - Entry Point (FINAL - CORRIGIDO)
+--[[ 
+    288 Panel - Versão Completa
+    Design personalizado com Home e Sidebar
+    API integrada com Cloudflare
 ]]
 
--- ==================== CONFIGURAÇÃO ====================
-local RAW = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/"
-local API_BASE = "https://seems-seventh-brook-nickname.trycloudflare.com"
-
-local VERSION = "1.0.0"
-local HEARTBEAT_INTERVAL = 60
-
--- ==================== SERVIÇOS ====================
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
--- ==================== FUNÇÕES HTTP CORRIGIDAS ====================
+-- ==================== CONFIGURAÇÃO ====================
+local API_BASE = "https://seems-seventh-brook-nickname.trycloudflare.com"
+local VERSION = "1.0.0"
+local HEARTBEAT_INTERVAL = 60
 
--- Função segura para POST - GARANTE que o body é string
+-- ==================== FUNÇÕES HTTP ====================
 function httpPost(url, data)
-    -- Converter data para string JSON com segurança
     local jsonString = "{}"
-    
     if data then
         local success, result = pcall(function()
             return HttpService:JSONEncode(data)
         end)
-        if success then
-            jsonString = result
-        end
+        if success then jsonString = result end
     end
-    
-    -- Garantir que é string
-    jsonString = tostring(jsonString)
-    
-    print("[DEBUG] POST URL:", url)
-    print("[DEBUG] POST Body:", jsonString)
     
     local success, result = pcall(function()
-        return game:HttpPost(url, jsonString, false, "application/json")
+        return game:HttpPost(url, tostring(jsonString), false, "application/json")
     end)
     
-    if success and result then
-        print("[DEBUG] POST Response:", result)
-        if result ~= "" and result ~= "nil" then
-            local ok, decoded = pcall(function()
-                return HttpService:JSONDecode(result)
-            end)
-            if ok then
-                return decoded
-            end
-        end
-    else
-        print("[DEBUG] POST Failed:", result)
+    if success and result and result ~= "" and result ~= "nil" then
+        local ok, decoded = pcall(function()
+            return HttpService:JSONDecode(result)
+        end)
+        if ok then return decoded end
     end
-    
     return nil
 end
 
--- Função segura para GET
 function httpGet(url)
-    print("[DEBUG] GET URL:", url)
-    
     local success, result = pcall(function()
         return game:HttpGet(url)
     end)
     
     if success and result and result ~= "" and result ~= "nil" then
-        print("[DEBUG] GET Response:", result)
         local ok, decoded = pcall(function()
             return HttpService:JSONDecode(result)
         end)
-        if ok then
-            return decoded
-        end
+        if ok then return decoded end
     end
-    
     return nil
 end
 
--- ==================== FUNÇÃO DE REQUISIÇÃO PRINCIPAL ====================
 function safeRequest(method, endpoint, data)
     local url = API_BASE .. endpoint
     
     if method == "POST" then
-        -- Certificar que data é uma tabela
-        local body = data or {}
-        
-        -- Log dos dados sendo enviados
-        print("[288] Enviando POST para", endpoint)
-        print("[288] Dados:", HttpService:JSONEncode(body))
-        
-        local result = httpPost(url, body)
-        
-        if result then
-            print("[288] POST resposta:", HttpService:JSONEncode(result))
-            return result
-        end
-        
-        -- Fallback
-        if endpoint == "/session/start" then
-            local fallbackId = "local_" .. tostring(os.time()) .. "_" .. tostring(LocalPlayer.UserId)
-            print("[288] Usando fallback session:", fallbackId)
-            return { sessionId = fallbackId }
-        end
-        return { success = true }
-    end
-    
-    if method == "GET" then
-        print("[288] Enviando GET para", endpoint)
+        return httpPost(url, data or {})
+    elseif method == "GET" then
         return httpGet(url)
     end
-    
     return nil
 end
 
--- ==================== LOAD DA LIB ====================
-local lib = {
-    init = function(config) 
-        print("[288] lib iniciada - API: " .. (config and config.apiBase or "?"))
-    end,
-    log = print,
-    warn = warn,
-    getDevice = function() 
-        local uis = game:GetService("UserInputService")
-        if uis.TouchEnabled then return "Mobile" end
-        return "PC"
-    end,
-    getRankColor = function(rank)
-        local colors = {
-            Owner = Color3.fromRGB(255, 50, 50),
-            Supervisor = Color3.fromRGB(255, 140, 0),
-            Support = Color3.fromRGB(50, 150, 255),
-            VIP = Color3.fromRGB(180, 0, 255),
-        }
-        return colors[rank] or Color3.fromRGB(80, 80, 90)
-    end,
-    applyCorner = function(i, r) 
-        local c = Instance.new("UICorner")
-        c.CornerRadius = UDim.new(0, r or 8)
-        c.Parent = i
-        return c
-    end,
-    applyStroke = function(i, c, t) 
-        local s = Instance.new("UIStroke")
-        s.Color = c or Color3.fromRGB(50, 50, 60)
-        s.Thickness = t or 1
-        s.Parent = i
-        return s
-    end,
-    showNotification = function(gui, msg, dur, isErr)
-        local f = Instance.new("Frame")
-        f.Size = UDim2.new(0, 320, 0, 44)
-        f.Position = UDim2.new(0.5, -160, 1, -60)
-        f.BackgroundColor3 = isErr and Color3.fromRGB(80, 30, 30) or Color3.fromRGB(30, 30, 38)
-        f.Parent = gui
-        lib.applyCorner(f, 8)
-        
-        local l = Instance.new("TextLabel")
-        l.Size = UDim2.new(1, -16, 1, 0)
-        l.Position = UDim2.new(0, 8, 0, 0)
-        l.BackgroundTransparency = 1
-        l.Text = (isErr and "❌ " or "✓ ") .. msg
-        l.TextColor3 = Color3.fromRGB(220, 220, 230)
-        l.TextSize = 14
-        l.Font = Enum.Font.Gotham
-        l.TextWrapped = true
-        l.Parent = f
-        
-        task.delay(dur or 3, function()
-            if f then f:Destroy() end
-        end)
-    end,
-    buildHomeFrame = function(parent, userData, apiBase)
-        local f = Instance.new("Frame")
-        f.Size = UDim2.new(1, 0, 1, 0)
-        f.BackgroundTransparency = 1
-        f.Parent = parent
-        
-        local welcome = Instance.new("TextLabel")
-        welcome.Size = UDim2.new(1, -40, 0, 80)
-        welcome.Position = UDim2.new(0, 20, 0.3, 0)
-        welcome.BackgroundTransparency = 1
-        welcome.Text = "🎮 288 Panel\n\nBem-vindo, " .. (userData and userData.username or LocalPlayer.Name)
-        welcome.TextColor3 = Color3.new(1, 1, 1)
-        welcome.TextScaled = true
-        welcome.Font = Enum.Font.GothamBold
-        welcome.TextWrapped = true
-        welcome.Parent = f
-        
-        return f
-    end,
-    buildCategoryFrame = function(parent, cat, mods, userData)
-        local f = Instance.new("Frame")
-        f.Size = UDim2.new(1, 0, 1, 0)
-        f.BackgroundTransparency = 1
-        f.Parent = parent
-        
-        local title = Instance.new("TextLabel")
-        title.Size = UDim2.new(1, -40, 0, 40)
-        title.Position = UDim2.new(0, 20, 0, 10)
-        title.BackgroundTransparency = 1
-        title.Text = "📁 " .. cat
-        title.TextColor3 = Color3.fromRGB(255, 200, 100)
-        title.TextSize = 18
-        title.Font = Enum.Font.GothamBold
-        title.TextXAlignment = Enum.TextXAlignment.Left
-        title.Parent = f
-        
-        local placeholder = Instance.new("TextLabel")
-        placeholder.Size = UDim2.new(1, -40, 0, 40)
-        placeholder.Position = UDim2.new(0, 20, 0, 60)
-        placeholder.BackgroundTransparency = 1
-        placeholder.Text = "🚧 Módulos em desenvolvimento..."
-        placeholder.TextColor3 = Color3.fromRGB(150, 150, 160)
-        placeholder.TextSize = 14
-        placeholder.Font = Enum.Font.Gotham
-        placeholder.Parent = f
-        
-        return f
-    end,
-    buildPlaceholderFrame = function(parent, name)
-        local f = Instance.new("Frame")
-        f.Size = UDim2.new(1, 0, 1, 0)
-        f.BackgroundTransparency = 1
-        f.Parent = parent
-        
-        local label = Instance.new("TextLabel")
-        label.Size = UDim2.new(1, -40, 0, 60)
-        label.Position = UDim2.new(0, 20, 0.4, 0)
-        label.BackgroundTransparency = 1
-        label.Text = "🚧 " .. name .. "\nEm breve..."
-        label.TextColor3 = Color3.fromRGB(130, 130, 140)
-        label.TextScaled = true
-        label.Font = Enum.Font.Gotham
-        label.TextWrapped = true
-        label.Parent = f
-        
-        return f
-    end
-}
-
-lib.init({ apiBase = API_BASE, version = VERSION })
-
 -- ==================== SESSÃO ====================
 local sessionId = nil
+local userData = nil
 
 local function startSession()
-    -- Dados para enviar
-    local postData = {
+    local res = safeRequest("POST", "/session/start", {
         userid = LocalPlayer.UserId,
         username = LocalPlayer.Name,
         version = VERSION,
         game = tostring(game.PlaceId),
-        device = lib.getDevice()
-    }
-    
-    print("[288] Iniciando sessão com dados:", postData)
-    
-    local res = safeRequest("POST", "/session/start", postData)
-    
-    print("[288] Resposta do servidor:", res)
+        device = UserInputService.TouchEnabled and "Mobile" or "PC"
+    })
     
     if res and res.sessionId then
         sessionId = res.sessionId
-        lib.log("✅ Sessão iniciada: " .. sessionId)
+        print("[288] Sessão iniciada: " .. sessionId)
     else
         sessionId = "local_" .. tostring(os.time()) .. "_" .. tostring(LocalPlayer.UserId)
-        lib.log("⚠️ Usando sessão local: " .. sessionId)
+        print("[288] Sessão local: " .. sessionId)
     end
 end
 
 local function heartbeat()
     if not sessionId then return end
-    
     pcall(function()
         safeRequest("POST", "/session/heartbeat", {
             sessionId = sessionId,
@@ -282,15 +94,8 @@ local function heartbeat()
     end)
 end
 
--- Verificar usuário
-local userData = nil
-
-print("[288] Buscando dados do usuário:", LocalPlayer.UserId)
-
+-- Buscar dados do usuário
 local userResponse = safeRequest("GET", "/user/" .. LocalPlayer.UserId)
-
-print("[288] Resposta do servidor:", userResponse)
-
 if userResponse and userResponse.userid then
     userData = userResponse
 else
@@ -301,15 +106,14 @@ else
         vip = false,
         banned = false
     }
-    lib.log("⚠️ Usando dados de usuário simulados")
 end
 
 if userData.banned then
-    warn("[288] Você está banido do 288 Panel.")
+    warn("[288] Você está banido.")
     return
 end
 
--- ==================== INICIAR ====================
+-- Iniciar sessão
 task.spawn(startSession)
 
 task.spawn(function()
@@ -318,94 +122,383 @@ task.spawn(function()
     end
 end)
 
--- ==================== UI ====================
-if not LocalPlayer.Character then
-    LocalPlayer.CharacterAdded:Wait()
-end
-task.wait(1)
-
+-- ==================== UI PRINCIPAL ====================
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "288Panel"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- MainFrame
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 600, 0, 400)
-MainFrame.Position = UDim2.new(0.5, -300, 0.5, -200)
-MainFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 28)
+MainFrame.Size = UDim2.new(0, 720, 0, 500)
+MainFrame.Position = UDim2.new(0.5, -360, 0.5, -250)
+MainFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 22)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
-MainFrame.ClipsDescendants = true
 MainFrame.Parent = ScreenGui
 
-lib.applyCorner(MainFrame, 12)
-lib.applyStroke(MainFrame, Color3.fromRGB(80, 80, 120), 1)
+-- Corner pra MainFrame
+local MainCorner = Instance.new("UICorner")
+MainCorner.CornerRadius = UDim.new(0, 10)
+MainCorner.Parent = MainFrame
 
--- Header
+-- ==================== HEADER ====================
 local Header = Instance.new("Frame")
-Header.Size = UDim2.new(1, 0, 0, 50)
-Header.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-Header.BorderSizePixel = 0
+Header.Size = UDim2.new(1, 0, 0, 60)
+Header.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
 Header.Parent = MainFrame
 
+local HeaderCorner = Instance.new("UICorner")
+HeaderCorner.CornerRadius = UDim.new(0, 10)
+HeaderCorner.Parent = Header
+
+local VersionLabel = Instance.new("TextLabel")
+VersionLabel.Size = UDim2.new(0, 120, 1, 0)
+VersionLabel.Position = UDim2.new(0, 15, 0, 0)
+VersionLabel.BackgroundTransparency = 1
+VersionLabel.Text = "v" .. VERSION
+VersionLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+VersionLabel.TextScaled = true
+VersionLabel.Font = Enum.Font.Gotham
+VersionLabel.TextXAlignment = Enum.TextXAlignment.Left
+VersionLabel.Parent = Header
+
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size = UDim2.new(1, 0, 1, 0)
+TitleLabel.Size = UDim2.new(0.5, 0, 1, 0)
+TitleLabel.Position = UDim2.new(0.25, 0, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "288 PANEL"
-TitleLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
-TitleLabel.TextSize = 24
+TitleLabel.Text = "288 Panel"
+TitleLabel.TextScaled = true
 TitleLabel.Font = Enum.Font.GothamBold
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Center
 TitleLabel.Parent = Header
 
-local RankLabel = Instance.new("TextLabel")
-RankLabel.Size = UDim2.new(0, 80, 0, 24)
-RankLabel.Position = UDim2.new(1, -90, 0.5, -12)
-RankLabel.BackgroundColor3 = lib.getRankColor(userData.rank)
-RankLabel.TextColor3 = Color3.new(1, 1, 1)
-RankLabel.Text = userData.rank or "User"
-RankLabel.TextScaled = true
-RankLabel.Font = Enum.Font.GothamBold
-RankLabel.Parent = Header
-lib.applyCorner(RankLabel, 6)
+-- Rank Badge
+local RankBadge = Instance.new("TextLabel")
+RankBadge.Size = UDim2.new(0, 100, 0, 28)
+RankBadge.Position = UDim2.new(1, -115, 0.5, -14)
+RankBadge.BackgroundColor3 = userData.rank == "Owner" and Color3.fromRGB(255, 50, 50) or 
+                             userData.rank == "VIP" and Color3.fromRGB(180, 0, 255) or
+                             Color3.fromRGB(80, 80, 90)
+RankBadge.TextColor3 = Color3.new(1, 1, 1)
+RankBadge.Text = userData.rank or "User"
+RankBadge.TextScaled = true
+RankBadge.Font = Enum.Font.GothamBold
+RankBadge.Parent = Header
 
+local RankCorner = Instance.new("UICorner")
+RankCorner.CornerRadius = UDim.new(0, 6)
+RankCorner.Parent = RankBadge
+
+-- Efeito Rainbow no título
+task.spawn(function()
+    local colors = {
+        Color3.fromRGB(255, 60, 60),
+        Color3.fromRGB(255, 140, 0),
+        Color3.fromRGB(255, 240, 0),
+        Color3.fromRGB(0, 255, 100),
+        Color3.fromRGB(0, 200, 255),
+        Color3.fromRGB(160, 0, 255)
+    }
+    local i = 1
+    while TitleLabel and TitleLabel.Parent do
+        pcall(function() TitleLabel.TextColor3 = colors[i] end)
+        i = (i % #colors) + 1
+        task.wait(0.15)
+    end
+end)
+
+-- Botão Fechar
 local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0, 32, 0, 32)
-CloseBtn.Position = UDim2.new(1, -42, 0.5, -16)
+CloseBtn.Size = UDim2.new(0, 40, 0, 40)
+CloseBtn.Position = UDim2.new(1, -50, 0, 10)
 CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 40, 40)
 CloseBtn.Text = "✕"
 CloseBtn.TextColor3 = Color3.new(1, 1, 1)
 CloseBtn.TextScaled = true
-CloseBtn.Font = Enum.Font.GothamBold
 CloseBtn.Parent = Header
-lib.applyCorner(CloseBtn, 6)
+
+local CloseCorner = Instance.new("UICorner")
+CloseCorner.CornerRadius = UDim.new(0, 8)
+CloseCorner.Parent = CloseBtn
+
 CloseBtn.MouseButton1Click:Connect(function()
+    pcall(function()
+        safeRequest("POST", "/session/end", { sessionId = sessionId })
+    end)
     ScreenGui:Destroy()
 end)
 
--- Content
+-- ==================== SIDEBAR ====================
+local Sidebar = Instance.new("Frame")
+Sidebar.Size = UDim2.new(0, 160, 1, -60)
+Sidebar.Position = UDim2.new(0, 0, 0, 60)
+Sidebar.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
+Sidebar.Parent = MainFrame
+
+local SidebarCorner = Instance.new("UICorner")
+SidebarCorner.CornerRadius = UDim.new(0, 0)
+SidebarCorner.Parent = Sidebar
+
+local ListLayout = Instance.new("UIListLayout")
+ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ListLayout.Padding = UDim.new(0, 2)
+ListLayout.Parent = Sidebar
+
+local Padding = Instance.new("UIPadding")
+Padding.PaddingTop = UDim.new(0, 8)
+Padding.PaddingLeft = UDim.new(0, 4)
+Padding.PaddingRight = UDim.new(0, 4)
+Padding.Parent = Sidebar
+
+-- ==================== CONTENT FRAME ====================
 local ContentFrame = Instance.new("Frame")
-ContentFrame.Size = UDim2.new(1, -20, 1, -70)
-ContentFrame.Position = UDim2.new(0, 10, 0, 60)
-ContentFrame.BackgroundColor3 = Color3.fromRGB(28, 28, 34)
-ContentFrame.BorderSizePixel = 0
-ContentFrame.ClipsDescendants = true
+ContentFrame.Size = UDim2.new(1, -160, 1, -60)
+ContentFrame.Position = UDim2.new(0, 160, 0, 60)
+ContentFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
 ContentFrame.Parent = MainFrame
-lib.applyCorner(ContentFrame, 8)
 
--- Home content
-local homeFrame = lib.buildHomeFrame(ContentFrame, userData, API_BASE)
-homeFrame.Visible = true
+local ContentCorner = Instance.new("UICorner")
+ContentCorner.CornerRadius = UDim.new(0, 10)
+ContentCorner.Parent = ContentFrame
 
--- ==================== INSERT TOGGLE ====================
-ScreenGui.Enabled = true
+-- ==================== HOME FRAME ====================
+local HomeFrame = Instance.new("Frame")
+HomeFrame.Size = UDim2.new(1, 0, 1, 0)
+HomeFrame.BackgroundTransparency = 1
+HomeFrame.Visible = true
+HomeFrame.Parent = ContentFrame
 
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if gpe then return end
+-- Avatar
+local Avatar = Instance.new("ImageLabel")
+Avatar.Size = UDim2.new(0, 100, 0, 100)
+Avatar.Position = UDim2.new(0.5, -50, 0, 20)
+Avatar.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+Avatar.Parent = HomeFrame
+
+local AvatarCorner = Instance.new("UICorner")
+AvatarCorner.CornerRadius = UDim.new(0, 50)
+AvatarCorner.Parent = Avatar
+
+-- Avatar Stroke (borda colorida)
+local AvatarStroke = Instance.new("UIStroke")
+AvatarStroke.Color = userData.rank == "Owner" and Color3.fromRGB(255, 50, 50) or 
+                     userData.rank == "VIP" and Color3.fromRGB(180, 0, 255) or
+                     Color3.fromRGB(80, 80, 120)
+AvatarStroke.Thickness = 2
+AvatarStroke.Parent = Avatar
+
+-- Carregar thumbnail
+task.spawn(function()
+    local success, img = pcall(function()
+        return Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
+    end)
+    if success and img then
+        Avatar.Image = img
+    end
+end)
+
+-- Boas-vindas
+local WelcomeText = Instance.new("TextLabel")
+WelcomeText.Size = UDim2.new(1, 0, 0, 50)
+WelcomeText.Position = UDim2.new(0, 0, 0, 135)
+WelcomeText.BackgroundTransparency = 1
+WelcomeText.Text = "Olá, " .. LocalPlayer.DisplayName .. "!"
+WelcomeText.TextColor3 = Color3.fromRGB(255, 255, 255)
+WelcomeText.TextScaled = true
+WelcomeText.Font = Enum.Font.GothamBold
+WelcomeText.Parent = HomeFrame
+
+-- Info em tempo real
+local InfoText = Instance.new("TextLabel")
+InfoText.Size = UDim2.new(1, -40, 0, 100)
+InfoText.Position = UDim2.new(0, 20, 0, 195)
+InfoText.BackgroundTransparency = 1
+InfoText.Text = "Carregando informações..."
+InfoText.TextColor3 = Color3.fromRGB(200, 200, 200)
+InfoText.TextSize = 14
+InfoText.TextWrapped = true
+InfoText.Font = Enum.Font.Gotham
+InfoText.Parent = HomeFrame
+
+-- Atualizar informações
+task.spawn(function()
+    while HomeFrame and HomeFrame.Parent do
+        local ping = math.floor(LocalPlayer:GetPing() * 100) / 100 or 0
+        local stats = safeRequest("GET", "/stats")
+        local online = (stats and stats.online) or "?"
+        local total = (stats and stats.totalUsers) or "?"
+        
+        InfoText.Text = string.format(
+            "📊 Informações do Servidor\n\n━━━━━━━━━━━━━━━━━━━\n🔘 Ping: %dms\n👥 Online: %s\n📈 Total de Usuários: %s\n━━━━━━━━━━━━━━━━━━━\n\n💡 Pressione [INSERT] para abrir/fechar",
+            ping, tostring(online), tostring(total)
+        )
+        task.wait(3)
+    end
+end)
+
+-- Anúncios
+task.spawn(function()
+    local announcements = safeRequest("GET", "/announcements")
+    if announcements and #announcements > 0 then
+        local AnnounceFrame = Instance.new("Frame")
+        AnnounceFrame.Size = UDim2.new(1, -40, 0, 60)
+        AnnounceFrame.Position = UDim2.new(0, 20, 1, -70)
+        AnnounceFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 45)
+        AnnounceFrame.Parent = HomeFrame
+        
+        local AnnounceCorner = Instance.new("UICorner")
+        AnnounceCorner.CornerRadius = UDim.new(0, 8)
+        AnnounceCorner.Parent = AnnounceFrame
+        
+        local AnnounceText = Instance.new("TextLabel")
+        AnnounceText.Size = UDim2.new(1, -16, 1, 0)
+        AnnounceText.Position = UDim2.new(0, 8, 0, 0)
+        AnnounceText.BackgroundTransparency = 1
+        AnnounceText.Text = "📢 " .. announcements[1].message
+        AnnounceText.TextColor3 = Color3.fromRGB(255, 220, 100)
+        AnnounceText.TextSize = 13
+        AnnounceText.TextWrapped = true
+        AnnounceText.Font = Enum.Font.Gotham
+        AnnounceText.Parent = AnnounceFrame
+    end
+end)
+
+-- ==================== CATEGORY FRAMES ====================
+local function CreateCategoryFrame(name)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundTransparency = 1
+    frame.Visible = false
+    frame.Parent = ContentFrame
+    
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -40, 0, 50)
+    title.Position = UDim2.new(0, 20, 0, 20)
+    title.BackgroundTransparency = 1
+    title.Text = "📁 " .. name
+    title.TextColor3 = Color3.fromRGB(255, 200, 100)
+    title.TextSize = 24
+    title.Font = Enum.Font.GothamBold
+    title.TextXAlignment = Enum.TextXAlignment.Left
+    title.Parent = frame
+    
+    local placeholder = Instance.new("TextLabel")
+    placeholder.Size = UDim2.new(1, -40, 0, 40)
+    placeholder.Position = UDim2.new(0, 20, 0, 90)
+    placeholder.BackgroundTransparency = 1
+    placeholder.Text = "🚧 Módulos em desenvolvimento...\n\nEm breve!"
+    placeholder.TextColor3 = Color3.fromRGB(150, 150, 160)
+    placeholder.TextSize = 16
+    placeholder.Font = Enum.Font.Gotham
+    placeholder.TextWrapped = true
+    placeholder.Parent = frame
+    
+    return frame
+end
+
+-- Criar frames das categorias
+local categoryFrames = {
+    Home = HomeFrame,
+    VIP = CreateCategoryFrame("VIP"),
+    Emphasis = CreateCategoryFrame("Emphasis"),
+    Character = CreateCategoryFrame("Character"),
+    Target = CreateCategoryFrame("Target"),
+    More = CreateCategoryFrame("More"),
+    Misc = CreateCategoryFrame("Misc")
+}
+
+-- Bloquear VIP se não tiver
+if not userData.vip then
+    categoryFrames.VIP:Destroy()
+    categoryFrames.VIP = CreateCategoryFrame("VIP [BLOQUEADO]")
+    categoryFrames.VIP.Parent = ContentFrame
+end
+
+-- ==================== SIDEBAR BUTTONS ====================
+local activeButton = nil
+
+local function CreateTabButton(name, categoryKey, isLocked)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, 0, 0, 48)
+    Btn.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+    Btn.Text = name
+    Btn.TextColor3 = isLocked and Color3.fromRGB(110, 110, 110) or Color3.fromRGB(230, 230, 230)
+    Btn.TextScaled = true
+    Btn.Font = Enum.Font.Gotham
+    Btn.Parent = Sidebar
+    
+    local BtnCorner = Instance.new("UICorner")
+    BtnCorner.CornerRadius = UDim.new(0, 8)
+    BtnCorner.Parent = Btn
+    
+    if isLocked then 
+        Btn.Text = name .. " 🔒"
+    end
+    
+    Btn.MouseButton1Click:Connect(function()
+        if isLocked then
+            -- Criar notificação
+            local notif = Instance.new("Frame")
+            notif.Size = UDim2.new(0, 250, 0, 40)
+            notif.Position = UDim2.new(0.5, -125, 1, -60)
+            notif.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
+            notif.Parent = ScreenGui
+            local notifCorner = Instance.new("UICorner")
+            notifCorner.CornerRadius = UDim.new(0, 8)
+            notifCorner.Parent = notif
+            local notifText = Instance.new("TextLabel")
+            notifText.Size = UDim2.new(1, 0, 1, 0)
+            notifText.BackgroundTransparency = 1
+            notifText.Text = "🔒 Acesso VIP necessário!"
+            notifText.TextColor3 = Color3.new(1, 1, 1)
+            notifText.TextScaled = true
+            notifText.Font = Enum.Font.Gotham
+            notifText.Parent = notif
+            task.delay(2, function() if notif then notif:Destroy() end end)
+            return
+        end
+        
+        if activeButton then
+            activeButton.BackgroundColor3 = Color3.fromRGB(28, 28, 28)
+        end
+        activeButton = Btn
+        Btn.BackgroundColor3 = Color3.fromRGB(48, 48, 58)
+        
+        for key, frame in pairs(categoryFrames) do
+            if frame then
+                frame.Visible = (key == categoryKey)
+            end
+        end
+    end)
+    
+    return Btn
+end
+
+-- Criar botões
+CreateTabButton("🏠 Home", "Home")
+CreateTabButton("👑 VIP", "VIP", not userData.vip)
+CreateTabButton("⭐ Emphasis", "Emphasis")
+CreateTabButton("👤 Character", "Character")
+CreateTabButton("🎯 Target", "Target")
+CreateTabButton("⚔️ More", "More")
+CreateTabButton("🛠️ Misc", "Misc")
+
+-- Abrir Home por padrão
+activeButton = Sidebar:FindFirstChildOfClass("TextButton")
+if activeButton then
+    activeButton.BackgroundColor3 = Color3.fromRGB(48, 48, 58)
+end
+
+-- ==================== TOGGLE INSERT ====================
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
     if input.KeyCode == Enum.KeyCode.Insert then
         ScreenGui.Enabled = not ScreenGui.Enabled
     end
 end)
 
-lib.log("✅ Painel carregado — INSERT para abrir/fechar")
+-- ==================== FINALIZAR ====================
+print("[288] ✅ Painel carregado com sucesso!")
+print("[288] 💡 Pressione INSERT para abrir/fechar")
+print("[288] 🎨 Design 288 Panel - Todos os direitos reservados")
