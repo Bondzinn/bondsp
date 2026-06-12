@@ -5,7 +5,7 @@
 ]]
 
 -- ==================== CONFIGURAÇÃO ====================
-local RAW = "https://raw.githubusercontent.com/Bondzinn/288-Panel/main/"
+local RAW = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/"
 local API_BASE = "https://seems-seventh-brook-nickname.trycloudflare.com" -- Backend externo
 
 local VERSION = "1.0.0"
