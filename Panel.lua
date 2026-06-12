@@ -190,6 +190,21 @@ local RankCorner = Instance.new("UICorner")
 RankCorner.CornerRadius = UDim.new(0, 6)
 RankCorner.Parent = RankBadge
 
+-- Hotkey Label (B)
+local HotkeyLabel = Instance.new("TextLabel")
+HotkeyLabel.Size = UDim2.new(0, 50, 0, 28)
+HotkeyLabel.Position = UDim2.new(0, 15, 0.5, -14)
+HotkeyLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+HotkeyLabel.TextColor3 = Color3.fromRGB(255, 200, 100)
+HotkeyLabel.Text = "[B]"
+HotkeyLabel.TextScaled = true
+HotkeyLabel.Font = Enum.Font.GothamBold
+HotkeyLabel.Parent = Header
+
+local HotkeyCorner = Instance.new("UICorner")
+HotkeyCorner.CornerRadius = UDim.new(0, 6)
+HotkeyCorner.Parent = HotkeyLabel
+
 -- Efeito Rainbow no título
 task.spawn(function()
     local colors = {
@@ -309,7 +324,7 @@ WelcomeText.TextScaled = true
 WelcomeText.Font = Enum.Font.GothamBold
 WelcomeText.Parent = HomeFrame
 
--- Info em tempo real
+-- Info em tempo real (com [B] atualizado)
 local InfoText = Instance.new("TextLabel")
 InfoText.Size = UDim2.new(1, -40, 0, 100)
 InfoText.Position = UDim2.new(0, 20, 0, 195)
@@ -330,7 +345,7 @@ task.spawn(function()
         local total = (stats and stats.totalUsers) or "?"
         
         InfoText.Text = string.format(
-            "📊 Informações do Servidor\n\n━━━━━━━━━━━━━━━━━━━\n🔘 Ping: %dms\n👥 Online: %s\n📈 Total de Usuários: %s\n━━━━━━━━━━━━━━━━━━━\n\n💡 Pressione [INSERT] para abrir/fechar",
+            "📊 Informações do Servidor\n\n━━━━━━━━━━━━━━━━━━━\n🔘 Ping: %dms\n👥 Online: %s\n📈 Total de Usuários: %s\n━━━━━━━━━━━━━━━━━━━\n\n💡 Pressione [B] para abrir/fechar",
             ping, tostring(online), tostring(total)
         )
         task.wait(3)
@@ -490,15 +505,15 @@ if activeButton then
     activeButton.BackgroundColor3 = Color3.fromRGB(48, 48, 58)
 end
 
--- ==================== TOGGLE INSERT ====================
+-- ==================== TOGGLE COM TECLA B ====================
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.Insert then
+    if input.KeyCode == Enum.KeyCode.B then
         ScreenGui.Enabled = not ScreenGui.Enabled
     end
 end)
 
 -- ==================== FINALIZAR ====================
 print("[288] ✅ Painel carregado com sucesso!")
-print("[288] 💡 Pressione INSERT para abrir/fechar")
+print("[288] 💡 Pressione [B] para abrir/fechar")
 print("[288] 🎨 Design 288 Panel - Todos os direitos reservados")
