@@ -4,7 +4,7 @@ Script Universal para jogos do roblox
 
 ### Script
 ```lua
-loadstring(game:HttpGet('https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/Panel'))()
+loadstring(game:HttpGet('https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/Panel.lua'))()
 ```
 
 ## Como Usar
