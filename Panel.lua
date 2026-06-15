@@ -21,12 +21,12 @@ local HttpService     = game:GetService("HttpService")
 local LocalPlayer     = Players.LocalPlayer
 
 -- Configuração da API
-local API_BASE = "https://sua-api.railway.app" -- trocar pela URL real
+local API_BASE = "https://milk-three-bones-adrian.trycloudflare.com" -- trocar pela URL real
 
 -- GitHub raw base
-local GITHUB_RAW = "https://raw.githubusercontent.com/SEU_USER/288/main"
+local GITHUB_RAW = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
 
-local VERSION = "v4.6.4"
+local VERSION = "v1.0.0"
 
 -- ==================== HELPERS ====================
 local function safeLoadstring(url)
