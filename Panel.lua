@@ -1,5 +1,5 @@
 --[[
-    288 Panel - ksx's Panel
+    288 Panel - 288 Panel
     UI completa — scripts carregados da API/GitHub
     Estrutura:
         288/
@@ -26,7 +26,7 @@ local API_BASE = "https://milk-three-bones-adrian.trycloudflare.com" -- trocar p
 -- GitHub raw base
 local GITHUB_RAW = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
 
-local VERSION = "v4.6.4"
+local VERSION = "v1.0.0"
 
 -- ==================== HELPERS ====================
 local function safeLoadstring(url)
@@ -149,7 +149,7 @@ local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size = UDim2.new(0.5, 0, 1, 0)
 TitleLabel.Position = UDim2.new(0.25, 0, 0, 0)
 TitleLabel.BackgroundTransparency = 1
-TitleLabel.Text = "ksx's Panel"
+TitleLabel.Text = "288 Panel"
 TitleLabel.TextSize = 16
 TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.TextXAlignment = Enum.TextXAlignment.Center
@@ -536,7 +536,7 @@ do
     vipLink.Size = UDim2.new(1, 0, 0, 24)
     vipLink.Position = UDim2.new(0, 0, 0.35, 44)
     vipLink.BackgroundTransparency = 1
-    vipLink.Text = "ACESSE: https://discord.gg/ksxs"
+    vipLink.Text = "ACESSE: https://discord.gg/288s"
     vipLink.TextColor3 = Color3.fromRGB(200, 200, 200)
     vipLink.TextSize = 13
     vipLink.Font = Enum.Font.Gotham
@@ -926,18 +926,18 @@ do
     devLabel.ZIndex = 4
     devLabel.Parent = f
 
-    -- "ksx" em azul
-    local ksxLabel = Instance.new("TextLabel")
-    ksxLabel.Size = UDim2.new(0, 40, 0, 28)
-    ksxLabel.Position = UDim2.new(0, 107, 0, 20)
-    ksxLabel.BackgroundTransparency = 1
-    ksxLabel.Text = "ksx"
-    ksxLabel.TextColor3 = Color3.fromRGB(80, 160, 255)
-    ksxLabel.TextSize = 14
-    ksxLabel.Font = Enum.Font.GothamBold
-    ksxLabel.TextXAlignment = Enum.TextXAlignment.Left
-    ksxLabel.ZIndex = 5
-    ksxLabel.Parent = f
+    -- "288" em azul
+    local 288Label = Instance.new("TextLabel")
+    288Label.Size = UDim2.new(0, 40, 0, 28)
+    288Label.Position = UDim2.new(0, 107, 0, 20)
+    288Label.BackgroundTransparency = 1
+    288Label.Text = "288"
+    288Label.TextColor3 = Color3.fromRGB(80, 160, 255)
+    288Label.TextSize = 14
+    288Label.Font = Enum.Font.GothamBold
+    288Label.TextXAlignment = Enum.TextXAlignment.Left
+    288Label.ZIndex = 5
+    288Label.Parent = f
 
     -- Version
     local verLabel = Instance.new("TextLabel")
@@ -997,7 +997,7 @@ do
 
     local supportLink1 = donateLink:Clone()
     supportLink1.Position = UDim2.new(0, 68, 0, 228)
-    supportLink1.Text = "discord.gg/ksx"
+    supportLink1.Text = "discord.gg/288"
     supportLink1.Parent = f
 
     -- Sun icon (canto inferior direito)
