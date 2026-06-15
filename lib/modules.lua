@@ -1,98 +1,626 @@
 --[[
     288 Panel — modules.lua
-    Registro central de módulos.
-    Define categorias, caminhos e metadados.
-    NÃO executa lógica — apenas descreve o que existe.
+    Registry central de módulos + sistema de toggle/estado
+    Uso no Panel.lua:
+        local Modules = loadstring(game:HttpGet(GITHUB_RAW .. "/lib/modules.lua"))()
+        Modules.init(Lib)                     -- passa a lib
+        Modules.toggle("NoClip")              -- liga/desliga
+        Modules.exec("Invisible")             -- executa uma vez
+        local active = Modules.isActive("ESP")
 ]]
 
-return {
+local Modules = {}
+
+-- Será injetado via Modules.init(Lib)
+local Lib = nil
+
+-- ==================== REGISTRY ====================
+--[[
+    Cada entrada:
+    {
+        name     = "NomeDoMódulo",
+        path     = "caminho/relativo/no/github.lua",
+        category = "Emphasis" | "Character" | "Target" | "More" | "Misc" | "Animations" | "VIP",
+        mode     = "toggle" | "exec" | "vip",
+            toggle → tem estado ON/OFF, módulo recebe (true/false) ao ser chamado
+            exec   → executa uma vez a cada clique
+            vip    → bloqueado, só mostra overlay
+        vip      = true/false  (exige VIP para usar)
+    }
+]]
+
+Modules.Registry = {
 
     -- ==================== EMPHASIS ====================
     {
-        Name        = "NoClip",
-        Category    = "Emphasis",
-        Path        = "modules/Emphasis/NoClip.lua",
-        Description = "Atravessa paredes e objetos sólidos.",
-        RequireVip  = false,
+        name     = "Invisible",
+        path     = "modules/Emphasis/Invisible.lua",
+        category = "Emphasis",
+        mode     = "toggle",
     },
     {
-        Name        = "Hitbox Expander",
-        Category    = "Emphasis",
-        Path        = "modules/Emphasis/Hitbox.lua",
-        Description = "Expande o hitbox dos jogadores.",
-        RequireVip  = false,
+        name     = "ClickTP",
+        path     = "modules/Emphasis/ClickTP.lua",
+        category = "Emphasis",
+        mode     = "toggle",
     },
     {
-        Name        = "Speed Hack",
-        Category    = "Emphasis",
-        Path        = "modules/Emphasis/Speed.lua",
-        Description = "Aumenta a velocidade de movimento.",
-        RequireVip  = false,
+        name     = "NoClip",
+        path     = "modules/Emphasis/NoClip.lua",
+        category = "Emphasis",
+        mode     = "toggle",
     },
     {
-        Name        = "Infinite Jump",
-        Category    = "Emphasis",
-        Path        = "modules/Emphasis/InfiniteJump.lua",
-        Description = "Permite pular infinitamente no ar.",
-        RequireVip  = false,
+        name     = "JerkOff",
+        path     = "modules/Emphasis/JerkOff.lua",
+        category = "Emphasis",
+        mode     = "toggle",
     },
     {
-        Name        = "Flight",
-        Category    = "Emphasis",
-        Path        = "modules/Emphasis/Flight.lua",
-        Description = "Permite voar livremente.",
-        RequireVip  = true,
+        name     = "Impulse",
+        path     = "modules/Emphasis/Impulse.lua",
+        category = "Emphasis",
+        mode     = "toggle",
     },
     {
-        Name        = "Gravity Modifier",
-        Category    = "Emphasis",
-        Path        = "modules/Emphasis/Gravity.lua",
-        Description = "Altera a gravidade do personagem.",
-        RequireVip  = true,
+        name     = "FaceBang",
+        path     = "modules/Emphasis/FaceBang.lua",
+        category = "Emphasis",
+        mode     = "toggle",
+    },
+    {
+        name     = "Spin",
+        path     = "modules/Emphasis/Spin.lua",
+        category = "Emphasis",
+        mode     = "toggle",
+    },
+    {
+        name     = "AnimSpeed",
+        path     = "modules/Emphasis/AnimSpeed.lua",
+        category = "Emphasis",
+        mode     = "toggle",
+    },
+    {
+        name     = "feFlip",
+        path     = "modules/Emphasis/feFlip.lua",
+        category = "Emphasis",
+        mode     = "exec",
+    },
+    {
+        name     = "Flashback",
+        path     = "modules/Emphasis/Flashback.lua",
+        category = "Emphasis",
+        mode     = "toggle",
+    },
+    {
+        name     = "AntiVoid",
+        path     = "modules/Emphasis/AntiVoid.lua",
+        category = "Emphasis",
+        mode     = "toggle",
+    },
+    {
+        name     = "Fly",
+        path     = "modules/Emphasis/Fly.lua",
+        category = "Emphasis",
+        mode     = "toggle",
+    },
+
+    -- ==================== CHARACTER ====================
+    {
+        name     = "WalkSpeed",
+        path     = "modules/Character/WalkSpeed.lua",
+        category = "Character",
+        mode     = "exec",
+    },
+    {
+        name     = "JumpPower",
+        path     = "modules/Character/JumpPower.lua",
+        category = "Character",
+        mode     = "exec",
+    },
+    {
+        name     = "Respawn",
+        path     = "modules/Character/Respawn.lua",
+        category = "Character",
+        mode     = "exec",
+    },
+    {
+        name     = "Checkpoint",
+        path     = "modules/Character/Checkpoint.lua",
+        category = "Character",
+        mode     = "toggle",
+        vip      = true,
+    },
+
+    -- ==================== TARGET ====================
+    {
+        name     = "View",
+        path     = "modules/Target/View.lua",
+        category = "Target",
+        mode     = "exec",
+    },
+    {
+        name     = "CopyID",
+        path     = "modules/Target/CopyID.lua",
+        category = "Target",
+        mode     = "exec",
+    },
+    {
+        name     = "Focus",
+        path     = "modules/Target/Focus.lua",
+        category = "Target",
+        mode     = "toggle",
+        vip      = true,
+    },
+    {
+        name     = "Follow",
+        path     = "modules/Target/Follow.lua",
+        category = "Target",
+        mode     = "toggle",
+        vip      = true,
+    },
+    {
+        name     = "Stand",
+        path     = "modules/Target/Stand.lua",
+        category = "Target",
+        mode     = "exec",
+    },
+    {
+        name     = "Bang",
+        path     = "modules/Target/Bang.lua",
+        category = "Target",
+        mode     = "toggle",
+    },
+    {
+        name     = "Drag",
+        path     = "modules/Target/Drag.lua",
+        category = "Target",
+        mode     = "toggle",
+    },
+    {
+        name     = "Headsit",
+        path     = "modules/Target/Headsit.lua",
+        category = "Target",
+        mode     = "exec",
+    },
+    {
+        name     = "Kill",
+        path     = "modules/Target/Kill.lua",
+        category = "Target",
+        mode     = "exec",
+    },
+    {
+        name     = "Orbit",
+        path     = "modules/Target/Orbit.lua",
+        category = "Target",
+        mode     = "toggle",
+    },
+
+    -- ==================== VIP ====================
+    {
+        name     = "Fling",
+        path     = "modules/VIP/Fling.lua",
+        category = "VIP",
+        mode     = "toggle",
+        vip      = true,
+    },
+    {
+        name     = "AntiFling",
+        path     = "modules/VIP/AntiFling.lua",
+        category = "VIP",
+        mode     = "toggle",
+        vip      = true,
+    },
+    {
+        name     = "AntiForce",
+        path     = "modules/VIP/AntiForce.lua",
+        category = "VIP",
+        mode     = "toggle",
+        vip      = true,
+    },
+    {
+        name     = "AntiChatSpy",
+        path     = "modules/VIP/AntiChatSpy.lua",
+        category = "VIP",
+        mode     = "toggle",
+        vip      = true,
+    },
+    {
+        name     = "AutoSacrifice",
+        path     = "modules/VIP/AutoSacrifice.lua",
+        category = "VIP",
+        mode     = "toggle",
+        vip      = true,
+    },
+    {
+        name     = "EscapeHandcuffs",
+        path     = "modules/VIP/EscapeHandcuffs.lua",
+        category = "VIP",
+        mode     = "exec",
+        vip      = true,
+    },
+    {
+        name     = "AutoParry",
+        path     = "modules/VIP/AutoParry.lua",
+        category = "VIP",
+        mode     = "toggle",
+        vip      = true,
+    },
+    {
+        name     = "ButterflyFarm",
+        path     = "modules/VIP/ButterflyFarm.lua",
+        category = "VIP",
+        mode     = "toggle",
+        vip      = true,
+    },
+    {
+        name     = "EggCollect",
+        path     = "modules/VIP/EggCollect.lua",
+        category = "VIP",
+        mode     = "toggle",
+        vip      = true,
     },
 
     -- ==================== MORE ====================
     {
-        Name        = "ESP",
-        Category    = "More",
-        Path        = "modules/More/ESP.lua",
-        Description = "Visualiza jogadores através de paredes.",
-        RequireVip  = false,
+        name     = "AntiBanVC",
+        path     = "modules/More/AntiBanVC.lua",
+        category = "More",
+        mode     = "toggle",
     },
     {
-        Name        = "Tracers",
-        Category    = "More",
-        Path        = "modules/More/Tracers.lua",
-        Description = "Desenha linhas até jogadores inimigos.",
-        RequireVip  = false,
+        name     = "PianoAuto",
+        path     = "modules/More/PianoAuto.lua",
+        category = "More",
+        mode     = "toggle",
     },
     {
-        Name        = "Aimbot",
-        Category    = "More",
-        Path        = "modules/More/Aimbot.lua",
-        Description = "Mira automaticamente em jogadores.",
-        RequireVip  = false,
+        name     = "ESP",
+        path     = "modules/More/ESP.lua",
+        category = "More",
+        mode     = "toggle",
     },
     {
-        Name        = "Silent Aim",
-        Category    = "More",
-        Path        = "modules/More/SilentAim.lua",
-        Description = "Acerta sem mover a câmera.",
-        RequireVip  = true,
-    },
-    {
-        Name        = "Anti-AFK",
-        Category    = "More",
-        Path        = "modules/More/AntiAFK.lua",
-        Description = "Previne kick por inatividade.",
-        RequireVip  = false,
-    },
-    {
-        Name        = "Rejoin",
-        Category    = "More",
-        Path        = "modules/More/Rejoin.lua",
-        Description = "Reconecta ao servidor atual.",
-        RequireVip  = false,
+        name     = "Aimbot",
+        path     = "modules/More/Aimbot.lua",
+        category = "More",
+        mode     = "toggle",
     },
 
+    -- ==================== MISC ====================
+    {
+        name     = "AntiAFK",
+        path     = "modules/Misc/AntiAFK.lua",
+        category = "Misc",
+        mode     = "toggle",
+        vip      = true,
+    },
+    {
+        name     = "TpToOwner",
+        path     = "modules/Misc/TpToOwner.lua",
+        category = "Misc",
+        mode     = "exec",
+    },
+    {
+        name     = "Shaders",
+        path     = "modules/Misc/Shaders.lua",
+        category = "Misc",
+        mode     = "toggle",
+        vip      = true,
+    },
+    {
+        name     = "DayNight",
+        path     = "modules/Misc/DayNight.lua",
+        category = "Misc",
+        mode     = "toggle",
+        vip      = true,
+    },
+    {
+        name     = "ResetLighting",
+        path     = "modules/Misc/ResetLighting.lua",
+        category = "Misc",
+        mode     = "exec",
+    },
+    {
+        name     = "DestroyGUI",
+        path     = "modules/Misc/DestroyGUI.lua",
+        category = "Misc",
+        mode     = "exec",
+    },
+    {
+        name     = "FreeEmotes",
+        path     = "modules/Misc/FreeEmotes.lua",
+        category = "Misc",
+        mode     = "toggle",
+    },
+    {
+        name     = "ClearChat",
+        path     = "modules/Misc/ClearChat.lua",
+        category = "Misc",
+        mode     = "exec",
+    },
+    {
+        name     = "Rejoin",
+        path     = "modules/Misc/Rejoin.lua",
+        category = "Misc",
+        mode     = "exec",
+    },
+    {
+        name     = "InfinitePremium",
+        path     = "modules/Misc/InfinitePremium.lua",
+        category = "Misc",
+        mode     = "toggle",
+    },
+
+    -- ==================== ANIMATIONS ====================
+    {
+        name     = "Dance1",
+        path     = "modules/Animations/Dance1.lua",
+        category = "Animations",
+        mode     = "toggle",
+    },
+    {
+        name     = "Dance2",
+        path     = "modules/Animations/Dance2.lua",
+        category = "Animations",
+        mode     = "toggle",
+    },
+    {
+        name     = "Dance3",
+        path     = "modules/Animations/Dance3.lua",
+        category = "Animations",
+        mode     = "toggle",
+    },
+    {
+        name     = "Emote1",
+        path     = "modules/Animations/Emote1.lua",
+        category = "Animations",
+        mode     = "exec",
+    },
+    {
+        name     = "Emote2",
+        path     = "modules/Animations/Emote2.lua",
+        category = "Animations",
+        mode     = "exec",
+    },
+    {
+        name     = "Laugh",
+        path     = "modules/Animations/Laugh.lua",
+        category = "Animations",
+        mode     = "exec",
+    },
+    {
+        name     = "Wave",
+        path     = "modules/Animations/Wave.lua",
+        category = "Animations",
+        mode     = "exec",
+    },
+    {
+        name     = "Cheer",
+        path     = "modules/Animations/Cheer.lua",
+        category = "Animations",
+        mode     = "exec",
+    },
+    {
+        name     = "Point",
+        path     = "modules/Animations/Point.lua",
+        category = "Animations",
+        mode     = "exec",
+    },
+    {
+        name     = "Custom",
+        path     = "modules/Animations/Custom.lua",
+        category = "Animations",
+        mode     = "exec",
+    },
 }
+
+-- ==================== ESTADO INTERNO ====================
+
+-- Cache dos módulos já carregados: name → função
+local _loaded = {}
+
+-- Estado ON/OFF de cada toggle: name → bool
+local _active = {}
+
+-- Funções de cleanup retornadas pelos módulos: name → fn()
+local _cleanup = {}
+
+-- Contexto de target atual (usado por módulos da aba Target)
+local _targetContext = nil
+
+-- ==================== INIT ====================
+
+function Modules.init(libInstance)
+    Lib = libInstance
+    -- Indexa o registry por nome para acesso O(1)
+    Modules._byName = {}
+    for _, def in ipairs(Modules.Registry) do
+        Modules._byName[def.name] = def
+    end
+    print("[288/modules] Inicializado — " .. #Modules.Registry .. " módulos registrados")
+end
+
+-- ==================== VIP CHECK ====================
+-- Substitua pela lógica real de verificação de VIP
+local function isVip()
+    -- Aqui você pode checar via API ou atributo do player
+    -- Ex: return LocalPlayer:GetAttribute("VIP") == true
+    return false
+end
+
+Modules.isVip = isVip
+
+-- ==================== LOADER ====================
+
+-- Busca e compila o módulo do GitHub (com cache)
+local function _fetch(name)
+    if _loaded[name] then return _loaded[name] end
+    local def = Modules._byName and Modules._byName[name]
+    if not def then
+        warn("[288/modules] Módulo não encontrado no registry: " .. tostring(name))
+        return nil
+    end
+    if not Lib then
+        warn("[288/modules] Lib não inicializada — chame Modules.init(Lib) primeiro")
+        return nil
+    end
+    local fn = Lib.fetchScript(def.path)
+    if fn then
+        _loaded[name] = fn
+    end
+    return fn
+end
+
+-- ==================== API PÚBLICA ====================
+
+-- Verifica se um módulo toggle está ativo
+function Modules.isActive(name)
+    return _active[name] == true
+end
+
+-- Define o contexto de target (player alvo)
+function Modules.setTarget(playerOrData)
+    _targetContext = playerOrData
+end
+
+function Modules.getTarget()
+    return _targetContext
+end
+
+-- Executa um módulo no modo "exec" (sem toggle)
+-- args: tabela opcional de argumentos passados ao módulo
+function Modules.exec(name, args)
+    local def = Modules._byName and Modules._byName[name]
+    if not def then
+        warn("[288/modules] exec: módulo desconhecido: " .. tostring(name))
+        return false
+    end
+
+    if def.vip and not isVip() then
+        if Lib then Lib.notify("VIP", "Este módulo requer VIP.", "warn", 3) end
+        return false
+    end
+
+    local fn = _fetch(name)
+    if not fn then return false end
+
+    local ctx = { lib = Lib, target = _targetContext, args = args or {} }
+    local ok, result = pcall(fn, ctx)
+    if not ok then
+        warn("[288/modules] exec erro em " .. name .. ": " .. tostring(result))
+        if Lib then Lib.notify("Erro", name .. " falhou.", "error", 3) end
+        return false
+    end
+
+    return true
+end
+
+-- Liga/desliga um módulo toggle
+-- Retorna o novo estado (true = ligado, false = desligado)
+function Modules.toggle(name, args)
+    local def = Modules._byName and Modules._byName[name]
+    if not def then
+        warn("[288/modules] toggle: módulo desconhecido: " .. tostring(name))
+        return false
+    end
+
+    if def.vip and not isVip() then
+        if Lib then Lib.notify("VIP", "Este módulo requer VIP.", "warn", 3) end
+        return false
+    end
+
+    local newState = not (_active[name] == true)
+    _active[name] = newState
+
+    if newState then
+        -- Ligar: fetch + executar
+        local fn = _fetch(name)
+        if not fn then
+            _active[name] = false
+            return false
+        end
+
+        local ctx = {
+            lib    = Lib,
+            target = _targetContext,
+            args   = args or {},
+            -- Módulo pode chamar ctx.setCleanup(fn) para registrar cleanup
+            setCleanup = function(cleanupFn)
+                _cleanup[name] = cleanupFn
+            end,
+        }
+
+        local ok, result = pcall(fn, ctx)
+        if not ok then
+            warn("[288/modules] toggle liga erro em " .. name .. ": " .. tostring(result))
+            if Lib then Lib.notify("Erro", name .. " falhou ao ligar.", "error", 3) end
+            _active[name] = false
+            return false
+        end
+
+        -- Se o módulo retornou uma função, usa como cleanup
+        if type(result) == "function" then
+            _cleanup[name] = result
+        end
+
+        if Lib then Lib.notify(name, "Ligado ✓", "success", 2) end
+    else
+        -- Desligar: chamar cleanup se existir
+        if _cleanup[name] then
+            local ok, err = pcall(_cleanup[name])
+            if not ok then
+                warn("[288/modules] cleanup erro em " .. name .. ": " .. tostring(err))
+            end
+            _cleanup[name] = nil
+        end
+
+        if Lib then Lib.notify(name, "Desligado", "info", 2) end
+    end
+
+    return newState
+end
+
+-- Desliga todos os módulos ativos (útil ao fechar o panel)
+function Modules.disableAll()
+    for name, active in pairs(_active) do
+        if active then
+            Modules.toggle(name) -- vai para false e chama cleanup
+        end
+    end
+end
+
+-- Retorna lista de módulos de uma categoria
+function Modules.getByCategory(category)
+    local result = {}
+    for _, def in ipairs(Modules.Registry) do
+        if def.category == category then
+            table.insert(result, def)
+        end
+    end
+    return result
+end
+
+-- Retorna todos os módulos ativos
+function Modules.getActive()
+    local result = {}
+    for name, active in pairs(_active) do
+        if active then
+            table.insert(result, name)
+        end
+    end
+    return result
+end
+
+-- Força recarga do módulo (limpa cache)
+function Modules.reload(name)
+    _loaded[name] = nil
+    if _active[name] then
+        -- reexecuta
+        _active[name] = false
+        Modules.toggle(name)
+    end
+end
+
+-- ==================== RETORNO ====================
+return Modules
