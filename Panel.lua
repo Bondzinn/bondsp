@@ -26,7 +26,7 @@ local API_BASE = "https://milk-three-bones-adrian.trycloudflare.com" -- trocar p
 -- GitHub raw base
 local GITHUB_RAW = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
 
-local VERSION = "v1.0.0"
+local VERSION = "v4.6.4"
 
 -- ==================== HELPERS ====================
 local function safeLoadstring(url)
