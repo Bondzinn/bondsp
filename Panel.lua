@@ -22,7 +22,7 @@ local DEVICE      = getDevice()
 local DEVICE_ICON = DEVICE == "mobile" and "📱" or "🖥️"
 
 -- ==================== CONFIG ====================
-local API_BASE   = "https://SUA-API-AQUI.railway.app"
+local API_BASE   = "https://protocols-patient-sound-richardson.trycloudflare.com"
 local GITHUB_RAW = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
 local VERSION    = "v4.6.4"
 
@@ -110,11 +110,44 @@ local function safeLoadstring(url)
 end
 
 local function loadModule(path)
-    local fn = safeLoadstring(GITHUB_RAW .. "/" .. path)
-    if fn then
-        local ok, err = pcall(fn)
-        if not ok then warn("[288] module err " .. path .. ": " .. tostring(err)) end
+    -- Mapa de categorias que devem priorizar o servidor API
+    local PREFER_API = {
+        VIP = true,
+        Character = true,
+        Target = true,
+        Misc = true,
+    }
+
+    -- Extrai a categoria do caminho esperado: modules/<Categoria>/...
+    local category = path:match("^modules/([^/]+)") or path:match("^([^/]+)")
+    local preferApi = category and PREFER_API[category]
+
+    local candidates = {}
+    if preferApi then
+        -- Prioriza API para categorias específicas
+        table.insert(candidates, API_BASE .. "/raw/" .. path)
+        table.insert(candidates, API_BASE .. "/" .. path)
+        table.insert(candidates, GITHUB_RAW .. "/" .. path)
+    else
+        -- Comportamento padrão: GitHub primeiro, depois API
+        table.insert(candidates, GITHUB_RAW .. "/" .. path)
+        table.insert(candidates, API_BASE .. "/raw/" .. path)
+        table.insert(candidates, API_BASE .. "/" .. path)
     end
+
+    for _, url in ipairs(candidates) do
+        local fn = safeLoadstring(url)
+        if fn then
+            local ok, err = pcall(fn)
+            if not ok then
+                warn("[288] module err " .. path .. ": " .. tostring(err))
+            end
+            return true
+        end
+    end
+
+    warn("[288] module not found on GitHub or API: " .. path)
+    return false
 end
 
 -- ==================== ROLES ====================
@@ -705,12 +738,22 @@ do
             end
 
             local t = os.date("*t")
+            -- mantém a data local enquanto a sessão não informar o timestamp
             dateLabel.Text = string.format("Date: %02d/%02d/%04d %02d:%02d",
                 t.day, t.month, t.year, t.hour, t.min)
         end
     end)
     refreshCanvas(f)
 end
+
+-- Expor referências do Home para uso por código assíncrono (session start)
+local HomeUI = {
+    pingVal = pingVal,
+    onlineLabel = onlineLabel,
+    usersLabel = usersLabel,
+    dateLabel = dateLabel,
+}
+
 
 -- ==================== VIP TAB ====================
 do
@@ -727,10 +770,15 @@ do
         local col = (v[2] % 2 == 1) and COL1 or COL2
         local row = math.floor((v[2] - 1) / 2)
         local yPos = y + row * (BTN_H + GAP)
-        local btn = makeButton(f, v[1], col, yPos, BTN_W, BTN_H, v[3])
+        local btn = makeToggleButton(f, v[1], col, yPos, BTN_W, BTN_H, v[3])
         btn.BackgroundColor3 = Color3.fromRGB(28,28,28)
         btn.TextColor3       = Color3.fromRGB(120,120,120)
         btn.TextTransparency = 0.3
+        btn.MouseButton1Click:Connect(function()
+            local active = toggleStates[btn]
+            local safe = v[1]:gsub("%s+", "")
+            loadModule(active and ("modules/VIP/"..safe..".lua") or ("modules/VIP/"..safe.."Off.lua"))
+        end)
     end
     local overlay = Instance.new("Frame")
     overlay.Size             = UDim2.new(1,0,1,0)
@@ -1026,6 +1074,7 @@ do
         {name="Bang", order=5, vip=true}, {name="Drag", order=6},
         {name="Headsit", order=7, vip=true}, {name="Doggy", order=8, vip=true},
         {name="Backpack", order=9, vip=true},
+        {name="CopyID", order=10, instant=true}, {name="Bring", order=11, instant=true, vip=true}, {name="Teleport", order=12, instant=true, vip=true},
     }
     local GRID_Y = 108
     local targetUser = nil
@@ -1039,14 +1088,28 @@ do
         local dotX = (v.order % 2 == 1) and DOT1_X or DOT2_X
         local dot = makeStatusDot(f, dotX, yPos + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
         local active = false
-        btn.MouseButton1Click:Connect(function()
-            if not targetUser then return end
-            active = not active
-            dot.setActive(active)
-            btn.BackgroundColor3 = active and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-            local safe = v.name:gsub(" ","")
-            loadModule(active and ("modules/Target/"..safe..".lua") or ("modules/Target/"..safe.."Off.lua"))
-        end)
+        if v.instant then
+            -- ação instantânea (não toggle)
+            btn.MouseButton1Click:Connect(function()
+                if not targetUser then return end
+                if v.name == "CopyID" then
+                    pcall(function() setclipboard(tostring(targetUser.UserId)) end)
+                    return
+                end
+                -- Bring / Teleport -> carrega módulo único
+                local safe = v.name:gsub(" ", "")
+                loadModule("modules/Target/"..safe..".lua")
+            end)
+        else
+            btn.MouseButton1Click:Connect(function()
+                if not targetUser then return end
+                active = not active
+                dot.setActive(active)
+                btn.BackgroundColor3 = active and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
+                local safe = v.name:gsub(" ","")
+                loadModule(active and ("modules/Target/"..safe..".lua") or ("modules/Target/"..safe.."Off.lua"))
+            end)
+        end
     end
 
     local function applyTarget(player)
@@ -1649,6 +1712,15 @@ task.spawn(function()
                     ch.Text = savedTheme=="dark" and "🌙" or "☀"
                 end
             end
+        end
+    end
+    -- Atualiza a data do Home com o timestamp da sessão (servidor)
+    if HomeUI and HomeUI.dateLabel and res.timestamp then
+        local ok, ts = pcall(function() return tonumber(res.timestamp) end)
+        if ok and ts then
+            local t = os.date("*t", math.floor(ts/1000))
+            HomeUI.dateLabel.Text = string.format("Date: %02d/%02d/%04d %02d:%02d",
+                t.day, t.month, t.year, t.hour, t.min)
         end
     end
 end)
