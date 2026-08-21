@@ -1,8 +1,8 @@
 --[[
-    288 Panel — modules.lua
+    288 Panel — modules
     Registry central de módulos + sistema de toggle/estado
     Uso no Panel.lua:
-        local Modules = loadstring(game:HttpGet(GITHUB_RAW .. "/lib/modules.lua"))()
+        local Modules = loadstring(game:HttpGet(GITHUB_RAW .. "/lib/modules"))()
         Modules.init(Lib)                     -- passa a lib
         Modules.toggle("NoClip")              -- liga/desliga
         Modules.exec("Invisible")             -- executa uma vez
@@ -34,67 +34,67 @@ Modules.Registry = {
     -- ==================== EMPHASIS ====================
     {
         name     = "Invisible",
-        path     = "modules/Emphasis/Invisible.lua",
+        path     = "modules/More/Invisible",
         category = "Emphasis",
         mode     = "toggle",
     },
     {
         name     = "ClickTP",
-        path     = "modules/Emphasis/ClickTP.lua",
+        path     = "modules/More/ClickTP",
         category = "Emphasis",
         mode     = "toggle",
     },
     {
         name     = "NoClip",
-        path     = "modules/Emphasis/NoClip.lua",
+        path     = "modules/More/NoClip",
         category = "Emphasis",
         mode     = "toggle",
     },
     {
         name     = "JerkOff",
-        path     = "modules/Emphasis/JerkOff.lua",
+        path     = "modules/More/JerkOff",
         category = "Emphasis",
         mode     = "toggle",
     },
     {
         name     = "Impulse",
-        path     = "modules/Emphasis/Impulse.lua",
+        path     = "modules/More/Impulse",
         category = "Emphasis",
         mode     = "toggle",
     },
     {
         name     = "FaceBang",
-        path     = "modules/Emphasis/FaceBang.lua",
+        path     = "modules/More/FaceBang",
         category = "Emphasis",
         mode     = "toggle",
     },
     {
         name     = "Spin",
-        path     = "modules/Emphasis/Spin.lua",
+        path     = "modules/More/Spin",
         category = "Emphasis",
         mode     = "toggle",
     },
     {
         name     = "AnimSpeed",
-        path     = "modules/Emphasis/AnimSpeed.lua",
+        path     = "modules/More/AnimeSpeed",
         category = "Emphasis",
         mode     = "toggle",
     },
     {
         name     = "feFlip",
-        path     = "modules/Emphasis/feFlip.lua",
+        path     = "modules/More/feFlip",
         category = "Emphasis",
         mode     = "exec",
     },
     {
         name     = "Flashback",
-        path     = "modules/Emphasis/Flashback.lua",
+        path     = "modules/More/Flashback",
         category = "Emphasis",
         mode     = "toggle",
     },
     {
         name     = "AntiVoid",
-        path     = "modules/Emphasis/AntiVoid.lua",
+        path     = "modules/More/AntiVoid",
         category = "Emphasis",
         mode     = "toggle",
     },
