@@ -83,11 +83,9 @@ end
 -- Tenta o caminho original e também sem ".lua", pois vários módulos More não possuem extensão.
 function Lib.fetchScript(path)
     local rawPath = tostring(path)
-    local extensionless = rawPath:gsub("%.lua$", "")
 
     local urls = {
         Lib.Config.GITHUB_RAW .. "/" .. rawPath,
-        Lib.Config.GITHUB_RAW .. "/" .. extensionless,
     }
 
     local seen = {}
