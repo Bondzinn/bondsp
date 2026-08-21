@@ -360,157 +360,113 @@ if GLOBAL.__288PanelCleanup then
 end
 GLOBAL.__288PanelCleanup = cleanupPanel
 
-local function safeLoadstring(url)
-    local ok, res = pcall(function() return game:HttpGet(url) end)
-    if ok and res and res ~= "" then
-        local fn, err = loadstring(res)
-        if fn then return fn end
-        warn("[288] compile err: " .. tostring(err))
-    else
-        warn("[288] fetch err: " .. url)
-    end
-    return nil
-end
+-- ==================== MODULE LOADER ====================
+-- Estes módulos são scripts standalone (incluindo MoonSec), portanto o fluxo é:
+-- HttpGet -> loadstring -> execução do chunk. Não esperamos retorno/função de módulo.
 
-local MODULE_URL_OVERRIDES = {
-    ["modules/More/ESP.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/ESP",
-    ["modules/More/Aimbot.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Aimbot",
-    ["modules/More/PianoAuto.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/PianoAuto",
-    ["modules/More/AnimeSpeed.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/AnimeSpeed",
-    ["modules/More/AntiVoid.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/AntiVoid",
-    ["modules/More/ClickTP.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/ClickTP",
-    ["modules/More/FaceBang.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/FaceBang",
-    ["modules/More/Flashback.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Flashback",
-    ["modules/More/Impulse.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Impulse",
-    ["modules/More/Invisible.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Invisible",
-    ["modules/More/Jerk"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/JerkOff",
-    ["modules/More/NoClip.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/NoClip",
-    ["modules/More/Spin.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Spin",
-    ["modules/More/feFlip.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/feFlip",
+local MORE_MODULE_URLS = {
+    ESP = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/ESP",
+    Aimbot = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Aimbot",
+    PianoAuto = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/PianoAuto",
+
+    AnimSpeed = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/AnimeSpeed",
+    AnimeSpeed = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/AnimeSpeed",
+    AntiVoid = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/AntiVoid",
+    ClickTP = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/ClickTP",
+    FaceBang = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/FaceBang",
+    Flashback = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Flashback",
+    Impulse = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Impulse",
+    Invisible = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Invisible",
+    JerkOff = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/JerkOff",
+    NoClip = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/NoClip",
+    Spin = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Spin",
+    feFlip = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/feFlip",
 }
 
-local MODULE_BEHAVIOR = {
-    ESP = "action",
-    Aimbot = "action",
-    PianoAuto = "action",
-    AnimeSpeed = "action",
-    AntiVoid = "action",
-    ClickTP = "action",
-    FaceBang = "action",
-    Flashback = "action",
-    Impulse = "action",
-    Invisible = "action",
-    JerkOff = "action",
-    NoClip = "action",
-    Spin = "action",
-    feFlip = "action",
-}
+local function executeRemoteScript(url, label)
+    local okFetch, source = pcall(function()
+        return game:HttpGet(url)
+    end)
 
-local function runPanelModule(name)
-    local path = "modules/More/" .. name .. ".lua"
-    return loadModule(path)
-end
-
-local function loadModule(path)
-    local urls = {
-        "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/" .. path,
-        "https://raw.githubusercontent.com/Bondzinn/bondsp/main/" .. path,
-    }
-
-    local source
-
-    for _, url in ipairs(urls) do
-        local ok, result = pcall(function()
-            return game:HttpGet(url)
-        end)
-
-        if ok and result and #result > 20 then
-            source = result
-            break
-        end
-    end
-
-    if not source then
-        warn("[288] Falha carregando módulo:", path)
+    if not okFetch or type(source) ~= "string" or source == "" then
+        warn("[288] fetch error [" .. tostring(label) .. "]: " .. tostring(source))
         return false
     end
 
-    local chunk, err = loadstring(source)
-
+    local chunk, compileErr = loadstring(source)
     if not chunk then
-        warn("[288] Erro compilando módulo:", err)
+        warn("[288] compile error [" .. tostring(label) .. "]: " .. tostring(compileErr))
         return false
     end
 
-    local ok, result = pcall(chunk)
-
-    if not ok then
-        warn("[288] Erro executando módulo:", result)
+    local okRun, runErr = pcall(chunk)
+    if not okRun then
+        warn("[288] runtime error [" .. tostring(label) .. "]: " .. tostring(runErr))
         return false
     end
 
     return true
 end
-            return true
-        end
+
+local function normalizeModuleName(path)
+    local name = tostring(path):match("([^/]+)$") or tostring(path)
+    name = name:gsub("Off$", "")
+
+    if name == "AnimeSpeed" then
+        return "AnimeSpeed"
     end
 
-    -- Mapa de categorias que devem priorizar o servidor API
-    local PREFER_API = {
-        VIP = true,
-        Character = true,
-        Target = true,
-        Misc = true,
+    return name
+end
+
+local function loadModule(path)
+    local name = normalizeModuleName(path)
+    local exactUrl = MORE_MODULE_URLS[name]
+
+    -- More/Emphasis especiais: usa SEMPRE o raw exato.
+    if exactUrl then
+        return executeRemoteScript(exactUrl, name)
+    end
+
+    -- Os arquivos do repositório não possuem extensão: usa o caminho exatamente como recebido.
+    local candidates = {
+        GITHUB_RAW .. "/" .. tostring(path),
+        API_BASE .. "/raw/" .. tostring(path),
+        API_BASE .. "/" .. tostring(path),
     }
 
-    -- Extrai a categoria do caminho esperado: modules/<Categoria>/...
-    local category = path:match("^modules/([^/]+)") or path:match("^([^/]+)")
-    local preferApi = category and PREFER_API[category]
-
-    local candidates = {}
-    local extensionlessPath = path:gsub("%.lua$", "")
-
-    local function addCandidate(url)
-        for _, existing in ipairs(candidates) do
-            if existing == url then
-                return
-            end
-        end
-        table.insert(candidates, url)
-    end
-
-    if preferApi then
-        -- Prioriza API para categorias específicas.
-        addCandidate(API_BASE .. "/raw/" .. path)
-        addCandidate(API_BASE .. "/raw/" .. extensionlessPath)
-        addCandidate(API_BASE .. "/" .. path)
-        addCandidate(API_BASE .. "/" .. extensionlessPath)
-        addCandidate(GITHUB_RAW .. "/" .. path)
-        addCandidate(GITHUB_RAW .. "/" .. extensionlessPath)
-    else
-        -- GitHub primeiro, tentando tanto .lua quanto caminho sem extensão.
-        addCandidate(GITHUB_RAW .. "/" .. path)
-        addCandidate(GITHUB_RAW .. "/" .. extensionlessPath)
-        addCandidate(API_BASE .. "/raw/" .. path)
-        addCandidate(API_BASE .. "/raw/" .. extensionlessPath)
-        addCandidate(API_BASE .. "/" .. path)
-        addCandidate(API_BASE .. "/" .. extensionlessPath)
-    end
-
+    local seen = {}
     for _, url in ipairs(candidates) do
-        local fn = safeLoadstring(url)
-        if fn then
-            local ok, err = pcall(fn)
-            if not ok then
-                warn("[288] module err " .. path .. ": " .. tostring(err))
-                return false
+        if not seen[url] then
+            seen[url] = true
+
+            local okFetch, source = pcall(function()
+                return game:HttpGet(url)
+            end)
+
+            if okFetch and type(source) == "string" and source ~= "" then
+                local chunk, compileErr = loadstring(source)
+                if chunk then
+                    local okRun, runErr = pcall(chunk)
+                    if okRun then
+                        return true
+                    end
+
+                    warn("[288] runtime error [" .. tostring(path) .. "]: " .. tostring(runErr))
+                    return false
+                elseif compileErr then
+                    warn("[288] compile error [" .. tostring(path) .. "]: " .. tostring(compileErr))
+                end
             end
-            return true
         end
     end
 
-    warn("[288] module not found on GitHub or API: " .. path)
+    warn("[288] module not found: " .. tostring(path))
     return false
+end
+
+local function runPanelModule(name)
+    return loadModule("modules/More/" .. tostring(name))
 end
 
 -- ==================== ROLES ====================
@@ -1600,19 +1556,17 @@ do
         local dotX = (v.order % 2 == 1) and DOT1_X or DOT2_X
         local statusDot = makeStatusDot(f, dotX, yPos + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
 
-        -- Emphasis agora realmente executa os módulos.
+        -- Todos os Emphasis executam o raw diretamente em cada clique, igual ao PianoAuto.
         btn.MouseButton1Click:Connect(function()
             local active = toggleStates[btn] == true
             statusDot.setActive(active)
 
             local moduleName = tostring(v.name):gsub("%s+", "")
-            if active then
-                loadModule("modules/Emphasis/" .. moduleName .. ".lua")
-            else
-                -- Se existir uma versão Off, ela será usada. Caso contrário,
-                -- o loader simplesmente falha silenciosamente após os fallbacks.
-                loadModule("modules/Emphasis/" .. moduleName .. "Off.lua")
+            if moduleName == "AnimSpeed" then
+                moduleName = "AnimeSpeed"
             end
+
+            runPanelModule(moduleName)
         end)
     end
     refreshCanvas(f)
@@ -1682,7 +1636,7 @@ do
         if flyActive then
             loadModule("modules/Emphasis/Fly.lua")
         else
-            loadModule("modules/Emphasis/Fly")
+            loadModule("modules/Emphasis/FlyOff.lua")
         end
     end
 
@@ -1708,7 +1662,7 @@ do
         ckActive = not ckActive
         ckDot.setActive(ckActive)
         ckBtn.BackgroundColor3 = ckActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        loadModule(ckActive and "modules/Character/Checkpoint.lua" or "modules/Character/Checkpoint")
+        loadModule(ckActive and "modules/Character/Checkpoint.lua" or "modules/Character/CheckpointOff.lua")
     end)
 
     refreshCanvas(f)
@@ -2098,11 +2052,11 @@ do
         antiBanStatusLbl.Text      = antiBanState and "[I]" or "[O]"
         antiBanStatusLbl.TextColor3= antiBanState and Color3.fromRGB(80,220,80) or Color3.fromRGB(120,120,120)
         antiBanBtn.BackgroundColor3 = antiBanState and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        loadModule("modules/More/AntiBanVC.lua")
+        loadModule("modules/More/AntiBanVC")
     end)
     local pianoBtn = makeButton(f,"PianoAuto",COL2,y,BTN_W,BTN_H)
     makeMouseDot(f, DOT2_X, y + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
-    pianoBtn.MouseButton1Click:Connect(function() loadModule("modules/More/PianoAuto.lua") end)
+    pianoBtn.MouseButton1Click:Connect(function() runPanelModule("PianoAuto") end)
     y = y + BTN_H + GAP + 4
 
     makeSectionLabel(f,"FPS",PAD,y)
@@ -2115,9 +2069,13 @@ do
         espActive = state
         espDot.setActive(espActive)
         espBtn.BackgroundColor3 = espActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        loadModule(espActive and "modules/More/ESP.lua" or "modules/More/ESP")
+
+        -- O script remoto controla a própria ativação/desativação.
+        runPanelModule("ESP")
     end
-    espBtn.MouseButton1Click:Connect(function() setEsp(not espActive) end)
+    espBtn.MouseButton1Click:Connect(function()
+        setEsp(not espActive)
+    end)
 
     local aimBtn  = makeButton(f,"Aimbot",COL2,y,BTN_W,BTN_H)
     local aimDot  = makeStatusDot(f, DOT2_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
@@ -2126,9 +2084,13 @@ do
         aimActive = state
         aimDot.setActive(aimActive)
         aimBtn.BackgroundColor3 = aimActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        loadModule(aimActive and "modules/More/Aimbot.lua" or "modules/More/Aimbot")
+
+        -- O script remoto controla a própria ativação/desativação.
+        runPanelModule("Aimbot")
     end
-    aimBtn.MouseButton1Click:Connect(function() setAimbot(not aimActive) end)
+    aimBtn.MouseButton1Click:Connect(function()
+        setAimbot(not aimActive)
+    end)
     y = y + BTN_H + GAP
 
     trackConnect(UserInputService.InputBegan, function(input, gpe)
@@ -2183,7 +2145,7 @@ do
         shadersActive = not shadersActive
         shadersDot.setActive(shadersActive)
         shadersBtn.BackgroundColor3 = shadersActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        loadModule(shadersActive and "modules/Misc/Shaders.lua" or "modules/Misc/Shaders")
+        loadModule(shadersActive and "modules/Misc/Shaders.lua" or "modules/Misc/ShadersOff.lua")
     end)
 
     local dayNightBtn = makeButton(f,"Day/Night",COL2,y,BTN_W,BTN_H,true)
@@ -2193,7 +2155,7 @@ do
         dayNightActive = not dayNightActive
         dayNightDot.setActive(dayNightActive)
         dayNightBtn.BackgroundColor3 = dayNightActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        loadModule(dayNightActive and "modules/Misc/DayNight.lua" or "modules/Misc/DayNight")
+        loadModule(dayNightActive and "modules/Misc/DayNight.lua" or "modules/Misc/DayNightOff.lua")
     end)
     y = y + BTN_H + GAP
 
