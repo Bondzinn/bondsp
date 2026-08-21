@@ -1,8 +1,8 @@
 --[[
-    288 Panel — modules
+    288 Panel — modules.lua
     Registry central de módulos + sistema de toggle/estado
     Uso no Panel.lua:
-        local Modules = loadstring(game:HttpGet(GITHUB_RAW .. "/lib/modules"))()
+        local Modules = loadstring(game:HttpGet(GITHUB_RAW .. "/lib/modules.lua"))()
         Modules.init(Lib)                     -- passa a lib
         Modules.toggle("NoClip")              -- liga/desliga
         Modules.exec("Invisible")             -- executa uma vez
@@ -36,49 +36,49 @@ Modules.Registry = {
         name     = "Invisible",
         path     = "modules/More/Invisible",
         category = "Emphasis",
-        mode     = "toggle",
+        mode     = "exec",
     },
     {
         name     = "ClickTP",
         path     = "modules/More/ClickTP",
         category = "Emphasis",
-        mode     = "toggle",
+        mode     = "exec",
     },
     {
         name     = "NoClip",
         path     = "modules/More/NoClip",
         category = "Emphasis",
-        mode     = "toggle",
+        mode     = "exec",
     },
     {
         name     = "JerkOff",
         path     = "modules/More/JerkOff",
         category = "Emphasis",
-        mode     = "toggle",
+        mode     = "exec",
     },
     {
         name     = "Impulse",
         path     = "modules/More/Impulse",
         category = "Emphasis",
-        mode     = "toggle",
+        mode     = "exec",
     },
     {
         name     = "FaceBang",
         path     = "modules/More/FaceBang",
         category = "Emphasis",
-        mode     = "toggle",
+        mode     = "exec",
     },
     {
         name     = "Spin",
         path     = "modules/More/Spin",
         category = "Emphasis",
-        mode     = "toggle",
+        mode     = "exec",
     },
     {
         name     = "AnimSpeed",
         path     = "modules/More/AnimeSpeed",
         category = "Emphasis",
-        mode     = "toggle",
+        mode     = "exec",
     },
     {
         name     = "feFlip",
@@ -90,13 +90,13 @@ Modules.Registry = {
         name     = "Flashback",
         path     = "modules/More/Flashback",
         category = "Emphasis",
-        mode     = "toggle",
+        mode     = "exec",
     },
     {
         name     = "AntiVoid",
         path     = "modules/More/AntiVoid",
         category = "Emphasis",
-        mode     = "toggle",
+        mode     = "exec",
     },
     {
         name     = "Fly",
@@ -270,21 +270,21 @@ Modules.Registry = {
     },
     {
         name     = "PianoAuto",
-        path     = "modules/More/PianoAuto.lua",
+        path     = "modules/More/PianoAuto",
         category = "More",
-        mode     = "toggle",
+        mode     = "exec",
     },
     {
         name     = "ESP",
-        path     = "modules/More/ESP.lua",
+        path     = "modules/More/ESP",
         category = "More",
-        mode     = "toggle",
+        mode     = "exec",
     },
     {
         name     = "Aimbot",
-        path     = "modules/More/Aimbot.lua",
+        path     = "modules/More/Aimbot",
         category = "More",
-        mode     = "toggle",
+        mode     = "exec",
     },
 
     -- ==================== MISC ====================
