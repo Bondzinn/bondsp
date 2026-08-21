@@ -383,7 +383,7 @@ local MODULE_URL_OVERRIDES = {
     ["modules/More/Flashback.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Flashback",
     ["modules/More/Impulse.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Impulse",
     ["modules/More/Invisible.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Invisible",
-    ["modules/More/JerkOff.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/JerkOff",
+    ["modules/More/Jerk"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/JerkOff",
     ["modules/More/NoClip.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/NoClip",
     ["modules/More/Spin.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Spin",
     ["modules/More/feFlip.lua"] = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/feFlip",
@@ -412,16 +412,45 @@ local function runPanelModule(name)
 end
 
 local function loadModule(path)
-    -- URL exata tem prioridade para módulos cujo arquivo remoto não usa extensão .lua.
-    local overrideUrl = MODULE_URL_OVERRIDES[path]
-    if overrideUrl then
-        local fn = safeLoadstring(overrideUrl)
-        if fn then
-            local ok, err = pcall(fn)
-            if not ok then
-                warn("[288] module err " .. path .. ": " .. tostring(err))
-                return false
-            end
+    local urls = {
+        "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/" .. path,
+        "https://raw.githubusercontent.com/Bondzinn/bondsp/main/" .. path,
+    }
+
+    local source
+
+    for _, url in ipairs(urls) do
+        local ok, result = pcall(function()
+            return game:HttpGet(url)
+        end)
+
+        if ok and result and #result > 20 then
+            source = result
+            break
+        end
+    end
+
+    if not source then
+        warn("[288] Falha carregando módulo:", path)
+        return false
+    end
+
+    local chunk, err = loadstring(source)
+
+    if not chunk then
+        warn("[288] Erro compilando módulo:", err)
+        return false
+    end
+
+    local ok, result = pcall(chunk)
+
+    if not ok then
+        warn("[288] Erro executando módulo:", result)
+        return false
+    end
+
+    return true
+end
             return true
         end
     end
@@ -1653,7 +1682,7 @@ do
         if flyActive then
             loadModule("modules/Emphasis/Fly.lua")
         else
-            loadModule("modules/Emphasis/FlyOff.lua")
+            loadModule("modules/Emphasis/Fly")
         end
     end
 
@@ -1679,7 +1708,7 @@ do
         ckActive = not ckActive
         ckDot.setActive(ckActive)
         ckBtn.BackgroundColor3 = ckActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        loadModule(ckActive and "modules/Character/Checkpoint.lua" or "modules/Character/CheckpointOff.lua")
+        loadModule(ckActive and "modules/Character/Checkpoint.lua" or "modules/Character/Checkpoint")
     end)
 
     refreshCanvas(f)
@@ -2086,7 +2115,7 @@ do
         espActive = state
         espDot.setActive(espActive)
         espBtn.BackgroundColor3 = espActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        loadModule(espActive and "modules/More/ESP.lua" or "modules/More/ESPOff.lua")
+        loadModule(espActive and "modules/More/ESP.lua" or "modules/More/ESP")
     end
     espBtn.MouseButton1Click:Connect(function() setEsp(not espActive) end)
 
@@ -2097,7 +2126,7 @@ do
         aimActive = state
         aimDot.setActive(aimActive)
         aimBtn.BackgroundColor3 = aimActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        loadModule(aimActive and "modules/More/Aimbot.lua" or "modules/More/AimbotOff.lua")
+        loadModule(aimActive and "modules/More/Aimbot.lua" or "modules/More/Aimbot")
     end
     aimBtn.MouseButton1Click:Connect(function() setAimbot(not aimActive) end)
     y = y + BTN_H + GAP
@@ -2154,7 +2183,7 @@ do
         shadersActive = not shadersActive
         shadersDot.setActive(shadersActive)
         shadersBtn.BackgroundColor3 = shadersActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        loadModule(shadersActive and "modules/Misc/Shaders.lua" or "modules/Misc/ShadersOff.lua")
+        loadModule(shadersActive and "modules/Misc/Shaders.lua" or "modules/Misc/Shaders")
     end)
 
     local dayNightBtn = makeButton(f,"Day/Night",COL2,y,BTN_W,BTN_H,true)
@@ -2164,7 +2193,7 @@ do
         dayNightActive = not dayNightActive
         dayNightDot.setActive(dayNightActive)
         dayNightBtn.BackgroundColor3 = dayNightActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        loadModule(dayNightActive and "modules/Misc/DayNight.lua" or "modules/Misc/DayNightOff.lua")
+        loadModule(dayNightActive and "modules/Misc/DayNight.lua" or "modules/Misc/DayNight")
     end)
     y = y + BTN_H + GAP
 
