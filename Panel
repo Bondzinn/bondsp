@@ -38,7 +38,7 @@ local DEVICE_LABEL = DEVICE_LABELS[DEVICE] or DEVICE_LABELS.desktop
 -- ==================== CONFIG ====================
 local GLOBAL = (getgenv and getgenv()) or _G
 local PANEL_CONFIG = GLOBAL.__288PanelConfig or {}
-local API_BASE   = PANEL_CONFIG.API_BASE or "https://protocols-patient-sound-richardson.trycloudflare.com"
+local API_BASE   = PANEL_CONFIG.API_BASE or "https://clicking-compound-treating-berkeley.trycloudflare.com"
 local GITHUB_RAW = PANEL_CONFIG.GITHUB_RAW or "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
 local VERSION    = "v4.7.0"
 
