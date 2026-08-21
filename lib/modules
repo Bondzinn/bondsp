@@ -264,7 +264,7 @@ Modules.Registry = {
     -- ==================== MORE ====================
     {
         name     = "AntiBanVC",
-        path     = "modules/More/AntiBanVC.lua",
+        path     = "modules/More/AntiBanVC",
         category = "More",
         mode     = "toggle",
     },
