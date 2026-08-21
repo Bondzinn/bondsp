@@ -1,8 +1,8 @@
 --[[
-    288 Panel — lib
+    288 Panel — lib.lua
     Biblioteca central de utilitários
-    Uso no Panel / módulos:
-        local Lib = loadstring(game:HttpGet(GITHUB_RAW .. "/lib/lib"))()
+    Uso no Panel.lua / módulos:
+        local Lib = loadstring(game:HttpGet(GITHUB_RAW .. "/lib/lib.lua"))()
 ]]
 
 local Lib = {}
@@ -79,33 +79,55 @@ function Lib.apiPost(endpoint, body)
     return ok2 and data or nil
 end
 
--- Busca e compila um script do GitHub, retorna a função ou nil
+-- Busca e compila um script do GitHub.
+-- Tenta o caminho original e também sem ".lua", pois vários módulos More não possuem extensão.
 function Lib.fetchScript(path)
-    local url = Lib.Config.GITHUB_RAW .. "/" .. path
-    local ok, src = pcall(function()
-        return game:HttpGet(url)
-    end)
-    if not ok or not src or src == "" then
-        warn("[288/lib] Falha ao buscar: " .. url)
-        return nil
+    local rawPath = tostring(path)
+    local extensionless = rawPath:gsub("%.lua$", "")
+
+    local urls = {
+        Lib.Config.GITHUB_RAW .. "/" .. rawPath,
+        Lib.Config.GITHUB_RAW .. "/" .. extensionless,
+    }
+
+    local seen = {}
+    for _, url in ipairs(urls) do
+        if not seen[url] then
+            seen[url] = true
+
+            local ok, src = pcall(function()
+                return game:HttpGet(url)
+            end)
+
+            if ok and type(src) == "string" and src ~= "" then
+                local fn, err = loadstring(src)
+                if fn then
+                    return fn
+                end
+
+                warn("[288/lib] Erro de compilação em " .. tostring(path) .. ": " .. tostring(err))
+                return nil
+            end
+        end
     end
-    local fn, err = loadstring(src)
-    if not fn then
-        warn("[288/lib] Erro de compilação em " .. path .. ": " .. tostring(err))
-        return nil
-    end
-    return fn
+
+    warn("[288/lib] Falha ao buscar: " .. tostring(path))
+    return nil
 end
 
--- Carrega e executa um módulo do GitHub, passando args opcionais
+-- Executa o chunk diretamente. Funciona com scripts standalone/MoonSec.
 function Lib.loadModule(path, ...)
     local fn = Lib.fetchScript(path)
-    if not fn then return false end
-    local ok, err = pcall(fn, ...)
-    if not ok then
-        warn("[288/lib] Erro ao executar " .. path .. ": " .. tostring(err))
+    if not fn then
         return false
     end
+
+    local ok, err = pcall(fn, ...)
+    if not ok then
+        warn("[288/lib] Erro ao executar " .. tostring(path) .. ": " .. tostring(err))
+        return false
+    end
+
     return true
 end
 
