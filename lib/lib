@@ -1,8 +1,8 @@
 --[[
-    288 Panel — lib.lua
+    288 Panel — lib
     Biblioteca central de utilitários
-    Uso no Panel.lua / módulos:
-        local Lib = loadstring(game:HttpGet(GITHUB_RAW .. "/lib/lib.lua"))()
+    Uso no Panel / módulos:
+        local Lib = loadstring(game:HttpGet(GITHUB_RAW .. "/lib/lib"))()
 ]]
 
 local Lib = {}
