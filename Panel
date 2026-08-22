@@ -1088,6 +1088,7 @@ end
 
 local function monitorOtherPlayers()
     local monitored = {}
+    local activeServerProfiles = {}
 
     local function destroyTag(character)
         if not character then return end
@@ -1108,7 +1109,7 @@ local function monitorOtherPlayers()
         end
 
         -- A API é a fonte de verdade para visibilidade/rank/device entre clientes.
-        local profile = apiGet("/user/" .. tostring(p.UserId))
+        local profile = activeServerProfiles[tostring(p.UserId)]
         if profile then
             local visible = profile.tagVisible ~= false
             if visible then
@@ -1125,21 +1126,7 @@ local function monitorOtherPlayers()
         end
 
         -- Fallback para o modelo antigo caso a API esteja indisponível.
-        local tagVal = char:FindFirstChild("288Tag")
-        local deviceVal = char:FindFirstChild("288Device")
-        local visibleVal = char:FindFirstChild("288TagVisible")
-        if visibleVal and visibleVal:IsA("BoolValue") and visibleVal.Value == false then
-            destroyTag(char)
-            return
-        end
-        if tagVal and tagVal:IsA("StringValue") then
-            createBillboard(
-                char,
-                tagVal.Value,
-                deviceVal and deviceVal.Value or "desktop",
-                true
-            )
-        end
+        destroyTag(char)
     end
 
     local function hookPlayer(p)
@@ -1164,6 +1151,25 @@ local function monitorOtherPlayers()
         hookPlayer(p)
     end
     trackConnect(Players.PlayerAdded, hookPlayer)
+
+    task.spawn(function()
+        while ScreenGui.Parent and not _shuttingDown do
+            local endpoint = "/session/active?game=" .. HttpService:UrlEncode(tostring(game.PlaceId))
+                .. "&server=" .. HttpService:UrlEncode(tostring(game.JobId))
+            local response = apiGet(endpoint)
+            if response and type(response.players) == "table" then
+                local nextProfiles = {}
+                for _, profile in ipairs(response.players) do
+                    nextProfiles[tostring(profile.userid)] = profile
+                end
+                activeServerProfiles = nextProfiles
+                for _, player in ipairs(Players:GetPlayers()) do
+                    if player ~= LocalPlayer then refreshPlayerTag(player) end
+                end
+            end
+            task.wait(5)
+        end
+    end)
 end
 
 local function setAllRenderedTagsVisible(visible)
@@ -1222,6 +1228,7 @@ task.spawn(function()
     if _shuttingDown then return end
     setupOwnTag("User")
     broadcastOwnTag("User")
+    monitorOtherPlayers()
 end)
 
 -- ==================== HOME TAB ====================
@@ -1494,10 +1501,10 @@ do
     HomeUI.usersLabel = usersLabel
     HomeUI.dateLabel = dateLabel
 
-    task.spawn(function()
-        while task.wait(30) do
-            if not ScreenGui.Parent then break end
-            local ping = LocalPlayer:GetPing() or 0
+    local function refreshHomeStats()
+            if not ScreenGui.Parent then return end
+            local okPing, ping = pcall(function() return LocalPlayer:GetNetworkPing() * 1000 end)
+            ping = okPing and ping or 0
             pingVal.Text = math.floor(ping) .. "ms"
             pingVal.TextColor3 = ping < 150 and ACCENT or Color3.fromRGB(255, 110, 130)
 
@@ -1511,6 +1518,13 @@ do
             -- mantém a data local enquanto a sessão não informar o timestamp
             dateLabel.Text = string.format("Date: %02d/%02d/%04d %02d:%02d",
                 t.day, t.month, t.year, t.hour, t.min)
+    end
+
+    task.spawn(function()
+        refreshHomeStats()
+        while task.wait(30) do
+            if not ScreenGui.Parent then break end
+            refreshHomeStats()
         end
     end)
     refreshCanvas(f)
@@ -2551,6 +2565,7 @@ task.spawn(function()
         username = LocalPlayer.Name,
         version  = VERSION,
         game     = tostring(game.PlaceId),
+        server   = tostring(game.JobId),
         device   = DEVICE,
     })
     if not res then return end
@@ -2559,6 +2574,11 @@ task.spawn(function()
     _sessionId = res.sessionId
     local rank = (res.user and res.user.rank) or "User"
     _currentRank = rank
+
+    if res.stats then
+        if HomeUI.onlineLabel then HomeUI.onlineLabel.Text = "Online: " .. tostring(res.stats.online or "--") end
+        if HomeUI.usersLabel then HomeUI.usersLabel.Text = "Users: " .. tostring(res.stats.totalUsers or "--") end
+    end
 
     broadcastOwnTag(rank)
     local char = LocalPlayer.Character
