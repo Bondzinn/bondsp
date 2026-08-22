@@ -9,6 +9,7 @@ local UserInputService = game:GetService("UserInputService")
 local RunService       = game:GetService("RunService")
 local TweenService     = game:GetService("TweenService")
 local HttpService      = game:GetService("HttpService")
+local StarterGui       = game:GetService("StarterGui")
 local LocalPlayer      = Players.LocalPlayer
 
 -- ==================== DEVICE ====================
@@ -48,6 +49,11 @@ local _currentRank = "User"
 local _tagsVisible = true
 local _shuttingDown = false
 local connections = {}
+local cleanupCallbacks = {}
+
+local function registerCleanup(name, callback)
+    cleanupCallbacks[name] = callback
+end
 
 local function trackConnect(signal, callback)
     local conn = signal:Connect(callback)
@@ -337,6 +343,25 @@ local function cleanupPanel()
     if _shuttingDown then return end
     _shuttingDown = true
 
+    for name, callback in pairs(cleanupCallbacks) do
+        local ok, err = pcall(callback)
+        if not ok then warn("[288] cleanup error [" .. tostring(name) .. "]: " .. tostring(err)) end
+        cleanupCallbacks[name] = nil
+    end
+
+    -- A TAG existe apenas no cliente e no personagem que executou o painel.
+    local character = LocalPlayer.Character
+    if character then
+        local hrp = character:FindFirstChild("HumanoidRootPart")
+        local tagGui = hrp and hrp:FindFirstChild("288TagGui")
+        if tagGui then tagGui:Destroy() end
+        for _, valueName in ipairs({"288Tag", "288Device", "288TagVisible"}) do
+            local value = character:FindFirstChild(valueName)
+            if value then value:Destroy() end
+        end
+    end
+    _tagsVisible = false
+
     if _sessionId then
         local sid = _sessionId
         _sessionId = nil
@@ -351,6 +376,22 @@ local function cleanupPanel()
             if conn and conn.Connected then conn:Disconnect() end
         end)
         connections[i] = nil
+    end
+
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = "288 Panel",
+            Text = "Script encerrado. Todos os recursos foram desativados.",
+            Duration = 5,
+        })
+    end)
+
+    local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+    local panelGui = playerGui and playerGui:FindFirstChild("288Panel")
+    if panelGui then panelGui:Destroy() end
+
+    if GLOBAL.__288PanelCleanup == cleanupPanel then
+        GLOBAL.__288PanelCleanup = nil
     end
 end
 
@@ -906,6 +947,7 @@ local TAG_MAX_DISTANCE = 30
 
 local function createBillboard(character, rank, device, remoteVisible)
     if not character then return end
+    if _shuttingDown then return end
     if not _tagsVisible then return end
     if remoteVisible == false then return end
 
@@ -1177,9 +1219,9 @@ end
 task.spawn(function()
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     task.wait(1)
+    if _shuttingDown then return end
     setupOwnTag("User")
     broadcastOwnTag("User")
-    monitorOtherPlayers()
 end)
 
 -- ==================== HOME TAB ====================
@@ -1501,6 +1543,11 @@ do
             local safe = v[1]:gsub("%s+", "")
             loadModule(active and ("modules/VIP/"..safe..".lua") or ("modules/VIP/"..safe.."Off.lua"))
         end)
+        registerCleanup("VIP/" .. v[1], function()
+            if toggleStates[btn] then
+                loadModule("modules/VIP/" .. v[1]:gsub("%s+", "") .. "Off.lua")
+            end
+        end)
     end
     local overlay = Instance.new("Frame")
     overlay.Size             = UDim2.new(1,0,1,0)
@@ -1555,18 +1602,18 @@ do
 
         local dotX = (v.order % 2 == 1) and DOT1_X or DOT2_X
         local statusDot = makeStatusDot(f, dotX, yPos + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
+        local moduleName = tostring(v.name):gsub("%s+", "")
+        if moduleName == "AnimSpeed" then moduleName = "AnimeSpeed" end
 
         -- Todos os Emphasis executam o raw diretamente em cada clique, igual ao PianoAuto.
         btn.MouseButton1Click:Connect(function()
             local active = toggleStates[btn] == true
             statusDot.setActive(active)
 
-            local moduleName = tostring(v.name):gsub("%s+", "")
-            if moduleName == "AnimSpeed" then
-                moduleName = "AnimeSpeed"
-            end
-
             runPanelModule(moduleName)
+        end)
+        registerCleanup("Emphasis/" .. v.name, function()
+            if toggleStates[btn] then runPanelModule(moduleName) end
         end)
     end
     refreshCanvas(f)
@@ -1593,6 +1640,10 @@ do
             h.WalkSpeed = wsActive and (tonumber(wsInput.Text) or DEFAULT_WS) or DEFAULT_WS
         end
     end)
+    registerCleanup("WalkSpeed", function()
+        local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if h then h.WalkSpeed = DEFAULT_WS end
+    end)
     wsInput:GetPropertyChangedSignal("Text"):Connect(function()
         if not wsActive then return end
         local val = tonumber(wsInput.Text)
@@ -1614,6 +1665,10 @@ do
         if h then
             h.JumpPower = jpActive and (tonumber(jpInput.Text) or DEFAULT_JP) or DEFAULT_JP
         end
+    end)
+    registerCleanup("JumpPower", function()
+        local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if h then h.JumpPower = DEFAULT_JP end
     end)
     jpInput:GetPropertyChangedSignal("Text"):Connect(function()
         if not jpActive then return end
@@ -1641,6 +1696,9 @@ do
     end
 
     flyBtn.MouseButton1Click:Connect(function() setFly(not flyActive) end)
+    registerCleanup("Fly", function()
+        if flyActive then loadModule("modules/Emphasis/FlyOff.lua") end
+    end)
 
     trackConnect(UserInputService.InputBegan, function(input, gpe)
         if gpe then return end
@@ -1663,6 +1721,9 @@ do
         ckDot.setActive(ckActive)
         ckBtn.BackgroundColor3 = ckActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
         loadModule(ckActive and "modules/Character/Checkpoint.lua" or "modules/Character/CheckpointOff.lua")
+    end)
+    registerCleanup("Checkpoint", function()
+        if ckActive then loadModule("modules/Character/CheckpointOff.lua") end
     end)
 
     refreshCanvas(f)
@@ -2076,6 +2137,9 @@ do
     espBtn.MouseButton1Click:Connect(function()
         setEsp(not espActive)
     end)
+    registerCleanup("ESP", function()
+        if espActive then runPanelModule("ESP") end
+    end)
 
     local aimBtn  = makeButton(f,"Aimbot",COL2,y,BTN_W,BTN_H)
     local aimDot  = makeStatusDot(f, DOT2_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
@@ -2090,6 +2154,9 @@ do
     end
     aimBtn.MouseButton1Click:Connect(function()
         setAimbot(not aimActive)
+    end)
+    registerCleanup("Aimbot", function()
+        if aimActive then runPanelModule("Aimbot") end
     end)
     y = y + BTN_H + GAP
 
@@ -2131,6 +2198,7 @@ do
         end
     end
     antiAfkBtn.MouseButton1Click:Connect(function() setAntiAfk(not antiAfkActive) end)
+    registerCleanup("AntiAFK", function() setAntiAfk(false) end)
 
     local tpBtn = makeButton(f,"TpToOwner",COL2,y,BTN_W,BTN_H)
     makeMouseDot(f, DOT2_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
@@ -2147,6 +2215,9 @@ do
         shadersBtn.BackgroundColor3 = shadersActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
         loadModule(shadersActive and "modules/Misc/Shaders.lua" or "modules/Misc/ShadersOff.lua")
     end)
+    registerCleanup("Shaders", function()
+        if shadersActive then loadModule("modules/Misc/ShadersOff.lua") end
+    end)
 
     local dayNightBtn = makeButton(f,"Day/Night",COL2,y,BTN_W,BTN_H,true)
     local dayNightDot = makeStatusDot(f, DOT2_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
@@ -2156,6 +2227,9 @@ do
         dayNightDot.setActive(dayNightActive)
         dayNightBtn.BackgroundColor3 = dayNightActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
         loadModule(dayNightActive and "modules/Misc/DayNight.lua" or "modules/Misc/DayNightOff.lua")
+    end)
+    registerCleanup("DayNight", function()
+        if dayNightActive then loadModule("modules/Misc/DayNightOff.lua") end
     end)
     y = y + BTN_H + GAP
 
