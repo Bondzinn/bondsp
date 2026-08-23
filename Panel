@@ -98,6 +98,8 @@ local TEXT_DIM = Color3.fromRGB(166, 158, 177)
 
 local THEMES = {
     dark = {
+        label    = "Noturno",
+        accent   = ACCENT,
         main     = BG_BASE,
         header   = Color3.fromRGB(13, 12, 19),
         sidebar  = Color3.fromRGB(14, 13, 20),
@@ -111,6 +113,8 @@ local THEMES = {
         stroke   = STROKE_SOFT,
     },
     light = {
+        label    = "Claro",
+        accent   = Color3.fromRGB(181, 72, 190),
         main     = Color3.fromRGB(232, 231, 235),
         header   = Color3.fromRGB(246, 244, 248),
         sidebar  = Color3.fromRGB(238, 236, 241),
@@ -122,6 +126,30 @@ local THEMES = {
         textDim  = Color3.fromRGB(91, 89, 98),
         sep      = Color3.fromRGB(208, 204, 212),
         stroke   = Color3.fromRGB(184, 177, 190),
+    },
+    ocean = {
+        label="Oceano", accent=Color3.fromRGB(75,190,255), main=Color3.fromRGB(7,18,29),
+        header=Color3.fromRGB(8,24,38), sidebar=Color3.fromRGB(8,22,35), content=Color3.fromRGB(9,27,42),
+        btn=Color3.fromRGB(14,39,58), btnHover=Color3.fromRGB(20,57,82), btnOn=Color3.fromRGB(20,75,105),
+        text=Color3.fromRGB(238,249,255), textDim=Color3.fromRGB(145,181,201), sep=Color3.fromRGB(28,61,80), stroke=Color3.fromRGB(47,102,132),
+    },
+    crimson = {
+        label="Carmesim", accent=Color3.fromRGB(255,84,111), main=Color3.fromRGB(24,8,13),
+        header=Color3.fromRGB(31,10,16), sidebar=Color3.fromRGB(28,9,15), content=Color3.fromRGB(34,12,19),
+        btn=Color3.fromRGB(52,18,27), btnHover=Color3.fromRGB(76,25,37), btnOn=Color3.fromRGB(99,30,45),
+        text=Color3.fromRGB(255,242,245), textDim=Color3.fromRGB(201,149,160), sep=Color3.fromRGB(72,31,40), stroke=Color3.fromRGB(126,49,65),
+    },
+    forest = {
+        label="Floresta", accent=Color3.fromRGB(91,222,142), main=Color3.fromRGB(7,20,15),
+        header=Color3.fromRGB(9,27,20), sidebar=Color3.fromRGB(8,24,18), content=Color3.fromRGB(11,31,23),
+        btn=Color3.fromRGB(18,46,35), btnHover=Color3.fromRGB(25,66,49), btnOn=Color3.fromRGB(31,86,62),
+        text=Color3.fromRGB(239,255,246), textDim=Color3.fromRGB(149,195,169), sep=Color3.fromRGB(31,68,51), stroke=Color3.fromRGB(51,112,81),
+    },
+    sunset = {
+        label="Por do sol", accent=Color3.fromRGB(255,151,82), main=Color3.fromRGB(25,13,18),
+        header=Color3.fromRGB(34,16,22), sidebar=Color3.fromRGB(30,14,20), content=Color3.fromRGB(39,18,25),
+        btn=Color3.fromRGB(57,27,35), btnHover=Color3.fromRGB(82,38,47), btnOn=Color3.fromRGB(104,48,55),
+        text=Color3.fromRGB(255,247,240), textDim=Color3.fromRGB(207,169,158), sep=Color3.fromRGB(77,39,46), stroke=Color3.fromRGB(130,67,73),
     },
 }
 local currentTheme = "dark"
@@ -136,12 +164,13 @@ local function applyTheme(name)
     if not THEMES[name] then return false end
     currentTheme = name
     local T = THEMES[name]
+    ACCENT = T.accent or ACCENT
     for i = #themeTargets, 1, -1 do
         local e = themeTargets[i]
         if not e.obj or e.obj.Parent == nil then
             table.remove(themeTargets, i)
         else
-            local key = (name == "dark") and e.dk or e.lk
+            local key = e.dk
             if T[key] ~= nil then
                 pcall(function() e.obj[e.prop] = T[key] end)
             end
@@ -282,6 +311,23 @@ local function makeVectorIcon(parent, kind, x, y, size, color)
             local y = c + math.sin(a) * size * 0.38
             vectorLine(holder, x, y, size * 0.16, 1.5, color, i * 45, true)
         end
+
+    elseif kind == "brush" then
+        vectorLine(holder, size * 0.56, size * 0.42, size * 0.70, size * 0.20, color, -45, true)
+        local tip = vectorOutline(holder, size * 0.29, size * 0.73, size * 0.28, size * 0.36, color, 4)
+        tip.Rotation = 45
+        vectorLine(holder, size * 0.70, size * 0.27, size * 0.22, 2, color, -45, true)
+
+    elseif kind == "home" then
+        vectorLine(holder, size * 0.35, size * 0.38, size * 0.55, 1.8, color, -42, true)
+        vectorLine(holder, size * 0.65, size * 0.38, size * 0.55, 1.8, color, 42, true)
+        vectorOutline(holder, c, size * 0.64, size * 0.58, size * 0.48, color, 3)
+
+    elseif kind == "info" then
+        local ring = vectorOutline(holder, c, c, size * 0.76, size * 0.76, color, size)
+        ring:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(1, 0)
+        vectorLine(holder, c, size * 0.58, 2, size * 0.28, color, 0, true)
+        vectorLine(holder, c, size * 0.29, 2.5, 2.5, color, 0, true)
 
     elseif kind == "star" then
         vectorLine(holder, c, c, size * 0.62, 1.5, color, 0, true)
@@ -1453,6 +1499,7 @@ do
     ProfileCard.ZIndex = 3
     ProfileCard.Parent = f
     Instance.new("UICorner", ProfileCard).CornerRadius = UDim.new(0, 16)
+    makeVectorIcon(ProfileCard, "home", 14, 14, 18, ACCENT)
     local ProfileStroke = Instance.new("UIStroke")
     ProfileStroke.Color = STROKE_SOFT
     ProfileStroke.Transparency = 0.56
@@ -1817,13 +1864,152 @@ do
     vipLink.Size             = UDim2.new(1,0,0,24)
     vipLink.Position         = UDim2.new(0,0,0.35,44)
     vipLink.BackgroundTransparency = 1
-    vipLink.Text             = "ACESSE: https://discord.gg/ksxs"
+    vipLink.Text             = "ACESSE: https://discord.gg/288Panel"
     vipLink.TextColor3       = Color3.fromRGB(200,200,200)
     vipLink.TextSize         = 13
     vipLink.Font             = Enum.Font.Gotham
     vipLink.TextXAlignment   = Enum.TextXAlignment.Center
     vipLink.ZIndex           = 7
     vipLink.Parent           = overlay
+
+    local themePickerBtn = Instance.new("TextButton")
+    themePickerBtn.Name = "VipThemePicker"
+    themePickerBtn.Size = UDim2.new(0, 38, 0, 38)
+    themePickerBtn.Position = UDim2.new(1, -50, 0, 12)
+    themePickerBtn.BackgroundColor3 = SURFACE_2
+    themePickerBtn.BackgroundTransparency = 0.04
+    themePickerBtn.BorderSizePixel = 0
+    themePickerBtn.Text = ""
+    themePickerBtn.AutoButtonColor = false
+    themePickerBtn.ZIndex = 8
+    themePickerBtn.Parent = f
+    Instance.new("UICorner", themePickerBtn).CornerRadius = UDim.new(0, 12)
+    local pickerStroke = Instance.new("UIStroke")
+    pickerStroke.Color = ACCENT
+    pickerStroke.Transparency = 0.35
+    pickerStroke.Parent = themePickerBtn
+    makeVectorIcon(themePickerBtn, "brush", 9, 9, 20, ACCENT)
+    addHover(themePickerBtn, false)
+    registerTheme(themePickerBtn, "BackgroundColor3", "btn")
+
+    local themeOverlay = Instance.new("TextButton")
+    themeOverlay.Name = "ThemeModalOverlay"
+    themeOverlay.Size = UDim2.new(1, 0, 1, 0)
+    themeOverlay.BackgroundColor3 = Color3.fromRGB(3, 3, 6)
+    themeOverlay.BackgroundTransparency = 0.28
+    themeOverlay.BorderSizePixel = 0
+    themeOverlay.Text = ""
+    themeOverlay.AutoButtonColor = false
+    themeOverlay.Visible = false
+    themeOverlay.ZIndex = 100
+    themeOverlay.Parent = ScreenGui
+
+    local themeModal = Instance.new("Frame")
+    themeModal.Name = "ThemeModal"
+    themeModal.AnchorPoint = Vector2.new(0.5, 0.5)
+    themeModal.Position = UDim2.new(0.5, 0, 0.5, 0)
+    themeModal.Size = UDim2.new(0, 370, 0, 268)
+    themeModal.BackgroundColor3 = THEMES.dark.main
+    themeModal.BorderSizePixel = 0
+    themeModal.ZIndex = 101
+    themeModal.Parent = themeOverlay
+    Instance.new("UICorner", themeModal).CornerRadius = UDim.new(0, 18)
+    local modalStroke = Instance.new("UIStroke")
+    modalStroke.Color = ACCENT
+    modalStroke.Transparency = 0.35
+    modalStroke.Parent = themeModal
+    registerTheme(themeModal, "BackgroundColor3", "main")
+
+    local modalTitle = Instance.new("TextLabel")
+    modalTitle.Size = UDim2.new(1, -64, 0, 48)
+    modalTitle.Position = UDim2.new(0, 20, 0, 4)
+    modalTitle.BackgroundTransparency = 1
+    modalTitle.Text = "TEMAS DO PAINEL"
+    modalTitle.TextColor3 = TEXT_MAIN
+    modalTitle.TextSize = 15
+    modalTitle.Font = Enum.Font.GothamBold
+    modalTitle.TextXAlignment = Enum.TextXAlignment.Left
+    modalTitle.ZIndex = 102
+    modalTitle.Parent = themeModal
+    registerTheme(modalTitle, "TextColor3", "text")
+
+    local closeTheme = Instance.new("TextButton")
+    closeTheme.Size = UDim2.new(0, 30, 0, 30)
+    closeTheme.Position = UDim2.new(1, -40, 0, 10)
+    closeTheme.BackgroundColor3 = THEMES.dark.btn
+    closeTheme.BorderSizePixel = 0
+    closeTheme.Text = ""
+    closeTheme.ZIndex = 103
+    closeTheme.Parent = themeModal
+    Instance.new("UICorner", closeTheme).CornerRadius = UDim.new(1, 0)
+    makeVectorIcon(closeTheme, "close", 7, 7, 16, ACCENT)
+    registerTheme(closeTheme, "BackgroundColor3", "btn")
+
+    local themeOrder = { "dark", "light", "ocean", "crimson", "forest", "sunset" }
+    local themeCards = {}
+    for index, themeName in ipairs(themeOrder) do
+        local palette = THEMES[themeName]
+        local column = (index - 1) % 2
+        local row = math.floor((index - 1) / 2)
+        local card = Instance.new("TextButton")
+        card.Name = "Theme_" .. themeName
+        card.Size = UDim2.new(0, 158, 0, 54)
+        card.Position = UDim2.new(0, 20 + column * 172, 0, 54 + row * 64)
+        card.BackgroundColor3 = palette.btn
+        card.BorderSizePixel = 0
+        card.Text = palette.label
+        card.TextColor3 = palette.text
+        card.TextSize = 12
+        card.Font = Enum.Font.GothamMedium
+        card.TextXAlignment = Enum.TextXAlignment.Left
+        card.Text = "      " .. palette.label
+        card.AutoButtonColor = false
+        card.ZIndex = 102
+        card.Parent = themeModal
+        Instance.new("UICorner", card).CornerRadius = UDim.new(0, 12)
+        local cardStroke = Instance.new("UIStroke")
+        cardStroke.Color = palette.accent
+        cardStroke.Transparency = themeName == currentTheme and 0 or 0.68
+        cardStroke.Thickness = themeName == currentTheme and 2 or 1
+        cardStroke.Parent = card
+        local swatch = Instance.new("Frame")
+        swatch.Size = UDim2.new(0, 18, 0, 18)
+        swatch.Position = UDim2.new(0, 14, 0.5, -9)
+        swatch.BackgroundColor3 = palette.accent
+        swatch.BorderSizePixel = 0
+        swatch.ZIndex = 103
+        swatch.Parent = card
+        Instance.new("UICorner", swatch).CornerRadius = UDim.new(1, 0)
+        themeCards[themeName] = cardStroke
+
+        card.MouseButton1Click:Connect(function()
+            applyTheme(themeName)
+            modalStroke.Color = palette.accent
+            pickerStroke.Color = palette.accent
+            for name, stroke in pairs(themeCards) do
+                local selected = name == themeName
+                stroke.Transparency = selected and 0 or 0.68
+                stroke.Thickness = selected and 2 or 1
+            end
+            task.spawn(function()
+                apiPost("/user/preference", { userid = LocalPlayer.UserId, theme = themeName })
+            end)
+        end)
+    end
+
+    themePickerBtn.MouseButton1Click:Connect(function()
+        local palette = THEMES[currentTheme]
+        modalStroke.Color = palette.accent
+        pickerStroke.Color = palette.accent
+        for name, stroke in pairs(themeCards) do
+            local selected = name == currentTheme
+            stroke.Transparency = selected and 0 or 0.68
+            stroke.Thickness = selected and 2 or 1
+        end
+        themeOverlay.Visible = true
+    end)
+    closeTheme.MouseButton1Click:Connect(function() themeOverlay.Visible = false end)
+    themeOverlay.MouseButton1Click:Connect(function() themeOverlay.Visible = false end)
     refreshCanvas(f)
 end
 
@@ -2636,6 +2822,17 @@ do
     local f = Tabs["About"].frame
     f.ScrollingEnabled = false
 
+    local aboutIconCard = Instance.new("Frame")
+    aboutIconCard.Size = UDim2.new(0, 42, 0, 42)
+    aboutIconCard.Position = UDim2.new(1, -66, 0, 18)
+    aboutIconCard.BackgroundColor3 = SURFACE_2
+    aboutIconCard.BorderSizePixel = 0
+    aboutIconCard.ZIndex = 4
+    aboutIconCard.Parent = f
+    Instance.new("UICorner", aboutIconCard).CornerRadius = UDim.new(0, 13)
+    makeVectorIcon(aboutIconCard, "info", 10, 10, 22, ACCENT)
+    registerTheme(aboutIconCard, "BackgroundColor3", "btn")
+
     local devLbl = Instance.new("TextLabel")
     devLbl.Size=UDim2.new(1,-20,0,28)
     devLbl.Position=UDim2.new(0,PAD,0,20)
@@ -2722,43 +2919,6 @@ do
     supLink.Size=UDim2.new(0,160,0,36)
     supLink.Parent=f
 
-    local themeBtn = Instance.new("TextButton")
-    themeBtn.Size             = UDim2.new(0,34,0,34)
-    themeBtn.Position         = UDim2.new(1,-44,1,-44)
-    themeBtn.BackgroundColor3 = SURFACE_2
-    themeBtn.BorderSizePixel  = 0
-    themeBtn.Text             = ""
-    themeBtn.TextColor3       = ACCENT
-    themeBtn.TextSize         = 16
-    themeBtn.Font             = Enum.Font.GothamBold
-    themeBtn.AutoButtonColor  = false
-    themeBtn.ZIndex           = 4
-    themeBtn.Parent           = f
-    Instance.new("UICorner",themeBtn).CornerRadius=UDim.new(1,0)
-    makeVectorIcon(themeBtn, "theme", 8, 8, 18, ACCENT)
-    addHover(themeBtn, false)
-    local themeBtnStroke = Instance.new("UIStroke")
-    themeBtnStroke.Color=ACCENT
-    themeBtnStroke.Transparency=0.55; themeBtnStroke.Thickness=1
-    themeBtnStroke.Parent=themeBtn
-    registerTheme(themeBtn,"BackgroundColor3","btn")
-
-    local function refreshThemeIcon()
-        themeBtn.Name = currentTheme == "dark" and "ThemeLight" or "ThemeDark"
-    end
-    refreshThemeIcon()
-
-    themeBtn.MouseButton1Click:Connect(function()
-        local newTheme = currentTheme == "dark" and "light" or "dark"
-        applyTheme(newTheme)
-        refreshThemeIcon()
-        task.spawn(function()
-            apiPost("/user/preference", {
-                userid = LocalPlayer.UserId,
-                theme  = newTheme,
-            })
-        end)
-    end)
 end
 
 -- ==================== MODERN VISUAL POLISH ====================
@@ -2833,7 +2993,7 @@ task.spawn(function()
 
     if res.user and res.user.theme then
         local savedTheme = res.user.theme
-        if savedTheme == "light" or savedTheme == "dark" then
+        if THEMES[savedTheme] then
             applyTheme(savedTheme)
             -- O ícone do tema é vetorial e não depende de texto/emoji.
         end
