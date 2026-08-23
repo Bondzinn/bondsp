@@ -43,7 +43,16 @@ local API_BASE   = PANEL_CONFIG.API_BASE or "https://appearing-menus-burns-chris
 local GITHUB_RAW = PANEL_CONFIG.GITHUB_RAW or "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
 -- FaÃ§a upload de assets/panel-background.png no Roblox e informe o asset ID aqui
 -- via getgenv().__288PanelConfig.BACKGROUND_IMAGE = "rbxassetid://SEU_ID".
-local BACKGROUND_IMAGE = PANEL_CONFIG.BACKGROUND_IMAGE or "rbxassetid://124602977093923"
+local function normalizeAssetId(value)
+    local raw = tostring(value or "")
+    local id = raw:match("(%d+)")
+    return id and ("rbxassetid://" .. id) or ""
+end
+
+-- Aceita o ID puro, rbxassetid://ID ou a URL da Creator Store.
+local BACKGROUND_IMAGE = normalizeAssetId(
+    PANEL_CONFIG.BACKGROUND_IMAGE or "124602977093923"
+)
 local VERSION    = "v1.0.0"
 
 -- Estado global da sessão/painel
@@ -622,11 +631,12 @@ end
 -- ==================== MAIN FRAME ====================
 local MainFrame = Instance.new("Frame")
 MainFrame.Name             = "MainFrame"
-MainFrame.Size             = UDim2.new(0, 500, 0, 380)
-MainFrame.Position         = UDim2.new(0.5, -250, 0.5, -190)
+MainFrame.Size             = UDim2.new(0, 620, 0, 430)
+MainFrame.Position         = UDim2.new(0.5, -310, 0.5, -215)
 MainFrame.BackgroundColor3 = BG_BASE
 MainFrame.BackgroundTransparency = 0.02
 MainFrame.BorderSizePixel  = 0
+MainFrame.ZIndex           = 0
 MainFrame.Active           = true
 MainFrame.Draggable        = true
 MainFrame.ClipsDescendants = true
@@ -636,7 +646,7 @@ local MainCorner = Instance.new("UICorner")
 MainCorner.CornerRadius = UDim.new(0, 18)
 MainCorner.Parent = MainFrame
 
--- Mantém a geometria interna de 500x380 e escala o painel em telas menores.
+-- Dashboard 620x430 com escala responsiva para telas menores.
 local MainScale = Instance.new("UIScale")
 MainScale.Name = "ResponsiveScale"
 MainScale.Scale = 1
@@ -646,8 +656,8 @@ local function updateResponsiveScale()
     local camera = workspace.CurrentCamera
     if not camera then return end
     local viewport = camera.ViewportSize
-    local scaleX = (viewport.X - 20) / 500
-    local scaleY = (viewport.Y - 20) / 380
+    local scaleX = (viewport.X - 24) / 620
+    local scaleY = (viewport.Y - 24) / 430
     MainScale.Scale = math.clamp(math.min(scaleX, scaleY, 1), 0.55, 1)
 end
 updateResponsiveScale()
@@ -668,7 +678,8 @@ BgLabel.Name             = "PanelBackgroundImage"
 BgLabel.Image            = BACKGROUND_IMAGE
 BgLabel.ImageTransparency = 0.28
 BgLabel.ScaleType        = Enum.ScaleType.Crop
-BgLabel.ZIndex           = 0
+-- O MainFrame ocupa o ZIndex 0; o fundo precisa ficar acima dele para ser visivel.
+BgLabel.ZIndex           = 1
 BgLabel.Parent           = MainFrame
 
 local BgTint = Instance.new("Frame")
@@ -677,7 +688,7 @@ BgTint.Size = UDim2.new(1,0,1,0)
 BgTint.BackgroundColor3 = BG_BASE
 BgTint.BackgroundTransparency = 0.48
 BgTint.BorderSizePixel = 0
-BgTint.ZIndex = 0
+BgTint.ZIndex = 1
 BgTint.Parent = MainFrame
 
 local bgGradient = Instance.new("UIGradient")
@@ -692,7 +703,7 @@ bgGradient.Parent = BgTint
 -- ==================== HEADER ====================
 local Header = Instance.new("Frame")
 Header.Name             = "Header"
-Header.Size             = UDim2.new(1, 0, 0, 42)
+Header.Size             = UDim2.new(1, 0, 0, 54)
 Header.BackgroundColor3 = Color3.fromRGB(14, 15, 18)
 Header.BackgroundTransparency = 0.34
 Header.BorderSizePixel  = 0
@@ -770,8 +781,8 @@ end)
 -- ==================== SIDEBAR ====================
 local Sidebar = Instance.new("Frame")
 Sidebar.Name             = "Sidebar"
-Sidebar.Size             = UDim2.new(0, 108, 1, -42)
-Sidebar.Position         = UDim2.new(0, 0, 0, 42)
+Sidebar.Size             = UDim2.new(0, 132, 1, -54)
+Sidebar.Position         = UDim2.new(0, 0, 0, 54)
 Sidebar.BackgroundColor3 = Color3.fromRGB(14, 15, 18)
 Sidebar.BackgroundTransparency = 0.38
 Sidebar.BorderSizePixel  = 0
@@ -795,8 +806,8 @@ SidebarPadding.Parent = Sidebar
 -- ==================== CONTENT ====================
 local ContentFrame = Instance.new("Frame")
 ContentFrame.Name                  = "Content"
-ContentFrame.Size                  = UDim2.new(1, -108, 1, -42)
-ContentFrame.Position              = UDim2.new(0, 108, 0, 42)
+ContentFrame.Size                  = UDim2.new(1, -132, 1, -54)
+ContentFrame.Position              = UDim2.new(0, 132, 0, 54)
 ContentFrame.BackgroundColor3      = Color3.fromRGB(18, 19, 22)
 ContentFrame.BackgroundTransparency= 0.42
 ContentFrame.BorderSizePixel       = 0
@@ -911,15 +922,14 @@ local function refreshCanvas(scrollFrame, extraPadding)
 end
 
 -- ==================== CONSTANTES GLOBAIS ====================
--- Largura total disponível no ContentFrame = 500 - 108 = 392px
-local BTN_W = 150           -- Largura padrão para botões e inputs
+-- Largura total disponível no ContentFrame = 620 - 132 = 488px
+local BTN_W = 190           -- Largura padrão para botões e inputs
 local BTN_H = 34            -- Altura padrão para botões e inputs
 local GAP = 8               -- Espaçamento entre elementos (horizontal e vertical)
 local DOT_SIZE = 14         -- Tamanho do dot
 
--- Distribuição: 392 = padding_esquerdo + BTN_W + gap + DOT + gap + BTN_W + padding_direito
--- padding_esquerdo = padding_direito = (392 - 150 - 8 - 14 - 8 - 150) / 2 = 31
-local PAD = 31              -- Padding igual nas bordas
+-- Duas colunas de 190px com indicadores centrais e margens simétricas.
+local PAD = 39              -- Padding igual nas bordas
 local COL1 = PAD            -- Coluna 1 (esquerda)
 local COL2 = COL1 + BTN_W + GAP + DOT_SIZE + GAP  -- Coluna 2 (direita)
 
@@ -1362,14 +1372,30 @@ do
     local f = Tabs["Home"].frame
 
     -- Avatar animado (ViewportFrame) para exibir o personagem em 3D
-    local AVATAR_X = PAD
-    local AVATAR_Y = 8
-    local AVATAR_W = 90
-    local AVATAR_H = 90
-    local TEXT_GAP = 14
+    local ProfileCard = Instance.new("Frame")
+    ProfileCard.Name = "ProfileCard"
+    ProfileCard.Size = UDim2.new(1, -48, 0, 124)
+    ProfileCard.Position = UDim2.new(0, 24, 0, 16)
+    ProfileCard.BackgroundColor3 = SURFACE
+    ProfileCard.BackgroundTransparency = 0.18
+    ProfileCard.BorderSizePixel = 0
+    ProfileCard.ZIndex = 3
+    ProfileCard.Parent = f
+    Instance.new("UICorner", ProfileCard).CornerRadius = UDim.new(0, 16)
+    local ProfileStroke = Instance.new("UIStroke")
+    ProfileStroke.Color = STROKE_SOFT
+    ProfileStroke.Transparency = 0.56
+    ProfileStroke.Thickness = 1
+    ProfileStroke.Parent = ProfileCard
+
+    local AVATAR_X = 40
+    local AVATAR_Y = 30
+    local AVATAR_W = 96
+    local AVATAR_H = 96
+    local TEXT_GAP = 22
     local TEXT_X = AVATAR_X + AVATAR_W + TEXT_GAP
-    local TEXT_RIGHT_PAD = 14
-    local TEXT_W = math.max(120, 392 - TEXT_X - TEXT_RIGHT_PAD)
+    local TEXT_RIGHT_PAD = 34
+    local TEXT_W = math.max(160, 488 - TEXT_X - TEXT_RIGHT_PAD)
 
     local avatarViewport = Instance.new("ViewportFrame")
     avatarViewport.Name = "HomeAvatarViewport"
@@ -1385,7 +1411,7 @@ do
     registerTheme(avatarViewport, "BackgroundColor3", "btn")
 
     local avatarCorner = Instance.new("UICorner")
-    avatarCorner.CornerRadius = UDim.new(0, 6)
+    avatarCorner.CornerRadius = UDim.new(0, 14)
     avatarCorner.Parent = avatarViewport
 
     local avatarStroke = Instance.new("UIStroke")
@@ -1475,11 +1501,11 @@ do
 
     local greetLabel = Instance.new("TextLabel")
     greetLabel.Size             = UDim2.new(0, TEXT_W, 0, 30)
-    greetLabel.Position         = UDim2.new(0, TEXT_X, 0, 12)
+    greetLabel.Position         = UDim2.new(0, TEXT_X, 0, 40)
     greetLabel.BackgroundTransparency = 1
     greetLabel.Text             = "Olá " .. LocalPlayer.DisplayName .. "."
     greetLabel.TextColor3       = TEXT_MAIN
-    greetLabel.TextSize         = 14
+    greetLabel.TextSize         = 17
     greetLabel.Font             = Enum.Font.GothamBold
     greetLabel.TextXAlignment   = Enum.TextXAlignment.Left
     greetLabel.TextTruncate     = Enum.TextTruncate.AtEnd
@@ -1489,7 +1515,7 @@ do
 
     local hintLabel = Instance.new("TextLabel")
     hintLabel.Size             = UDim2.new(0, TEXT_W, 0, 44)
-    hintLabel.Position         = UDim2.new(0, TEXT_X, 0, 42)
+    hintLabel.Position         = UDim2.new(0, TEXT_X, 0, 72)
     hintLabel.BackgroundTransparency = 1
     hintLabel.Text             = "Pressione " .. "<b>[B]</b>" .. " para\nabrir/fechar o painel"
     hintLabel.TextColor3       = TEXT_DIM
@@ -1558,68 +1584,82 @@ do
         end)
     end)
 
+    local function styleHomeCard(card)
+        card.BackgroundColor3 = SURFACE_2
+        card.BackgroundTransparency = 0.16
+        card.BorderSizePixel = 0
+        Instance.new("UICorner", card).CornerRadius = UDim.new(0, 14)
+        local stroke = Instance.new("UIStroke")
+        stroke.Color = STROKE_SOFT
+        stroke.Transparency = 0.62
+        stroke.Thickness = 1
+        stroke.Parent = card
+    end
+
     local pingLabel = Instance.new("TextLabel")
-    pingLabel.Size             = UDim2.new(1, -20, 0, 22)
-    pingLabel.Position         = UDim2.new(0, PAD, 0, 108)
-    pingLabel.BackgroundTransparency = 1
-    pingLabel.Text             = "Ping: "
-    pingLabel.TextColor3       = TEXT_MAIN
-    pingLabel.TextSize         = 13
-    pingLabel.Font             = Enum.Font.Gotham
+    pingLabel.Size             = UDim2.new(0, 132, 0, 64)
+    pingLabel.Position         = UDim2.new(0, 24, 0, 158)
+    pingLabel.Text             = "PING"
+    pingLabel.TextColor3       = TEXT_DIM
+    pingLabel.TextSize         = 10
+    pingLabel.Font             = Enum.Font.GothamBold
     pingLabel.TextXAlignment   = Enum.TextXAlignment.Left
+    pingLabel.TextYAlignment   = Enum.TextYAlignment.Top
+    pingLabel.Text = "   PING"
     pingLabel.ZIndex           = 4
     pingLabel.Parent           = f
+    styleHomeCard(pingLabel)
     registerTheme(pingLabel, "TextColor3", "text")
 
     local pingVal = Instance.new("TextLabel")
-    pingVal.Size             = UDim2.new(0, 70, 1, 0)
-    pingVal.Position         = UDim2.new(0, 42, 0, 0)
+    pingVal.Size             = UDim2.new(1, -24, 0, 30)
+    pingVal.Position         = UDim2.new(0, 12, 0, 24)
     pingVal.BackgroundTransparency = 1
     pingVal.Text             = "--ms"
     pingVal.TextColor3       = ACCENT
-    pingVal.TextSize         = 13
+    pingVal.TextSize         = 19
     pingVal.Font             = Enum.Font.GothamBold
     pingVal.TextXAlignment   = Enum.TextXAlignment.Left
     pingVal.ZIndex           = 5
     pingVal.Parent           = pingLabel
 
     local onlineLabel = Instance.new("TextLabel")
-    onlineLabel.Size             = UDim2.new(1, -20, 0, 20)
-    onlineLabel.Position         = UDim2.new(0, PAD, 0, 136)
-    onlineLabel.BackgroundTransparency = 1
-    onlineLabel.Text             = "Online: --"
-    onlineLabel.TextColor3       = Color3.fromRGB(200, 200, 200)
-    onlineLabel.TextSize         = 12
-    onlineLabel.Font             = Enum.Font.Gotham
-    onlineLabel.TextXAlignment   = Enum.TextXAlignment.Left
+    onlineLabel.Size             = UDim2.new(0, 132, 0, 64)
+    onlineLabel.Position         = UDim2.new(0, 178, 0, 158)
+    onlineLabel.Text             = "ONLINE\n--"
+    onlineLabel.TextColor3       = TEXT_MAIN
+    onlineLabel.TextSize         = 15
+    onlineLabel.Font             = Enum.Font.GothamBold
+    onlineLabel.TextXAlignment   = Enum.TextXAlignment.Center
     onlineLabel.ZIndex           = 4
     onlineLabel.Parent           = f
+    styleHomeCard(onlineLabel)
     registerTheme(onlineLabel, "TextColor3", "textDim")
 
     local usersLabel = Instance.new("TextLabel")
-    usersLabel.Size             = UDim2.new(1, -20, 0, 20)
-    usersLabel.Position         = UDim2.new(0, PAD, 0, 158)
-    usersLabel.BackgroundTransparency = 1
-    usersLabel.Text             = "Users: --"
-    usersLabel.TextColor3       = Color3.fromRGB(200, 200, 200)
-    usersLabel.TextSize         = 12
-    usersLabel.Font             = Enum.Font.Gotham
-    usersLabel.TextXAlignment   = Enum.TextXAlignment.Left
+    usersLabel.Size             = UDim2.new(0, 132, 0, 64)
+    usersLabel.Position         = UDim2.new(0, 332, 0, 158)
+    usersLabel.Text             = "USERS\n--"
+    usersLabel.TextColor3       = TEXT_MAIN
+    usersLabel.TextSize         = 15
+    usersLabel.Font             = Enum.Font.GothamBold
+    usersLabel.TextXAlignment   = Enum.TextXAlignment.Center
     usersLabel.ZIndex           = 4
     usersLabel.Parent           = f
+    styleHomeCard(usersLabel)
     registerTheme(usersLabel, "TextColor3", "textDim")
 
     local dateLabel = Instance.new("TextLabel")
-    dateLabel.Size             = UDim2.new(1, -20, 0, 20)
-    dateLabel.Position         = UDim2.new(0, PAD, 0, 184)
-    dateLabel.BackgroundTransparency = 1
-    dateLabel.Text             = "Date: --"
+    dateLabel.Size             = UDim2.new(1, -48, 0, 42)
+    dateLabel.Position         = UDim2.new(0, 24, 0, 240)
+    dateLabel.Text             = "SESSION  â€¢  --"
     dateLabel.TextColor3       = ACCENT
-    dateLabel.TextSize         = 12
-    dateLabel.Font             = Enum.Font.Gotham
-    dateLabel.TextXAlignment   = Enum.TextXAlignment.Left
+    dateLabel.TextSize         = 11
+    dateLabel.Font             = Enum.Font.GothamMedium
+    dateLabel.TextXAlignment   = Enum.TextXAlignment.Center
     dateLabel.ZIndex           = 4
     dateLabel.Parent           = f
+    styleHomeCard(dateLabel)
 
     HomeUI.pingVal = pingVal
     HomeUI.onlineLabel = onlineLabel
@@ -1635,13 +1675,13 @@ do
 
             local stats = apiGet("/stats")
             if stats then
-                onlineLabel.Text = "Online: " .. tostring(stats.online or stats.activeSessions or "--")
-                usersLabel.Text  = "Users: "  .. tostring(stats.totalUsers or "--")
+                onlineLabel.Text = "ONLINE\n" .. tostring(stats.online or stats.activeSessions or "--")
+                usersLabel.Text  = "USERS\n"  .. tostring(stats.totalUsers or "--")
             end
 
             local t = os.date("*t")
             -- mantém a data local enquanto a sessão não informar o timestamp
-            dateLabel.Text = string.format("Date: %02d/%02d/%04d %02d:%02d",
+            dateLabel.Text = string.format("SESSION  â€¢  %02d/%02d/%04d  %02d:%02d",
                 t.day, t.month, t.year, t.hour, t.min)
     end
 
@@ -1876,7 +1916,7 @@ end
 do
     local f = Tabs["Target"].frame
 
-    local CF_X = 108; local CF_Y = 42
+    local CF_X = 132; local CF_Y = 54
     local IN_Y = 6
     local IN_W = BTN_W; local IN_H = BTN_H
 
@@ -1896,7 +1936,7 @@ do
 
     -- Input e botão buscar no canto direito
     local inputStartX = PAD + 95 + GAP
-    local availableWidth = 392 - inputStartX - PAD  -- espaço disponível para input + botão
+    local availableWidth = 488 - inputStartX - PAD  -- espaço disponível para input + botão
     local inputWidth = availableWidth - BTN_H - GAP  -- BTN_H é o tamanho do botão buscar
     
     local usernameInput = Instance.new("TextBox")
@@ -2720,8 +2760,8 @@ task.spawn(function()
     refreshVipAccess(rank, res.user and res.user.vip)
 
     if res.stats then
-        if HomeUI.onlineLabel then HomeUI.onlineLabel.Text = "Online: " .. tostring(res.stats.online or "--") end
-        if HomeUI.usersLabel then HomeUI.usersLabel.Text = "Users: " .. tostring(res.stats.totalUsers or "--") end
+        if HomeUI.onlineLabel then HomeUI.onlineLabel.Text = "ONLINE\n" .. tostring(res.stats.online or "--") end
+        if HomeUI.usersLabel then HomeUI.usersLabel.Text = "USERS\n" .. tostring(res.stats.totalUsers or "--") end
     end
 
     broadcastOwnTag(rank)
@@ -2740,7 +2780,7 @@ task.spawn(function()
         local ok, ts = pcall(function() return tonumber(res.timestamp) end)
         if ok and ts then
             local t = os.date("*t", math.floor(ts/1000))
-            HomeUI.dateLabel.Text = string.format("Date: %02d/%02d/%04d %02d:%02d",
+            HomeUI.dateLabel.Text = string.format("SESSION  â€¢  %02d/%02d/%04d  %02d:%02d",
                 t.day, t.month, t.year, t.hour, t.min)
         end
     end
@@ -2766,10 +2806,10 @@ task.spawn(function()
                 refreshVipAccess(res.user.rank or _currentRank, res.user.vip)
             end
             if HomeUI.onlineLabel and res.online ~= nil then
-                HomeUI.onlineLabel.Text = "Online: " .. tostring(res.online)
+                HomeUI.onlineLabel.Text = "ONLINE\n" .. tostring(res.online)
             end
             if HomeUI.usersLabel and res.totalUsers ~= nil then
-                HomeUI.usersLabel.Text = "Users: " .. tostring(res.totalUsers)
+                HomeUI.usersLabel.Text = "USERS\n" .. tostring(res.totalUsers)
             end
             if res.kick then
                 cleanupPanel()
