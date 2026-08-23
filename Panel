@@ -54,7 +54,7 @@ local BACKGROUND_IMAGE = normalizeAssetId(
     PANEL_CONFIG.BACKGROUND_IMAGE or "124602977093923"
 )
 local BACKGROUND_IMAGE_URL = PANEL_CONFIG.BACKGROUND_IMAGE_URL
-    or (GITHUB_RAW .. "/assets/panel-background.png")
+    or (API_BASE .. "/assets/panel-background.png")
 local VERSION    = "v1.0.0"
 
 -- Estado global da sessão/painel
