@@ -2733,6 +2733,7 @@ do
     local GRID_Y = 108
     local targetUser = nil
     local targetControls = {}
+    local clearingTarget = false
 
     for _, v in ipairs(TARGET_BTNS) do
         local col = (v.order % 2 == 1) and COL1 or COL2
@@ -2794,7 +2795,52 @@ do
         end
     end
 
+    local function clearTarget(notificationTitle, notificationText)
+        if clearingTarget then return end
+        clearingTarget = true
+
+        local modulesToDisable = {}
+        for _, control in ipairs(targetControls) do
+            if not control.instant and control.isActive() then
+                local safe = control.name:gsub(" ", "")
+                table.insert(modulesToDisable, "modules/Target/" .. safe .. "Off.lua")
+            end
+            control.deactivate()
+        end
+
+        -- Headsit tambem observa este ID e se encerra imediatamente quando ele
+        -- e limpo, mesmo antes de o modulo Off terminar de carregar.
+        targetUser = nil
+        GLOBAL.__288TargetUserId = nil
+        userIdLbl.Visible = false
+        displayLbl.Visible = false
+        nameLbl2.Visible = false
+        hintLbl.Visible = true
+        targetAvatar.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+        targetAvatar.ImageColor3 = Color3.fromRGB(90, 90, 90)
+        usernameInput.Text = ""
+        inputStroke.Color = STROKE_SOFT
+        suggestFrame.Visible = false
+        clearingTarget = false
+
+        if notificationTitle then
+            notifyPanel(notificationTitle, notificationText or "Todas as ações foram encerradas.", "warning", 5)
+        end
+        task.spawn(function()
+            for _, modulePath in ipairs(modulesToDisable) do
+                loadModule(modulePath)
+            end
+        end)
+    end
+
+    registerCleanup("TargetActions", function()
+        clearTarget()
+    end)
+
     local function applyTarget(player)
+        if targetUser and targetUser ~= player then
+            clearTarget()
+        end
         targetUser   = player
         userIdLbl.Text  = "UserID: "  .. tostring(player.UserId)
         displayLbl.Text = "Display: " .. tostring(player.DisplayName)
@@ -2832,33 +2878,7 @@ do
             and (player.DisplayName .. " (@" .. player.Name .. ")")
             or ("@" .. player.Name)
 
-        local modulesToDisable = {}
-        for _, control in ipairs(targetControls) do
-            if not control.instant and control.isActive() then
-                local safe = control.name:gsub(" ", "")
-                table.insert(modulesToDisable, "modules/Target/" .. safe .. "Off.lua")
-            end
-            control.deactivate()
-        end
-
-        targetUser = nil
-        GLOBAL.__288TargetUserId = nil
-        userIdLbl.Visible = false
-        displayLbl.Visible = false
-        nameLbl2.Visible = false
-        hintLbl.Visible = true
-        targetAvatar.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
-        targetAvatar.ImageColor3 = Color3.fromRGB(90, 90, 90)
-        usernameInput.Text = ""
-        inputStroke.Color = STROKE_SOFT
-        suggestFrame.Visible = false
-
-        notifyPanel("Target saiu", departedName .. " saiu do servidor.", "warning", 5)
-        task.spawn(function()
-            for _, modulePath in ipairs(modulesToDisable) do
-                loadModule(modulePath)
-            end
-        end)
+        clearTarget("Target saiu", departedName .. " saiu do servidor. Todas as ações foram encerradas.")
     end)
 
     local function showDropdown(matches)
@@ -2969,6 +2989,10 @@ do
 
     usernameInput:GetPropertyChangedSignal("Text"):Connect(function()
         inputStroke.Color = Color3.fromRGB(60,60,60)
+        if usernameInput.Text == "" and targetUser and not clearingTarget then
+            clearTarget("Target limpo", "Todas as ações sobre o alvo foram encerradas.")
+            return
+        end
         searchPlayers(usernameInput.Text)
     end)
 
