@@ -1951,7 +1951,7 @@ do
     themeModal.Name = "ThemeModal"
     themeModal.AnchorPoint = Vector2.new(0.5, 0.5)
     themeModal.Position = UDim2.new(0.5, 0, 0.5, 0)
-    themeModal.Size = UDim2.new(0, 370, 0, 268)
+    themeModal.Size = UDim2.new(0, 370, 0, 204)
     themeModal.BackgroundColor3 = THEMES.dark.main
     themeModal.BorderSizePixel = 0
     themeModal.ZIndex = 101
@@ -1967,7 +1967,7 @@ do
     modalTitle.Size = UDim2.new(1, -64, 0, 48)
     modalTitle.Position = UDim2.new(0, 20, 0, 4)
     modalTitle.BackgroundTransparency = 1
-    modalTitle.Text = "TEMAS DO PAINEL"
+    modalTitle.Text = "TEMAS VIP"
     modalTitle.TextColor3 = TEXT_MAIN
     modalTitle.TextSize = 15
     modalTitle.Font = Enum.Font.GothamBold
@@ -1988,7 +1988,8 @@ do
     makeVectorIcon(closeTheme, "close", 7, 7, 16, ACCENT)
     registerTheme(closeTheme, "BackgroundColor3", "btn")
 
-    local themeOrder = { "dark", "light", "ocean", "crimson", "forest", "sunset" }
+    -- Claro/Noturno ficam exclusivamente no controle da aba Sobre.
+    local themeOrder = { "ocean", "crimson", "forest", "sunset" }
     local themeCards = {}
     for index, themeName in ipairs(themeOrder) do
         local palette = THEMES[themeName]
@@ -2000,20 +2001,11 @@ do
         card.Position = UDim2.new(0, 20 + column * 172, 0, 54 + row * 64)
         card.BackgroundColor3 = palette.btn
         card.BorderSizePixel = 0
-        card.Text = palette.label
-        card.TextColor3 = palette.text
-        card.TextSize = 12
-        card.Font = Enum.Font.GothamMedium
-        card.TextXAlignment = Enum.TextXAlignment.Left
-        card.Text = palette.label
+        card.Text = ""
         card.AutoButtonColor = false
         card.ZIndex = 102
         card.Parent = themeModal
         Instance.new("UICorner", card).CornerRadius = UDim.new(0, 12)
-        local cardPadding = Instance.new("UIPadding")
-        cardPadding.PaddingLeft = UDim.new(0, 44)
-        cardPadding.PaddingRight = UDim.new(0, 10)
-        cardPadding.Parent = card
         local cardStroke = Instance.new("UIStroke")
         cardStroke.Color = palette.accent
         cardStroke.Transparency = themeName == currentTheme and 0 or 0.68
@@ -2027,7 +2019,31 @@ do
         swatch.ZIndex = 103
         swatch.Parent = card
         Instance.new("UICorner", swatch).CornerRadius = UDim.new(1, 0)
+
+        local cardLabel = Instance.new("TextLabel")
+        cardLabel.Size = UDim2.new(1, -54, 1, 0)
+        cardLabel.Position = UDim2.new(0, 44, 0, 0)
+        cardLabel.BackgroundTransparency = 1
+        cardLabel.Text = palette.label
+        cardLabel.TextColor3 = palette.text
+        cardLabel.TextSize = 12
+        cardLabel.Font = Enum.Font.GothamMedium
+        cardLabel.TextXAlignment = Enum.TextXAlignment.Left
+        cardLabel.TextTruncate = Enum.TextTruncate.AtEnd
+        cardLabel.ZIndex = 103
+        cardLabel.Parent = card
         themeCards[themeName] = cardStroke
+
+        trackConnect(card.MouseEnter, function()
+            TweenService:Create(card, TweenInfo.new(0.12), {
+                BackgroundColor3 = palette.btnHover,
+            }):Play()
+        end)
+        trackConnect(card.MouseLeave, function()
+            TweenService:Create(card, TweenInfo.new(0.12), {
+                BackgroundColor3 = palette.btn,
+            }):Play()
+        end)
 
         card.MouseButton1Click:Connect(function()
             applyTheme(themeName)
