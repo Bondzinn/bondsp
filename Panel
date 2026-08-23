@@ -688,41 +688,66 @@ BgLabel.ZIndex           = 1
 BgLabel.Parent           = MainFrame
 
 -- Alguns assets da Creator Store nao sao entregues para todas as experiencias.
--- Nesse caso, executores que oferecem getcustomasset usam a mesma imagem do repo.
-task.spawn(function()
-    local ContentProvider = game:GetService("ContentProvider")
-    pcall(function()
-        ContentProvider:PreloadAsync({ BgLabel })
-    end)
-
+-- Depois de 2 segundos, baixa uma copia pela API se o asset ainda nao carregou.
+local function loadBackgroundFromApi()
     if not BgLabel.Parent or BgLabel.IsLoaded then return end
 
-    local customAsset = getcustomasset or getsynasset
-    if type(customAsset) ~= "function"
-        or type(writefile) ~= "function"
-        or type(isfile) ~= "function" then
-        warn("[288] Background indisponivel. Libere o asset para a experiencia ou use um executor com getcustomasset.")
+    local customAsset = getcustomasset or getsynasset or getexecutorasset
+    if type(customAsset) ~= "function" or type(writefile) ~= "function" then
+        warn("[288] O executor nao oferece writefile + getcustomasset para carregar o background da API.")
         return
     end
 
-    local cacheFile = "288-panel-background.png"
-    if not isfile(cacheFile) then
-        local okDownload, bytes = pcall(function()
-            return game:HttpGet(BACKGROUND_IMAGE_URL)
-        end)
-        if not okDownload or type(bytes) ~= "string" or #bytes < 1000 then
-            warn("[288] Nao foi possivel baixar o background alternativo.")
-            return
+    local downloadUrl = BACKGROUND_IMAGE_URL .. "?v=" .. tostring(os.time())
+    local bytes = nil
+
+    if executorRequest then
+        local okRequest, response = pcall(executorRequest, {
+            Url = downloadUrl,
+            Method = "GET",
+        })
+        if okRequest then
+            if type(response) == "string" then
+                bytes = response
+            elseif type(response) == "table" then
+                bytes = response.Body or response.body or response.ResponseBody
+            end
         end
-        local okWrite = pcall(writefile, cacheFile, bytes)
-        if not okWrite then return end
+    end
+
+    if type(bytes) ~= "string" or #bytes < 1000 then
+        local okHttpGet, body = pcall(function()
+            return game:HttpGet(downloadUrl)
+        end)
+        if okHttpGet then bytes = body end
+    end
+
+    if type(bytes) ~= "string" or #bytes < 1000 then
+        warn("[288] A API nao retornou um PNG valido para o background.")
+        return
+    end
+
+    -- Sobrescreve sempre para nao reutilizar um download antigo/404 em cache.
+    local cacheFile = "288-panel-background.png"
+    local okWrite, writeError = pcall(writefile, cacheFile, bytes)
+    if not okWrite then
+        warn("[288] Falha ao salvar o background: " .. tostring(writeError))
+        return
     end
 
     local okAsset, localImage = pcall(customAsset, cacheFile)
-    if okAsset and BgLabel.Parent then
-        BgLabel.Image = localImage
+    if not okAsset or type(localImage) ~= "string" then
+        warn("[288] Falha ao registrar o background local: " .. tostring(localImage))
+        return
     end
-end)
+
+    if BgLabel.Parent then
+        BgLabel.Image = localImage
+        BgLabel.ImageTransparency = 0.18
+    end
+end
+
+task.delay(2, loadBackgroundFromApi)
 
 local BgTint = Instance.new("Frame")
 BgTint.Name = "GlassTint"
