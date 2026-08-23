@@ -39,7 +39,7 @@ local DEVICE_LABEL = DEVICE_LABELS[DEVICE] or DEVICE_LABELS.desktop
 -- ==================== CONFIG ====================
 local GLOBAL = (getgenv and getgenv()) or _G
 local PANEL_CONFIG = GLOBAL.__288PanelConfig or {}
-local API_BASE   = PANEL_CONFIG.API_BASE or "https://clicking-compound-treating-berkeley.trycloudflare.com"
+local API_BASE   = PANEL_CONFIG.API_BASE or "https://digest-vice-decided-isaac.trycloudflare.com"
 local GITHUB_RAW = PANEL_CONFIG.GITHUB_RAW or "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
 local VERSION    = "v4.7.0"
 
@@ -315,28 +315,77 @@ local function addHover(button, accentText)
 end
 
 -- ==================== HELPERS HTTP ====================
+local executorRequest = (syn and syn.request) or (http and http.request) or http_request or request
+
+local function decodeApiResponse(raw)
+    if type(raw) == "table" then return raw end
+    if type(raw) ~= "string" or raw == "" then return nil end
+    local ok, data = pcall(function() return HttpService:JSONDecode(raw) end)
+    return ok and data or nil
+end
+
 local function apiGet(endpoint)
-    local ok, res = pcall(function() return game:HttpGet(API_BASE .. endpoint) end)
-    if ok and res then
-        local ok2, data = pcall(function() return HttpService:JSONDecode(res) end)
-        if ok2 then return data end
+    local separator = tostring(endpoint):find("?", 1, true) and "&" or "?"
+    local url = API_BASE .. endpoint .. separator .. "_=" .. tostring(os.time())
+
+    if executorRequest then
+        local ok, response = pcall(executorRequest, { Url = url, Method = "GET" })
+        if ok and response then
+            if type(response) == "string" then
+                local data = decodeApiResponse(response)
+                if data then return data end
+            elseif type(response) == "table" then
+                local status = tonumber(response.StatusCode or response.Status or response.status_code)
+                local rawBody = response.Body or response.body or response.ResponseBody
+                if not status or status == 0 or (status >= 200 and status < 300) then
+                    local data = decodeApiResponse(rawBody)
+                    if data then return data end
+                end
+            end
+        end
     end
-    return nil
+
+    local ok, raw = pcall(function() return game:HttpGet(url) end)
+    local data = ok and decodeApiResponse(raw) or nil
+    if data then return data end
+
+    -- Alguns ambientes ou proxies bloqueiam query de cache-buster.
+    local okPlain, rawPlain = pcall(function() return game:HttpGet(API_BASE .. endpoint) end)
+    return okPlain and decodeApiResponse(rawPlain) or nil
 end
 
 local function apiPost(endpoint, body)
-    local ok, res = pcall(function()
+    local encoded = HttpService:JSONEncode(body or {})
+    if executorRequest then
+        local ok, response = pcall(executorRequest, {
+            Url = API_BASE .. endpoint,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = encoded,
+        })
+        if ok and response then
+            if type(response) == "string" then
+                local data = decodeApiResponse(response)
+                if data then return data end
+            elseif type(response) == "table" then
+                local status = tonumber(response.StatusCode or response.Status or response.status_code)
+                local rawBody = response.Body or response.body or response.ResponseBody
+                if not status or status == 0 or (status >= 200 and status < 300) then
+                    local data = decodeApiResponse(rawBody)
+                    if data then return data end
+                end
+            end
+        end
+    end
+
+    local ok, raw = pcall(function()
         return HttpService:PostAsync(
             API_BASE .. endpoint,
-            HttpService:JSONEncode(body),
+            encoded,
             Enum.HttpContentType.ApplicationJson
         )
     end)
-    if ok and res then
-        local ok2, data = pcall(function() return HttpService:JSONDecode(res) end)
-        if ok2 then return data end
-    end
-    return nil
+    return ok and decodeApiResponse(raw) or nil
 end
 
 local function cleanupPanel()
