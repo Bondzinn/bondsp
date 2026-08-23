@@ -279,15 +279,18 @@ local function makeVectorIcon(parent, kind, x, y, size, color)
         vectorLine(holder, size * 0.70, size * 0.70, size * 0.34, 2, color, 45, true)
 
     elseif kind == "eye" or kind == "eyeOff" then
-        -- Olho minimalista desenhado com quatro segmentos e pupila.
-        vectorLine(holder, size * 0.30, size * 0.43, size * 0.34, 1.5, color, -25, true)
-        vectorLine(holder, size * 0.70, size * 0.43, size * 0.34, 1.5, color, 25, true)
-        vectorLine(holder, size * 0.30, size * 0.57, size * 0.34, 1.5, color, 25, true)
-        vectorLine(holder, size * 0.70, size * 0.57, size * 0.34, 1.5, color, -25, true)
+        -- Contorno simetrico, iris vazada e brilho para leitura melhor em tamanhos pequenos.
+        vectorLine(holder, size * 0.28, size * 0.42, size * 0.38, 1.6, color, -22, true)
+        vectorLine(holder, size * 0.72, size * 0.42, size * 0.38, 1.6, color, 22, true)
+        vectorLine(holder, size * 0.28, size * 0.58, size * 0.38, 1.6, color, 22, true)
+        vectorLine(holder, size * 0.72, size * 0.58, size * 0.38, 1.6, color, -22, true)
+
+        local iris = vectorOutline(holder, c, c, size * 0.34, size * 0.34, color, size)
+        iris:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(1, 0)
 
         local pupil = Instance.new("Frame")
-        pupil.Size = UDim2.new(0, size * 0.24, 0, size * 0.24)
-        pupil.Position = UDim2.new(0.5, -size * 0.12, 0.5, -size * 0.12)
+        pupil.Size = UDim2.new(0, size * 0.13, 0, size * 0.13)
+        pupil.Position = UDim2.new(0.5, -size * 0.065, 0.5, -size * 0.065)
         pupil.BackgroundColor3 = color
         pupil.BorderSizePixel = 0
         pupil.ZIndex = holder.ZIndex + 2
@@ -302,7 +305,7 @@ local function makeVectorIcon(parent, kind, x, y, size, color)
         vectorOutline(holder, c, c, size * 0.54, size * 0.78, color, size)
         vectorLine(holder, c, size * 0.30, 2, size * 0.18, color, 0, true)
 
-    elseif kind == "theme" then
+    elseif kind == "theme" or kind == "sun" then
         local core = vectorOutline(holder, c, c, size * 0.38, size * 0.38, color, size)
         core:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(1, 0)
         for i = 0, 7 do
@@ -311,6 +314,24 @@ local function makeVectorIcon(parent, kind, x, y, size, color)
             local y = c + math.sin(a) * size * 0.38
             vectorLine(holder, x, y, size * 0.16, 1.5, color, i * 45, true)
         end
+
+    elseif kind == "moon" then
+        local moon = Instance.new("Frame")
+        moon.Size = UDim2.new(0, size * 0.66, 0, size * 0.66)
+        moon.Position = UDim2.new(0, size * 0.13, 0, size * 0.12)
+        moon.BackgroundColor3 = color
+        moon.BorderSizePixel = 0
+        moon.ZIndex = holder.ZIndex + 2
+        moon.Parent = holder
+        Instance.new("UICorner", moon).CornerRadius = UDim.new(1, 0)
+        local cutout = Instance.new("Frame")
+        cutout.Size = UDim2.new(0, size * 0.58, 0, size * 0.58)
+        cutout.Position = UDim2.new(0, size * 0.24, 0, -size * 0.02)
+        cutout.BackgroundColor3 = THEMES[currentTheme].btn
+        cutout.BorderSizePixel = 0
+        cutout.ZIndex = holder.ZIndex + 3
+        cutout.Parent = holder
+        Instance.new("UICorner", cutout).CornerRadius = UDim.new(1, 0)
 
     elseif kind == "brush" then
         vectorLine(holder, size * 0.56, size * 0.42, size * 0.70, size * 0.20, color, -45, true)
@@ -945,13 +966,12 @@ local TABS_DEF = {
 }
 
 local function setTab(name)
-    if CurrentTab == name then return end
     CurrentTab = name
     local T = THEMES[currentTheme]
     for _, t in pairs(Tabs) do
         local active = (t.name == name)
         t.frame.Visible       = active
-        t.btn.BackgroundColor3= active and Color3.fromRGB(55, 36, 62) or Color3.fromRGB(22, 20, 29)
+        t.btn.BackgroundColor3= active and T.btnOn or T.sidebar
         t.btn.BackgroundTransparency = active and 0.08 or 0.42
         t.btn.TextColor3      = active and ACCENT or T.textDim
         if t.accentBar then
@@ -1023,7 +1043,22 @@ for _, def in ipairs(TABS_DEF) do
     frame.Parent             = ContentFrame
 
     Tabs[def.name] = { name = def.name, btn = btn, frame = frame, accentBar = navAccent }
-    addHover(btn)
+    -- Hover exclusivo da navegacao: preserva o estado ativo e evita conflito
+    -- com o hover generico de botoes/toggles.
+    trackConnect(btn.MouseEnter, function()
+        if CurrentTab == def.name then return end
+        TweenService:Create(btn, TweenInfo.new(0.14), {
+            BackgroundColor3 = THEMES[currentTheme].btnHover,
+            TextColor3 = ACCENT,
+        }):Play()
+    end)
+    trackConnect(btn.MouseLeave, function()
+        local active = CurrentTab == def.name
+        TweenService:Create(btn, TweenInfo.new(0.14), {
+            BackgroundColor3 = active and THEMES[currentTheme].btnOn or THEMES[currentTheme].sidebar,
+            TextColor3 = active and ACCENT or THEMES[currentTheme].textDim,
+        }):Play()
+    end)
     btn.MouseButton1Click:Connect(function() setTab(def.name) end)
 end
 
@@ -1874,8 +1909,8 @@ do
 
     local themePickerBtn = Instance.new("TextButton")
     themePickerBtn.Name = "VipThemePicker"
-    themePickerBtn.Size = UDim2.new(0, 38, 0, 38)
-    themePickerBtn.Position = UDim2.new(1, -50, 0, 12)
+    themePickerBtn.Size = UDim2.new(0, 34, 0, 34)
+    themePickerBtn.Position = UDim2.new(1, -44, 1, -44)
     themePickerBtn.BackgroundColor3 = SURFACE_2
     themePickerBtn.BackgroundTransparency = 0.04
     themePickerBtn.BorderSizePixel = 0
@@ -1888,21 +1923,29 @@ do
     pickerStroke.Color = ACCENT
     pickerStroke.Transparency = 0.35
     pickerStroke.Parent = themePickerBtn
-    makeVectorIcon(themePickerBtn, "brush", 9, 9, 20, ACCENT)
+    makeVectorIcon(themePickerBtn, "brush", 8, 8, 18, ACCENT)
     addHover(themePickerBtn, false)
     registerTheme(themePickerBtn, "BackgroundColor3", "btn")
 
-    local themeOverlay = Instance.new("TextButton")
+    local themeOverlay = Instance.new("Frame")
     themeOverlay.Name = "ThemeModalOverlay"
     themeOverlay.Size = UDim2.new(1, 0, 1, 0)
     themeOverlay.BackgroundColor3 = Color3.fromRGB(3, 3, 6)
     themeOverlay.BackgroundTransparency = 0.28
     themeOverlay.BorderSizePixel = 0
-    themeOverlay.Text = ""
-    themeOverlay.AutoButtonColor = false
     themeOverlay.Visible = false
     themeOverlay.ZIndex = 100
-    themeOverlay.Parent = ScreenGui
+    themeOverlay.Parent = MainFrame
+
+    local dismissThemeModal = Instance.new("ImageButton")
+    dismissThemeModal.Name = "DismissThemeModal"
+    dismissThemeModal.Size = UDim2.new(1, 0, 1, 0)
+    dismissThemeModal.BackgroundTransparency = 1
+    dismissThemeModal.BorderSizePixel = 0
+    dismissThemeModal.Image = ""
+    dismissThemeModal.AutoButtonColor = false
+    dismissThemeModal.ZIndex = 100
+    dismissThemeModal.Parent = themeOverlay
 
     local themeModal = Instance.new("Frame")
     themeModal.Name = "ThemeModal"
@@ -1962,11 +2005,15 @@ do
         card.TextSize = 12
         card.Font = Enum.Font.GothamMedium
         card.TextXAlignment = Enum.TextXAlignment.Left
-        card.Text = "      " .. palette.label
+        card.Text = palette.label
         card.AutoButtonColor = false
         card.ZIndex = 102
         card.Parent = themeModal
         Instance.new("UICorner", card).CornerRadius = UDim.new(0, 12)
+        local cardPadding = Instance.new("UIPadding")
+        cardPadding.PaddingLeft = UDim.new(0, 44)
+        cardPadding.PaddingRight = UDim.new(0, 10)
+        cardPadding.Parent = card
         local cardStroke = Instance.new("UIStroke")
         cardStroke.Color = palette.accent
         cardStroke.Transparency = themeName == currentTheme and 0 or 0.68
@@ -1984,6 +2031,7 @@ do
 
         card.MouseButton1Click:Connect(function()
             applyTheme(themeName)
+            setTab(CurrentTab)
             modalStroke.Color = palette.accent
             pickerStroke.Color = palette.accent
             for name, stroke in pairs(themeCards) do
@@ -2009,7 +2057,7 @@ do
         themeOverlay.Visible = true
     end)
     closeTheme.MouseButton1Click:Connect(function() themeOverlay.Visible = false end)
-    themeOverlay.MouseButton1Click:Connect(function() themeOverlay.Visible = false end)
+    dismissThemeModal.MouseButton1Click:Connect(function() themeOverlay.Visible = false end)
     refreshCanvas(f)
 end
 
@@ -2919,6 +2967,47 @@ do
     supLink.Size=UDim2.new(0,160,0,36)
     supLink.Parent=f
 
+    local aboutThemeBtn = Instance.new("TextButton")
+    aboutThemeBtn.Name = "AboutLightDarkToggle"
+    aboutThemeBtn.Size = UDim2.new(0, 34, 0, 34)
+    aboutThemeBtn.Position = UDim2.new(1, -44, 1, -44)
+    aboutThemeBtn.BackgroundColor3 = SURFACE_2
+    aboutThemeBtn.BackgroundTransparency = 0.04
+    aboutThemeBtn.BorderSizePixel = 0
+    aboutThemeBtn.Text = ""
+    aboutThemeBtn.AutoButtonColor = false
+    aboutThemeBtn.ZIndex = 4
+    aboutThemeBtn.Parent = f
+    Instance.new("UICorner", aboutThemeBtn).CornerRadius = UDim.new(1, 0)
+    local aboutThemeStroke = Instance.new("UIStroke")
+    aboutThemeStroke.Color = ACCENT
+    aboutThemeStroke.Transparency = 0.45
+    aboutThemeStroke.Parent = aboutThemeBtn
+    registerTheme(aboutThemeBtn, "BackgroundColor3", "btn")
+    addHover(aboutThemeBtn, false)
+
+    local aboutThemeIcon = nil
+    local function refreshAboutThemeIcon()
+        if aboutThemeIcon then aboutThemeIcon:Destroy() end
+        -- No tema claro, mostra lua (acao: escurecer); nos demais, sol (acao: clarear).
+        local kind = currentTheme == "light" and "moon" or "sun"
+        aboutThemeIcon = makeVectorIcon(aboutThemeBtn, kind, 8, 8, 18, ACCENT)
+        aboutThemeStroke.Color = ACCENT
+    end
+    refreshAboutThemeIcon()
+
+    aboutThemeBtn.MouseButton1Click:Connect(function()
+        local newTheme = currentTheme == "light" and "dark" or "light"
+        applyTheme(newTheme)
+        refreshAboutThemeIcon()
+        setTab("About")
+        task.spawn(function()
+            apiPost("/user/preference", { userid = LocalPlayer.UserId, theme = newTheme })
+        end)
+    end)
+
+    Tabs["About"].btn.MouseButton1Click:Connect(refreshAboutThemeIcon)
+
 end
 
 -- ==================== MODERN VISUAL POLISH ====================
@@ -2995,6 +3084,7 @@ task.spawn(function()
         local savedTheme = res.user.theme
         if THEMES[savedTheme] then
             applyTheme(savedTheme)
+            setTab(CurrentTab)
             -- O ícone do tema é vetorial e não depende de texto/emoji.
         end
     end
