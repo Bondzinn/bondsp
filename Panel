@@ -2625,6 +2625,7 @@ do
             -- ação instantânea (não toggle)
             btn.MouseButton1Click:Connect(function()
                 if not targetUser then return end
+                GLOBAL.__288TargetUserId = targetUser.UserId
                 if v.name == "CopyID" then
                     pcall(function() setclipboard(tostring(targetUser.UserId)) end)
                     return
@@ -2636,6 +2637,7 @@ do
         else
             btn.MouseButton1Click:Connect(function()
                 if not targetUser then return end
+                GLOBAL.__288TargetUserId = targetUser.UserId
                 active = not active
                 dot.setActive(active)
                 btn.BackgroundColor3 = active and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
