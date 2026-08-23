@@ -545,9 +545,10 @@ local function cleanupPanel()
     -- A TAG existe apenas no cliente e no personagem que executou o painel.
     local character = LocalPlayer.Character
     if character then
-        local hrp = character:FindFirstChild("HumanoidRootPart")
-        local tagGui = hrp and hrp:FindFirstChild("288TagGui")
+        local tagGui = character:FindFirstChild("288TagGui", true)
         if tagGui then tagGui:Destroy() end
+        local tagSupport = character:FindFirstChild("288TagSupport")
+        if tagSupport then tagSupport:Destroy() end
         for _, valueName in ipairs({"288Tag", "288Device", "288TagVisible"}) do
             local value = character:FindFirstChild(valueName)
             if value then value:Destroy() end
@@ -1401,11 +1402,13 @@ local function createBillboard(character, rank, device, remoteVisible)
     if not _tagsVisible then return end
     if remoteVisible == false then return end
 
-    local hrp = character:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
+    local head = character:FindFirstChild("Head") or character:WaitForChild("Head", 5)
+    if not head or not head:IsA("BasePart") then return end
 
-    local old = hrp:FindFirstChild("288TagGui")
+    local old = character:FindFirstChild("288TagGui", true)
     if old then old:Destroy() end
+    local oldSupport = character:FindFirstChild("288TagSupport")
+    if oldSupport then oldSupport:Destroy() end
 
     rank = rank or "User"
     local color = ROLE_COLORS_MAP[rank] or ROLE_COLORS_MAP.User
@@ -1417,15 +1420,33 @@ local function createBillboard(character, rank, device, remoteVisible)
 
     -- Mantém a tag próxima da cabeça.
     -- A elevação extra com o zoom é propositalmente pequena.
-    local BASE_OFFSET_Y = 3.10
-    local MAX_EXTRA_Y = 0.32
-    bb.StudsOffsetWorldSpace = Vector3.new(0, BASE_OFFSET_Y, 0)
+    local support = Instance.new("Part")
+    support.Name = "288TagSupport"
+    support.Size = Vector3.new(0.1, 0.1, 0.1)
+    support.Transparency = 1
+    support.CanCollide = false
+    support.CanTouch = false
+    support.CanQuery = false
+    support.Massless = true
+    support.Anchored = false
+    support.CFrame = head.CFrame * CFrame.new(0, head.Size.Y * 0.5 + 0.72, 0)
+    support.Parent = character
 
-    bb.AlwaysOnTop = false
+    local weld = Instance.new("WeldConstraint")
+    weld.Name = "288TagHeadWeld"
+    weld.Part0 = head
+    weld.Part1 = support
+    weld.Parent = support
+
+    local MAX_EXTRA_Y = 0.32
+    bb.Adornee = support
+    bb.StudsOffsetWorldSpace = Vector3.new(0, 0, 0)
+
+    bb.AlwaysOnTop = true
     bb.ResetOnSpawn = false
     bb.MaxDistance = TAG_MAX_DISTANCE
     bb.LightInfluence = 0
-    bb.Parent = hrp
+    bb.Parent = support
 
     -- Container central para rank + ícone.
     -- AutomaticSize evita que nomes de ranks maiores puxem o conjunto para um lado.
@@ -1482,13 +1503,13 @@ local function createBillboard(character, rank, device, remoteVisible)
     -- Compensação leve conforme a câmera se afasta.
     -- A tag sobe no máximo 0.32 stud, então nunca "descola" muito da cabeça.
     task.spawn(function()
-        while bb.Parent and hrp.Parent do
+        while bb.Parent and support.Parent and head.Parent do
             local camera = workspace.CurrentCamera
             if camera then
-                local distance = (camera.CFrame.Position - hrp.Position).Magnitude
+                local distance = (camera.CFrame.Position - head.Position).Magnitude
                 local alpha = math.clamp((distance - 8) / 22, 0, 1)
                 local extraY = MAX_EXTRA_Y * alpha
-                bb.StudsOffsetWorldSpace = Vector3.new(0, BASE_OFFSET_Y + extraY, 0)
+                bb.StudsOffsetWorldSpace = Vector3.new(0, extraY, 0)
             end
             RunService.RenderStepped:Wait()
         end
@@ -1542,10 +1563,10 @@ local function monitorOtherPlayers()
 
     local function destroyTag(character)
         if not character then return end
-        local hrp = character:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
-        local gui = hrp:FindFirstChild("288TagGui")
+        local gui = character:FindFirstChild("288TagGui", true)
         if gui then gui:Destroy() end
+        local support = character:FindFirstChild("288TagSupport")
+        if support then support:Destroy() end
     end
 
     local function refreshPlayerTag(p)
@@ -1629,11 +1650,10 @@ local function setAllRenderedTagsVisible(visible)
         for _, p in ipairs(Players:GetPlayers()) do
             local char = p.Character
             if char then
-                local hrp = char:FindFirstChild("HumanoidRootPart")
-                if hrp then
-                    local gui = hrp:FindFirstChild("288TagGui")
-                    if gui then gui:Destroy() end
-                end
+                local gui = char:FindFirstChild("288TagGui", true)
+                if gui then gui:Destroy() end
+                local support = char:FindFirstChild("288TagSupport")
+                if support then support:Destroy() end
             end
         end
     else
@@ -1691,8 +1711,7 @@ task.spawn(function()
             _currentRank = profile.rank
             refreshVipAccess(_currentRank, profile.vip)
             local character = LocalPlayer.Character
-            local hrp = character and character:FindFirstChild("HumanoidRootPart")
-            local tagGui = hrp and hrp:FindFirstChild("288TagGui")
+            local tagGui = character and character:FindFirstChild("288TagGui", true)
             local tagText = tagGui and tagGui:FindFirstChild("TagText", true)
             local tagIsCurrent = tagText and tagText.Text == _currentRank
             if character and _tagsVisible and (rankChanged or not tagIsCurrent) then
