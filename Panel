@@ -1549,7 +1549,7 @@ do
     greetLabel.Size             = UDim2.new(0, TEXT_W, 0, 30)
     greetLabel.Position         = UDim2.new(0, TEXT_X, 0, 40)
     greetLabel.BackgroundTransparency = 1
-    greetLabel.Text             = "Olá " .. LocalPlayer.DisplayName .. "."
+    greetLabel.Text             = "Ol" .. utf8.char(0x00E1) .. " " .. LocalPlayer.DisplayName .. "."
     greetLabel.TextColor3       = TEXT_MAIN
     greetLabel.TextSize         = 17
     greetLabel.Font             = Enum.Font.GothamBold
@@ -1642,63 +1642,53 @@ do
         stroke.Parent = card
     end
 
-    local pingLabel = Instance.new("TextLabel")
-    pingLabel.Size             = UDim2.new(0, 132, 0, 64)
-    pingLabel.Position         = UDim2.new(0, 24, 0, 158)
-    pingLabel.Text             = "PING"
-    pingLabel.TextColor3       = TEXT_DIM
-    pingLabel.TextSize         = 10
-    pingLabel.Font             = Enum.Font.GothamBold
-    pingLabel.TextXAlignment   = Enum.TextXAlignment.Left
-    pingLabel.TextYAlignment   = Enum.TextYAlignment.Top
-    pingLabel.Text = "   PING"
-    pingLabel.ZIndex           = 4
-    pingLabel.Parent           = f
-    styleHomeCard(pingLabel)
-    registerTheme(pingLabel, "TextColor3", "text")
+    local function makeHomeStat(title, x, valueColor)
+        local card = Instance.new("Frame")
+        card.Size = UDim2.new(0, 132, 0, 64)
+        card.Position = UDim2.new(0, x, 0, 158)
+        card.ZIndex = 4
+        card.Parent = f
+        styleHomeCard(card)
 
-    local pingVal = Instance.new("TextLabel")
-    pingVal.Size             = UDim2.new(1, -24, 0, 30)
-    pingVal.Position         = UDim2.new(0, 12, 0, 24)
-    pingVal.BackgroundTransparency = 1
-    pingVal.Text             = "--ms"
-    pingVal.TextColor3       = ACCENT
-    pingVal.TextSize         = 19
-    pingVal.Font             = Enum.Font.GothamBold
-    pingVal.TextXAlignment   = Enum.TextXAlignment.Left
-    pingVal.ZIndex           = 5
-    pingVal.Parent           = pingLabel
+        local titleLabel = Instance.new("TextLabel")
+        titleLabel.Size = UDim2.new(1, -24, 0, 18)
+        titleLabel.Position = UDim2.new(0, 12, 0, 8)
+        titleLabel.BackgroundTransparency = 1
+        titleLabel.Text = title
+        titleLabel.TextColor3 = TEXT_DIM
+        titleLabel.TextSize = 10
+        titleLabel.Font = Enum.Font.GothamBold
+        titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+        titleLabel.ZIndex = 5
+        titleLabel.Parent = card
+        registerTheme(titleLabel, "TextColor3", "textDim")
 
-    local onlineLabel = Instance.new("TextLabel")
-    onlineLabel.Size             = UDim2.new(0, 132, 0, 64)
-    onlineLabel.Position         = UDim2.new(0, 178, 0, 158)
-    onlineLabel.Text             = "ONLINE\n--"
-    onlineLabel.TextColor3       = TEXT_MAIN
-    onlineLabel.TextSize         = 15
-    onlineLabel.Font             = Enum.Font.GothamBold
-    onlineLabel.TextXAlignment   = Enum.TextXAlignment.Center
-    onlineLabel.ZIndex           = 4
-    onlineLabel.Parent           = f
-    styleHomeCard(onlineLabel)
-    registerTheme(onlineLabel, "TextColor3", "textDim")
+        local valueLabel = Instance.new("TextLabel")
+        valueLabel.Size = UDim2.new(1, -24, 0, 26)
+        valueLabel.Position = UDim2.new(0, 12, 0, 27)
+        valueLabel.BackgroundTransparency = 1
+        valueLabel.Text = "--"
+        valueLabel.TextColor3 = valueColor or TEXT_MAIN
+        valueLabel.TextSize = 18
+        valueLabel.Font = Enum.Font.GothamBold
+        valueLabel.TextXAlignment = Enum.TextXAlignment.Left
+        valueLabel.TextTruncate = Enum.TextTruncate.AtEnd
+        valueLabel.ZIndex = 5
+        valueLabel.Parent = card
+        return valueLabel
+    end
 
-    local usersLabel = Instance.new("TextLabel")
-    usersLabel.Size             = UDim2.new(0, 132, 0, 64)
-    usersLabel.Position         = UDim2.new(0, 332, 0, 158)
-    usersLabel.Text             = "USERS\n--"
-    usersLabel.TextColor3       = TEXT_MAIN
-    usersLabel.TextSize         = 15
-    usersLabel.Font             = Enum.Font.GothamBold
-    usersLabel.TextXAlignment   = Enum.TextXAlignment.Center
-    usersLabel.ZIndex           = 4
-    usersLabel.Parent           = f
-    styleHomeCard(usersLabel)
-    registerTheme(usersLabel, "TextColor3", "textDim")
+    local pingVal = makeHomeStat("PING", 24, ACCENT)
+    local onlineVal = makeHomeStat("ONLINE", 178, TEXT_MAIN)
+    local usersVal = makeHomeStat("USU" .. utf8.char(0x00C1) .. "RIOS", 332, TEXT_MAIN)
+    pingVal.Text = "-- ms"
 
     local dateLabel = Instance.new("TextLabel")
     dateLabel.Size             = UDim2.new(1, -48, 0, 42)
     dateLabel.Position         = UDim2.new(0, 24, 0, 240)
-    dateLabel.Text             = "SESSION  â€¢  --"
+    local sessionTitle = "SESS" .. utf8.char(0x00C3) .. "O"
+    local sessionSeparator = utf8.char(0x2022)
+    dateLabel.Text             = sessionTitle .. "  " .. sessionSeparator .. "  --"
     dateLabel.TextColor3       = ACCENT
     dateLabel.TextSize         = 11
     dateLabel.Font             = Enum.Font.GothamMedium
@@ -1708,26 +1698,28 @@ do
     styleHomeCard(dateLabel)
 
     HomeUI.pingVal = pingVal
-    HomeUI.onlineLabel = onlineLabel
-    HomeUI.usersLabel = usersLabel
+    HomeUI.onlineValue = onlineVal
+    HomeUI.usersValue = usersVal
     HomeUI.dateLabel = dateLabel
+    HomeUI.sessionTitle = sessionTitle
+    HomeUI.sessionSeparator = sessionSeparator
 
     local function refreshHomeStats()
             if not ScreenGui.Parent then return end
             local okPing, ping = pcall(function() return LocalPlayer:GetNetworkPing() * 1000 end)
             ping = okPing and ping or 0
-            pingVal.Text = math.floor(ping) .. "ms"
+            pingVal.Text = math.floor(ping) .. " ms"
             pingVal.TextColor3 = ping < 150 and ACCENT or Color3.fromRGB(255, 110, 130)
 
             local stats = apiGet("/stats")
             if stats then
-                onlineLabel.Text = "ONLINE\n" .. tostring(stats.online or stats.activeSessions or "--")
-                usersLabel.Text  = "USERS\n"  .. tostring(stats.totalUsers or "--")
+                onlineVal.Text = tostring(stats.online or stats.activeSessions or "--")
+                usersVal.Text  = tostring(stats.totalUsers or "--")
             end
 
             local t = os.date("*t")
             -- mantém a data local enquanto a sessão não informar o timestamp
-            dateLabel.Text = string.format("SESSION  â€¢  %02d/%02d/%04d  %02d:%02d",
+            dateLabel.Text = string.format(sessionTitle .. "  " .. sessionSeparator .. "  %02d/%02d/%04d  %02d:%02d",
                 t.day, t.month, t.year, t.hour, t.min)
     end
 
@@ -2806,8 +2798,8 @@ task.spawn(function()
     refreshVipAccess(rank, res.user and res.user.vip)
 
     if res.stats then
-        if HomeUI.onlineLabel then HomeUI.onlineLabel.Text = "ONLINE\n" .. tostring(res.stats.online or "--") end
-        if HomeUI.usersLabel then HomeUI.usersLabel.Text = "USERS\n" .. tostring(res.stats.totalUsers or "--") end
+        if HomeUI.onlineValue then HomeUI.onlineValue.Text = tostring(res.stats.online or "--") end
+        if HomeUI.usersValue then HomeUI.usersValue.Text = tostring(res.stats.totalUsers or "--") end
     end
 
     broadcastOwnTag(rank)
@@ -2826,7 +2818,7 @@ task.spawn(function()
         local ok, ts = pcall(function() return tonumber(res.timestamp) end)
         if ok and ts then
             local t = os.date("*t", math.floor(ts/1000))
-            HomeUI.dateLabel.Text = string.format("SESSION  â€¢  %02d/%02d/%04d  %02d:%02d",
+            HomeUI.dateLabel.Text = string.format(HomeUI.sessionTitle .. "  " .. HomeUI.sessionSeparator .. "  %02d/%02d/%04d  %02d:%02d",
                 t.day, t.month, t.year, t.hour, t.min)
         end
     end
@@ -2851,11 +2843,11 @@ task.spawn(function()
             elseif res.user then
                 refreshVipAccess(res.user.rank or _currentRank, res.user.vip)
             end
-            if HomeUI.onlineLabel and res.online ~= nil then
-                HomeUI.onlineLabel.Text = "ONLINE\n" .. tostring(res.online)
+            if HomeUI.onlineValue and res.online ~= nil then
+                HomeUI.onlineValue.Text = tostring(res.online)
             end
-            if HomeUI.usersLabel and res.totalUsers ~= nil then
-                HomeUI.usersLabel.Text = "USERS\n" .. tostring(res.totalUsers)
+            if HomeUI.usersValue and res.totalUsers ~= nil then
+                HomeUI.usersValue.Text = tostring(res.totalUsers)
             end
             if res.kick then
                 cleanupPanel()
