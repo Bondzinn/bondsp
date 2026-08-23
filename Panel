@@ -699,6 +699,139 @@ ScreenGui.ResetOnSpawn   = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent         = LocalPlayer:WaitForChild("PlayerGui")
 
+-- ==================== LOADING UI ====================
+local MainFrame
+local loadingFinished = false
+
+local LoadingRoot = Instance.new("Frame")
+LoadingRoot.Name = "LoadingScreen"
+LoadingRoot.Size = UDim2.new(1, 0, 1, 0)
+LoadingRoot.BackgroundColor3 = Color3.fromRGB(5, 6, 10)
+LoadingRoot.BackgroundTransparency = 0.18
+LoadingRoot.BorderSizePixel = 0
+LoadingRoot.ZIndex = 200
+LoadingRoot.Parent = ScreenGui
+
+local LoadingCard = Instance.new("CanvasGroup")
+LoadingCard.Name = "LoadingCard"
+LoadingCard.AnchorPoint = Vector2.new(0.5, 0.5)
+LoadingCard.Position = UDim2.new(0.5, 0, 0.5, 0)
+LoadingCard.Size = UDim2.new(0, 390, 0, 174)
+LoadingCard.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
+LoadingCard.BorderSizePixel = 0
+LoadingCard.ZIndex = 201
+LoadingCard.Parent = LoadingRoot
+Instance.new("UICorner", LoadingCard).CornerRadius = UDim.new(0, 20)
+local loadingStroke = Instance.new("UIStroke")
+loadingStroke.Color = ACCENT
+loadingStroke.Transparency = 0.32
+loadingStroke.Thickness = 1.2
+loadingStroke.Parent = LoadingCard
+
+local loadingIcon = Instance.new("Frame")
+loadingIcon.Size = UDim2.new(0, 40, 0, 40)
+loadingIcon.Position = UDim2.new(0, 22, 0, 20)
+loadingIcon.BackgroundColor3 = SURFACE_2
+loadingIcon.BorderSizePixel = 0
+loadingIcon.ZIndex = 202
+loadingIcon.Parent = LoadingCard
+Instance.new("UICorner", loadingIcon).CornerRadius = UDim.new(0, 12)
+makeVectorIcon(loadingIcon, "star", 9, 9, 22, ACCENT)
+
+local loadingTitle = Instance.new("TextLabel")
+loadingTitle.Size = UDim2.new(1, -92, 0, 28)
+loadingTitle.Position = UDim2.new(0, 76, 0, 20)
+loadingTitle.BackgroundTransparency = 1
+loadingTitle.Text = "288 PANEL"
+loadingTitle.TextColor3 = TEXT_MAIN
+loadingTitle.TextSize = 17
+loadingTitle.Font = Enum.Font.GothamBold
+loadingTitle.TextXAlignment = Enum.TextXAlignment.Left
+loadingTitle.ZIndex = 202
+loadingTitle.Parent = LoadingCard
+
+local loadingSubtitle = Instance.new("TextLabel")
+loadingSubtitle.Size = UDim2.new(1, -92, 0, 20)
+loadingSubtitle.Position = UDim2.new(0, 76, 0, 45)
+loadingSubtitle.BackgroundTransparency = 1
+loadingSubtitle.Text = "INICIANDO RECURSOS"
+loadingSubtitle.TextColor3 = TEXT_DIM
+loadingSubtitle.TextSize = 10
+loadingSubtitle.Font = Enum.Font.GothamMedium
+loadingSubtitle.TextXAlignment = Enum.TextXAlignment.Left
+loadingSubtitle.ZIndex = 202
+loadingSubtitle.Parent = LoadingCard
+
+local loadingBar = Instance.new("Frame")
+loadingBar.Size = UDim2.new(1, -44, 0, 8)
+loadingBar.Position = UDim2.new(0, 22, 0, 94)
+loadingBar.BackgroundColor3 = Color3.fromRGB(34, 31, 42)
+loadingBar.BorderSizePixel = 0
+loadingBar.ClipsDescendants = true
+loadingBar.ZIndex = 202
+loadingBar.Parent = LoadingCard
+Instance.new("UICorner", loadingBar).CornerRadius = UDim.new(1, 0)
+
+local loadingFill = Instance.new("Frame")
+loadingFill.Size = UDim2.new(0, 0, 1, 0)
+loadingFill.BackgroundColor3 = ACCENT
+loadingFill.BorderSizePixel = 0
+loadingFill.ZIndex = 203
+loadingFill.Parent = loadingBar
+Instance.new("UICorner", loadingFill).CornerRadius = UDim.new(1, 0)
+
+local loadingStatus = Instance.new("TextLabel")
+loadingStatus.Size = UDim2.new(1, -88, 0, 24)
+loadingStatus.Position = UDim2.new(0, 22, 0, 116)
+loadingStatus.BackgroundTransparency = 1
+loadingStatus.Text = "Preparando interface..."
+loadingStatus.TextColor3 = TEXT_DIM
+loadingStatus.TextSize = 11
+loadingStatus.Font = Enum.Font.Gotham
+loadingStatus.TextXAlignment = Enum.TextXAlignment.Left
+loadingStatus.ZIndex = 202
+loadingStatus.Parent = LoadingCard
+
+local loadingPercent = Instance.new("TextLabel")
+loadingPercent.Size = UDim2.new(0, 56, 0, 24)
+loadingPercent.Position = UDim2.new(1, -78, 0, 116)
+loadingPercent.BackgroundTransparency = 1
+loadingPercent.Text = "0%"
+loadingPercent.TextColor3 = ACCENT
+loadingPercent.TextSize = 11
+loadingPercent.Font = Enum.Font.GothamBold
+loadingPercent.TextXAlignment = Enum.TextXAlignment.Right
+loadingPercent.ZIndex = 203
+loadingPercent.Parent = LoadingCard
+
+local function setLoadingProgress(percent, status)
+    if loadingFinished or not LoadingRoot.Parent then return end
+    percent = math.clamp(tonumber(percent) or 0, 0, 100)
+    loadingStatus.Text = status or loadingStatus.Text
+    loadingPercent.Text = tostring(math.floor(percent)) .. "%"
+    TweenService:Create(loadingFill, TweenInfo.new(0.24, Enum.EasingStyle.Quad), {
+        Size = UDim2.new(percent / 100, 0, 1, 0),
+    }):Play()
+end
+
+local function finishLoading(status)
+    if loadingFinished then return end
+    loadingFinished = true
+    loadingStatus.Text = status or "Tudo pronto!"
+    loadingPercent.Text = "100%"
+    loadingFill.Size = UDim2.new(1, 0, 1, 0)
+    if MainFrame then MainFrame.Visible = true end
+    task.delay(0.22, function()
+        if not LoadingRoot.Parent then return end
+        TweenService:Create(LoadingRoot, TweenInfo.new(0.25), { BackgroundTransparency = 1 }):Play()
+        TweenService:Create(LoadingCard, TweenInfo.new(0.25), { GroupTransparency = 1 }):Play()
+        task.wait(0.28)
+        if LoadingRoot.Parent then LoadingRoot:Destroy() end
+    end)
+end
+
+setLoadingProgress(12, "Carregando componentes...")
+
 -- Remove qualquer blur deixado por versões anteriores do painel.
 do
     local Lighting = game:GetService("Lighting")
@@ -712,7 +845,7 @@ end
 -- ==================== MAIN FRAME ====================
 -- CanvasGroup + UICorner aplica a mascara tambem aos filhos. Em um Frame comum,
 -- Header/Sidebar/Content continuam desenhando por cima dos cantos arredondados.
-local MainFrame = Instance.new("CanvasGroup")
+MainFrame = Instance.new("CanvasGroup")
 MainFrame.Name             = "MainFrame"
 MainFrame.Size             = UDim2.new(0, 620, 0, 430)
 MainFrame.Position         = UDim2.new(0.5, -310, 0.5, -215)
@@ -724,6 +857,7 @@ MainFrame.Active           = true
 MainFrame.Draggable        = true
 MainFrame.ClipsDescendants = true
 MainFrame.GroupTransparency = 0
+MainFrame.Visible          = false
 MainFrame.Parent           = ScreenGui
 registerTheme(MainFrame, "BackgroundColor3", "main")
 local MainCorner = Instance.new("UICorner")
@@ -3075,14 +3209,22 @@ local function applyModernPolish()
         end
     end
 end
+setLoadingProgress(58, "Finalizando componentes do painel...")
 applyModernPolish()
 
 -- ==================== START STATE ====================
 setTab("Home")
+setLoadingProgress(72, "Verificando modulos e API...")
+
+-- Impede que uma indisponibilidade externa deixe o usuario preso no loading.
+task.delay(15, function()
+    finishLoading("Painel iniciado em modo offline")
+end)
 
 -- ==================== SESSION START ====================
 
 task.spawn(function()
+    setLoadingProgress(80, "Conectando a sessao...")
     local res = apiPost("/session/start", {
         userid   = LocalPlayer.UserId,
         username = LocalPlayer.Name,
@@ -3091,9 +3233,13 @@ task.spawn(function()
         server   = tostring(game.JobId),
         device   = DEVICE,
     })
-    if not res then return end
+    if not res then
+        finishLoading("API indisponivel - modo offline")
+        return
+    end
     if res.banned then ScreenGui:Destroy(); return end
 
+    setLoadingProgress(90, "Aplicando perfil e preferencias...")
     _sessionId = res.sessionId
     local rank = (res.user and res.user.rank) or "User"
     _currentRank = rank
@@ -3125,6 +3271,15 @@ task.spawn(function()
                 t.day, t.month, t.year, t.hour, t.min)
         end
     end
+    setLoadingProgress(96, "Carregando background...")
+    local backgroundDeadline = os.clock() + 4
+    while BgLabel.Parent and not BgLabel.IsLoaded and os.clock() < backgroundDeadline do
+        task.wait(0.1)
+    end
+
+    setLoadingProgress(100, "Tudo pronto!")
+    task.wait(0.18)
+    finishLoading("Tudo pronto!")
 end)
 
 -- ==================== HEARTBEAT ====================
