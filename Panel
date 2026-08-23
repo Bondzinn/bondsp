@@ -438,6 +438,7 @@ local function addHover(button, accentText)
     local base = button.BackgroundColor3
 
     trackConnect(button.MouseEnter, function()
+        if button:GetAttribute("HoverDisabled") then return end
         TweenService:Create(button, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
             BackgroundColor3 = THEMES[currentTheme].btnHover
         }):Play()
@@ -447,6 +448,7 @@ local function addHover(button, accentText)
     end)
 
     trackConnect(button.MouseLeave, function()
+        if button:GetAttribute("HoverDisabled") then return end
         local target = toggleStates and toggleStates[button] and THEMES[currentTheme].btnOn
             or THEMES[currentTheme].btn
         TweenService:Create(button, TweenInfo.new(0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
@@ -2822,27 +2824,22 @@ do
     makeSectionLabel(f,"Casual",PAD,y)
     y = y + 20 + GAP
     
-    local antiBanState = false
-    local antiBanBtn = makeToggleButton(f,"AntiBanVC",COL1,y,BTN_W,BTN_H)
-    local antiBanDot = makeStatusDot(f, DOT1_X, y + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
+    local antiBanBtn = makeButton(f,"AntiBanVC  -  BLOQUEADO",COL1,y,BTN_W,BTN_H)
+    antiBanBtn:SetAttribute("HoverDisabled", true)
+    antiBanBtn.Active = false
+    antiBanBtn.Selectable = false
+    antiBanBtn.TextColor3 = TEXT_DIM
+    antiBanBtn.TextTransparency = 0.28
     local antiBanStatusLbl = Instance.new("TextLabel")
     antiBanStatusLbl.Size=UDim2.new(0,30,0,22)
     antiBanStatusLbl.Position=UDim2.new(0, DOT1_X + DOT_SIZE + GAP, 0, y+6)
     antiBanStatusLbl.BackgroundTransparency=1
-    antiBanStatusLbl.Text="[O]"
+    antiBanStatusLbl.Text="LOCK"
     antiBanStatusLbl.TextColor3=Color3.fromRGB(120,120,120)
     antiBanStatusLbl.TextSize=12
     antiBanStatusLbl.Font=Enum.Font.Gotham
     antiBanStatusLbl.ZIndex=4
     antiBanStatusLbl.Parent=f
-    antiBanBtn.MouseButton1Click:Connect(function()
-        antiBanState = not antiBanState
-        antiBanDot.setActive(antiBanState)
-        antiBanStatusLbl.Text      = antiBanState and "[I]" or "[O]"
-        antiBanStatusLbl.TextColor3= antiBanState and Color3.fromRGB(80,220,80) or Color3.fromRGB(120,120,120)
-        antiBanBtn.BackgroundColor3 = antiBanState and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        loadModule("modules/More/AntiBanVC")
-    end)
     local pianoBtn = makeButton(f,"PianoAuto",COL2,y,BTN_W,BTN_H)
     makeMouseDot(f, DOT2_X, y + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
     pianoBtn.MouseButton1Click:Connect(function() runPanelModule("PianoAuto") end)
