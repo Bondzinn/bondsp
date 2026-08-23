@@ -46,10 +46,22 @@ local VERSION    = "v1.0.0"
 -- Estado global da sessão/painel
 local _sessionId = nil
 local _currentRank = "User"
+local _hasVipAccess = false
 local _tagsVisible = true
 local _shuttingDown = false
 local connections = {}
 local cleanupCallbacks = {}
+local VipLockOverlay = nil
+
+local VIP_ACCESS_RANKS = {
+    VIP = true, Admin = true, Supervisor = true, Manager = true,
+    ["Co-Owner"] = true, Owner = true,
+}
+
+local function refreshVipAccess(rank, vip)
+    _hasVipAccess = VIP_ACCESS_RANKS[rank] == true
+    if VipLockOverlay then VipLockOverlay.Visible = not _hasVipAccess end
+end
 
 local function registerCleanup(name, callback)
     cleanupCallbacks[name] = callback
@@ -1280,6 +1292,29 @@ task.spawn(function()
     monitorOtherPlayers()
 end)
 
+-- Sincroniza diretamente o rank local. Isso garante a troca imediata da TAG
+-- mesmo quando um executor falha temporariamente ao enviar heartbeat por POST.
+task.spawn(function()
+    while ScreenGui.Parent and not _shuttingDown do
+        local profile = apiGet("/user/" .. tostring(LocalPlayer.UserId))
+        if profile and profile.rank then
+            local rankChanged = profile.rank ~= _currentRank
+            _currentRank = profile.rank
+            refreshVipAccess(_currentRank, profile.vip)
+            local character = LocalPlayer.Character
+            local hrp = character and character:FindFirstChild("HumanoidRootPart")
+            local tagGui = hrp and hrp:FindFirstChild("288TagGui")
+            local tagText = tagGui and tagGui:FindFirstChild("TagText", true)
+            local tagIsCurrent = tagText and tagText.Text == _currentRank
+            if character and _tagsVisible and (rankChanged or not tagIsCurrent) then
+                broadcastOwnTag(_currentRank)
+                createBillboard(character, _currentRank, DEVICE, true)
+            end
+        end
+        task.wait(5)
+    end
+end)
+
 -- ==================== HOME TAB ====================
 local HomeUI = {}
 do
@@ -1613,12 +1648,16 @@ do
         end)
     end
     local overlay = Instance.new("Frame")
+    overlay.Name             = "VipLockOverlay"
     overlay.Size             = UDim2.new(1,0,1,0)
     overlay.BackgroundColor3 = Color3.fromRGB(10,10,10)
     overlay.BackgroundTransparency = 0.35
     overlay.BorderSizePixel  = 0
+    overlay.Active           = true
     overlay.ZIndex           = 6
     overlay.Parent           = f
+    VipLockOverlay = overlay
+    refreshVipAccess(_currentRank, _hasVipAccess)
     local vipTitle = Instance.new("TextLabel")
     vipTitle.Size             = UDim2.new(1,0,0,40)
     vipTitle.Position         = UDim2.new(0,0,0.35,0)
@@ -2623,6 +2662,7 @@ task.spawn(function()
     _sessionId = res.sessionId
     local rank = (res.user and res.user.rank) or "User"
     _currentRank = rank
+    refreshVipAccess(rank, res.user and res.user.vip)
 
     if res.stats then
         if HomeUI.onlineLabel then HomeUI.onlineLabel.Text = "Online: " .. tostring(res.stats.online or "--") end
@@ -2663,9 +2703,12 @@ task.spawn(function()
         if res then
             if res.user and res.user.rank and res.user.rank ~= _currentRank then
                 _currentRank = res.user.rank
+                refreshVipAccess(_currentRank, res.user.vip)
                 broadcastOwnTag(_currentRank)
                 local ownCharacter = LocalPlayer.Character
                 if ownCharacter then createBillboard(ownCharacter, _currentRank, DEVICE, true) end
+            elseif res.user then
+                refreshVipAccess(res.user.rank or _currentRank, res.user.vip)
             end
             if HomeUI.onlineLabel and res.online ~= nil then
                 HomeUI.onlineLabel.Text = "Online: " .. tostring(res.online)
