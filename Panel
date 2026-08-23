@@ -702,8 +702,8 @@ local function loadModule(path)
 
     local candidates = {}
     for _, modulePath in ipairs(pathVariants) do
-        table.insert(candidates, GITHUB_RAW .. "/" .. modulePath)
         table.insert(candidates, API_BASE .. "/raw/" .. modulePath)
+        table.insert(candidates, GITHUB_RAW .. "/" .. modulePath)
     end
 
     local seen = {}
@@ -1582,9 +1582,10 @@ local function setupOwnTag(rank)
     end)
 end
 
+local activeServerProfiles = {}
+
 local function monitorOtherPlayers()
     local monitored = {}
-    local activeServerProfiles = {}
 
     local function destroyTag(character)
         if not character then return end
@@ -2906,90 +2907,40 @@ do
     local antiAfkBtn = makeButton(f,"Anti AFK",COL1,y,BTN_W,BTN_H,true)
     local antiAfkDot = makeStatusDot(f, DOT1_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
     local antiAfkActive = false
-    local antiAfkConn = nil
     local function setAntiAfk(state)
+        if state == antiAfkActive then return end
+        local loaded = loadModule("modules/Misc/AntiAFK")
+        if not loaded then return end
         antiAfkActive = state
         antiAfkDot.setActive(antiAfkActive)
         antiAfkBtn.BackgroundColor3 = antiAfkActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        if antiAfkActive and not antiAfkConn then
-            antiAfkConn = LocalPlayer.Idled:Connect(function()
-                local vu = game:GetService("VirtualUser")
-                pcall(function() vu:CaptureController() end)
-                pcall(function() vu:ClickButton2(Vector2.new()) end)
-            end)
-        elseif not antiAfkActive and antiAfkConn then
-            antiAfkConn:Disconnect()
-            antiAfkConn = nil
-        end
     end
     antiAfkBtn.MouseButton1Click:Connect(function() setAntiAfk(not antiAfkActive) end)
     registerCleanup("AntiAFK", function() setAntiAfk(false) end)
 
     local tpBtn = makeButton(f,"TpToOwner",COL2,y,BTN_W,BTN_H)
     makeMouseDot(f, DOT2_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
-    tpBtn.MouseButton1Click:Connect(function() loadModule("modules/Misc/TpToOwner.lua") end)
+    tpBtn.MouseButton1Click:Connect(function() loadModule("modules/Misc/TpToOwner") end)
     y = y + BTN_H + GAP
 
     -- Linha 2
-    local shadersBtn = makeButton(f,"Shaders",COL1,y,BTN_W,BTN_H,true)
-    local shadersDot = makeStatusDot(f, DOT1_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
-    local shadersActive = false
-    shadersBtn.MouseButton1Click:Connect(function()
-        shadersActive = not shadersActive
-        shadersDot.setActive(shadersActive)
-        shadersBtn.BackgroundColor3 = shadersActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        loadModule(shadersActive and "modules/Misc/Shaders.lua" or "modules/Misc/ShadersOff.lua")
-    end)
-    registerCleanup("Shaders", function()
-        if shadersActive then loadModule("modules/Misc/ShadersOff.lua") end
-    end)
-
-    local dayNightBtn = makeButton(f,"Day/Night",COL2,y,BTN_W,BTN_H,true)
-    local dayNightDot = makeStatusDot(f, DOT2_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
-    local dayNightActive = false
-    dayNightBtn.MouseButton1Click:Connect(function()
-        dayNightActive = not dayNightActive
-        dayNightDot.setActive(dayNightActive)
-        dayNightBtn.BackgroundColor3 = dayNightActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        loadModule(dayNightActive and "modules/Misc/DayNight.lua" or "modules/Misc/DayNightOff.lua")
-    end)
-    registerCleanup("DayNight", function()
-        if dayNightActive then loadModule("modules/Misc/DayNightOff.lua") end
-    end)
-    y = y + BTN_H + GAP
-
-    -- Linha 3
-    local resetBtn = makeButton(f,"Reset Lighting",COL1,y,BTN_W,BTN_H)
+    local clearBtn = makeButton(f,"Clear Chat",COL1,y,BTN_W,BTN_H)
     makeMouseDot(f, DOT1_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
-    resetBtn.MouseButton1Click:Connect(function() loadModule("modules/Misc/ResetLighting.lua") end)
-
-    local destroyBtn = makeButton(f,"Destroy GUI",COL2,y,BTN_W,BTN_H)
-    makeMouseDot(f, DOT2_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
-    destroyBtn.MouseButton1Click:Connect(function() loadModule("modules/Misc/DestroyGUI.lua") end)
-    y = y + BTN_H + GAP
-
-    -- Linha 4
-    local freeEmoteBtn = makeButton(f,"Free Emote",COL1,y,BTN_W,BTN_H)
-    makeMouseDot(f, DOT1_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
-    freeEmoteBtn.MouseButton1Click:Connect(function() loadModule("modules/Misc/FreeEmote.lua") end)
-
-    local clearBtn = makeButton(f,"Clear Chat",COL2,y,BTN_W,BTN_H)
-    makeMouseDot(f, DOT2_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
     clearBtn.MouseButton1Click:Connect(function() loadModule("modules/Misc/ClearChat.lua") end)
-    y = y + BTN_H + GAP
 
-    -- Linha 5
-    local rejoinBtn = makeButton(f,"Rejoin",COL1,y,BTN_W,BTN_H)
-    makeMouseDot(f, DOT1_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
+    local rejoinBtn = makeButton(f,"Rejoin",COL2,y,BTN_W,BTN_H)
+    makeMouseDot(f, DOT2_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
     rejoinBtn.MouseButton1Click:Connect(function()
         local TeleportService = game:GetService("TeleportService")
         pcall(function()
             TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
         end)
     end)
+    y = y + BTN_H + GAP
 
-    local premBtn = makeButton(f,"Infinite Premium",COL2,y,BTN_W,BTN_H)
-    makeMouseDot(f, DOT2_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
+    -- Linha 3
+    local premBtn = makeButton(f,"Infinite Premium",COL1,y,BTN_W,BTN_H)
+    makeMouseDot(f, DOT1_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
     premBtn.MouseButton1Click:Connect(function() loadModule("modules/Misc/InfinitePremium.lua") end)
     y = y + BTN_H + GAP
 
