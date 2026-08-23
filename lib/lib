@@ -26,7 +26,7 @@ Lib.LocalPlayer      = LocalPlayer
 Lib.Config = {
     GITHUB_RAW = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main",
     API_BASE   = "https://SUA-API-AQUI.railway.app",
-    VERSION    = "v4.6.4",
+    VERSION    = "v1.0.0",
 }
 
 -- ==================== CORES ====================
