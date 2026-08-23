@@ -41,6 +41,9 @@ local GLOBAL = (getgenv and getgenv()) or _G
 local PANEL_CONFIG = GLOBAL.__288PanelConfig or {}
 local API_BASE   = PANEL_CONFIG.API_BASE or "https://digest-vice-decided-isaac.trycloudflare.com"
 local GITHUB_RAW = PANEL_CONFIG.GITHUB_RAW or "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
+-- FaÃ§a upload de assets/panel-background.png no Roblox e informe o asset ID aqui
+-- via getgenv().__288PanelConfig.BACKGROUND_IMAGE = "rbxassetid://SEU_ID".
+local BACKGROUND_IMAGE = PANEL_CONFIG.BACKGROUND_IMAGE or "rbxassetid://13286350915"
 local VERSION    = "v1.0.0"
 
 -- Estado global da sessão/painel
@@ -622,7 +625,7 @@ MainFrame.Name             = "MainFrame"
 MainFrame.Size             = UDim2.new(0, 500, 0, 380)
 MainFrame.Position         = UDim2.new(0.5, -250, 0.5, -190)
 MainFrame.BackgroundColor3 = BG_BASE
-MainFrame.BackgroundTransparency = 0.08
+MainFrame.BackgroundTransparency = 0.02
 MainFrame.BorderSizePixel  = 0
 MainFrame.Active           = true
 MainFrame.Draggable        = true
@@ -630,7 +633,7 @@ MainFrame.ClipsDescendants = true
 MainFrame.Parent           = ScreenGui
 registerTheme(MainFrame, "BackgroundColor3", "main")
 local MainCorner = Instance.new("UICorner")
-MainCorner.CornerRadius = UDim.new(0, 12)
+MainCorner.CornerRadius = UDim.new(0, 18)
 MainCorner.Parent = MainFrame
 
 -- Mantém a geometria interna de 500x380 e escala o painel em telas menores.
@@ -654,15 +657,16 @@ end
 
 local MainStroke = Instance.new("UIStroke")
 MainStroke.Color     = ACCENT
-MainStroke.Transparency = 0.62
-MainStroke.Thickness = 1
+MainStroke.Transparency = 0.42
+MainStroke.Thickness = 1.25
 MainStroke.Parent    = MainFrame
 
 local BgLabel = Instance.new("ImageLabel")
 BgLabel.Size             = UDim2.new(1, 0, 1, 0)
 BgLabel.BackgroundTransparency = 1
-BgLabel.Image            = "rbxassetid://13286350915"
-BgLabel.ImageTransparency = 0.72
+BgLabel.Name             = "PanelBackgroundImage"
+BgLabel.Image            = BACKGROUND_IMAGE
+BgLabel.ImageTransparency = 0.28
 BgLabel.ScaleType        = Enum.ScaleType.Crop
 BgLabel.ZIndex           = 0
 BgLabel.Parent           = MainFrame
@@ -671,7 +675,7 @@ local BgTint = Instance.new("Frame")
 BgTint.Name = "GlassTint"
 BgTint.Size = UDim2.new(1,0,1,0)
 BgTint.BackgroundColor3 = BG_BASE
-BgTint.BackgroundTransparency = 0.22
+BgTint.BackgroundTransparency = 0.48
 BgTint.BorderSizePixel = 0
 BgTint.ZIndex = 0
 BgTint.Parent = MainFrame
@@ -690,7 +694,7 @@ local Header = Instance.new("Frame")
 Header.Name             = "Header"
 Header.Size             = UDim2.new(1, 0, 0, 42)
 Header.BackgroundColor3 = Color3.fromRGB(14, 15, 18)
-Header.BackgroundTransparency = 0.10
+Header.BackgroundTransparency = 0.22
 Header.BorderSizePixel  = 0
 Header.ZIndex           = 2
 Header.Parent           = MainFrame
@@ -750,7 +754,7 @@ Sidebar.Name             = "Sidebar"
 Sidebar.Size             = UDim2.new(0, 108, 1, -42)
 Sidebar.Position         = UDim2.new(0, 0, 0, 42)
 Sidebar.BackgroundColor3 = Color3.fromRGB(14, 15, 18)
-Sidebar.BackgroundTransparency = 0.08
+Sidebar.BackgroundTransparency = 0.18
 Sidebar.BorderSizePixel  = 0
 Sidebar.ZIndex           = 2
 Sidebar.Parent           = MainFrame
@@ -2629,6 +2633,20 @@ local function applyModernPolish()
         elseif obj:IsA("ScrollingFrame") then
             obj.ScrollBarImageColor3 = ACCENT
             obj.ScrollBarThickness = math.min(obj.ScrollBarThickness, 3)
+        elseif obj:IsA("TextButton") or obj:IsA("TextBox") then
+            local isSmallCircle = obj.Size.X.Offset == obj.Size.Y.Offset and obj.Size.X.Offset <= 40
+            local corner = obj:FindFirstChildOfClass("UICorner") or Instance.new("UICorner")
+            corner.CornerRadius = isSmallCircle and UDim.new(1, 0) or UDim.new(0, 10)
+            corner.Parent = obj
+
+            if not obj:FindFirstChildOfClass("UIStroke") then
+                local softStroke = Instance.new("UIStroke")
+                softStroke.Name = "ModernSoftStroke"
+                softStroke.Color = STROKE_SOFT
+                softStroke.Transparency = 0.52
+                softStroke.Thickness = 1
+                softStroke.Parent = obj
+            end
         end
     end
 
