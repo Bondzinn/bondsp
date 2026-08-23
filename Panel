@@ -757,6 +757,9 @@ local OWNER_SHINE = {
 if LocalPlayer.PlayerGui:FindFirstChild("288Panel") then
     LocalPlayer.PlayerGui["288Panel"]:Destroy()
 end
+if LocalPlayer.PlayerGui:FindFirstChild("288Notifications") then
+    LocalPlayer.PlayerGui["288Notifications"]:Destroy()
+end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name           = "288Panel"
@@ -764,6 +767,110 @@ ScreenGui.ResetOnSpawn   = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent         = LocalPlayer:WaitForChild("PlayerGui")
 themeRoot = ScreenGui
+
+-- Notificacoes proprias do painel. Ficam em um ScreenGui separado para
+-- continuarem visiveis quando a janela principal for ocultada.
+local NotificationGui = Instance.new("ScreenGui")
+NotificationGui.Name = "288Notifications"
+NotificationGui.ResetOnSpawn = false
+NotificationGui.IgnoreGuiInset = true
+NotificationGui.DisplayOrder = 1000
+NotificationGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+NotificationGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local NotificationStack = Instance.new("Frame")
+NotificationStack.Name = "Stack"
+NotificationStack.AnchorPoint = Vector2.new(1, 1)
+NotificationStack.Position = UDim2.new(1, -18, 1, -18)
+NotificationStack.Size = UDim2.new(0, 300, 1, -36)
+NotificationStack.BackgroundTransparency = 1
+NotificationStack.Parent = NotificationGui
+
+local NotificationLayout = Instance.new("UIListLayout")
+NotificationLayout.FillDirection = Enum.FillDirection.Vertical
+NotificationLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+NotificationLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
+NotificationLayout.Padding = UDim.new(0, 8)
+NotificationLayout.Parent = NotificationStack
+
+local function notifyPanel(title, message, kind, duration)
+    if not NotificationGui.Parent then return end
+
+    local colors = {
+        success = Color3.fromRGB(91, 214, 138),
+        warning = Color3.fromRGB(255, 184, 77),
+        error = Color3.fromRGB(255, 96, 109),
+        info = Color3.fromRGB(151, 112, 255),
+    }
+    local accent = colors[kind] or colors.info
+    local toast = Instance.new("CanvasGroup")
+    toast.Name = "Notification"
+    toast.Size = UDim2.new(0, 300, 0, 74)
+    toast.BackgroundColor3 = Color3.fromRGB(18, 19, 23)
+    toast.BackgroundTransparency = 0.06
+    toast.BorderSizePixel = 0
+    toast.GroupTransparency = 1
+    toast.Parent = NotificationStack
+    Instance.new("UICorner", toast).CornerRadius = UDim.new(0, 12)
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = accent
+    stroke.Transparency = 0.38
+    stroke.Thickness = 1
+    stroke.Parent = toast
+
+    local bar = Instance.new("Frame")
+    bar.Size = UDim2.new(0, 4, 1, -20)
+    bar.Position = UDim2.new(0, 9, 0, 10)
+    bar.BackgroundColor3 = accent
+    bar.BorderSizePixel = 0
+    bar.Parent = toast
+    Instance.new("UICorner", bar).CornerRadius = UDim.new(1, 0)
+
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Size = UDim2.new(1, -32, 0, 22)
+    titleLabel.Position = UDim2.new(0, 23, 0, 11)
+    titleLabel.BackgroundTransparency = 1
+    titleLabel.Text = tostring(title or "288 Panel")
+    titleLabel.TextColor3 = Color3.fromRGB(245, 245, 248)
+    titleLabel.TextSize = 13
+    titleLabel.Font = Enum.Font.GothamBold
+    titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+    titleLabel.Parent = toast
+
+    local messageLabel = Instance.new("TextLabel")
+    messageLabel.Size = UDim2.new(1, -32, 0, 29)
+    messageLabel.Position = UDim2.new(0, 23, 0, 34)
+    messageLabel.BackgroundTransparency = 1
+    messageLabel.Text = tostring(message or "")
+    messageLabel.TextColor3 = Color3.fromRGB(178, 180, 190)
+    messageLabel.TextSize = 11
+    messageLabel.Font = Enum.Font.Gotham
+    messageLabel.TextWrapped = true
+    messageLabel.TextXAlignment = Enum.TextXAlignment.Left
+    messageLabel.TextYAlignment = Enum.TextYAlignment.Top
+    messageLabel.Parent = toast
+
+    TweenService:Create(toast, TweenInfo.new(0.22, Enum.EasingStyle.Quad), {
+        GroupTransparency = 0,
+    }):Play()
+
+    task.delay(duration or 3.5, function()
+        if not toast.Parent then return end
+        local tween = TweenService:Create(toast, TweenInfo.new(0.2), {
+            GroupTransparency = 1,
+        })
+        tween:Play()
+        tween.Completed:Wait()
+        if toast.Parent then toast:Destroy() end
+    end)
+end
+
+GLOBAL.__288Notify = notifyPanel
+registerCleanup("Notifications", function()
+    if GLOBAL.__288Notify == notifyPanel then GLOBAL.__288Notify = nil end
+    if NotificationGui.Parent then NotificationGui:Destroy() end
+end)
 
 -- ==================== LOADING UI ====================
 local MainFrame
@@ -1328,6 +1435,19 @@ local function makeButton(parent, text, x, y, w, h, vipOnly)
     if vipOnly then
         makeVectorIcon(btn, "star", (w or BTN_W) - 13, -3, 12, ACCENT)
     end
+    btn.MouseButton1Click:Connect(function()
+        task.defer(function()
+            if not btn.Parent or btn:GetAttribute("288SilentNotification") then return end
+            if btn:GetAttribute("288RequiresTarget")
+                and not Players:GetPlayerByUserId(tonumber(GLOBAL.__288TargetUserId) or -1) then
+                return
+            end
+            local state = toggleStates and toggleStates[btn]
+            local detail = state == nil and "Função ativada."
+                or (state and "Função ativada." or "Função desativada.")
+            notifyPanel(btn.Text, detail, state == false and "warning" or "success")
+        end)
+    end)
     return btn
 end
 
@@ -2612,16 +2732,30 @@ do
     }
     local GRID_Y = 108
     local targetUser = nil
+    local targetControls = {}
 
     for _, v in ipairs(TARGET_BTNS) do
         local col = (v.order % 2 == 1) and COL1 or COL2
         local row = math.floor((v.order - 1) / 2)
         local yPos = GRID_Y + row * (BTN_H + GAP)
         local btn = makeButton(f, v.name, col, yPos, BTN_W, BTN_H, v.vip)
+        btn:SetAttribute("288RequiresTarget", true)
         btn.TextSize = 13
         local dotX = (v.order % 2 == 1) and DOT1_X or DOT2_X
         local dot = makeStatusDot(f, dotX, yPos + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
         local active = false
+        table.insert(targetControls, {
+            button = btn,
+            dot = dot,
+            name = v.name,
+            instant = v.instant == true,
+            isActive = function() return active end,
+            deactivate = function()
+                active = false
+                dot.setActive(false)
+                btn.BackgroundColor3 = THEMES[currentTheme].btn
+            end,
+        })
         local lastActionAt = 0
         local function actionReady()
             local cooldown = v.name == "Teleport" and 0.10
@@ -2690,6 +2824,42 @@ do
         inputStroke.Color    = Color3.fromRGB(80,180,80)
         usernameInput.Text   = player.Name
     end
+
+    trackConnect(Players.PlayerRemoving, function(player)
+        if player ~= targetUser then return end
+
+        local departedName = player.DisplayName ~= player.Name
+            and (player.DisplayName .. " (@" .. player.Name .. ")")
+            or ("@" .. player.Name)
+
+        local modulesToDisable = {}
+        for _, control in ipairs(targetControls) do
+            if not control.instant and control.isActive() then
+                local safe = control.name:gsub(" ", "")
+                table.insert(modulesToDisable, "modules/Target/" .. safe .. "Off.lua")
+            end
+            control.deactivate()
+        end
+
+        targetUser = nil
+        GLOBAL.__288TargetUserId = nil
+        userIdLbl.Visible = false
+        displayLbl.Visible = false
+        nameLbl2.Visible = false
+        hintLbl.Visible = true
+        targetAvatar.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
+        targetAvatar.ImageColor3 = Color3.fromRGB(90, 90, 90)
+        usernameInput.Text = ""
+        inputStroke.Color = STROKE_SOFT
+        suggestFrame.Visible = false
+
+        notifyPanel("Target saiu", departedName .. " saiu do servidor.", "warning", 5)
+        task.spawn(function()
+            for _, modulePath in ipairs(modulesToDisable) do
+                loadModule(modulePath)
+            end
+        end)
+    end)
 
     local function showDropdown(matches)
         updateDropPos()
@@ -2941,7 +3111,7 @@ do
     -- Linha 2
     local clearBtn = makeButton(f,"Clear Chat",COL1,y,BTN_W,BTN_H)
     makeMouseDot(f, DOT1_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
-    clearBtn.MouseButton1Click:Connect(function() loadModule("modules/Misc/ClearChat.lua") end)
+    clearBtn.MouseButton1Click:Connect(function() loadModule("modules/Misc/ClearChat") end)
 
     local rejoinBtn = makeButton(f,"Rejoin",COL2,y,BTN_W,BTN_H)
     makeMouseDot(f, DOT2_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
