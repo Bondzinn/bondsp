@@ -2621,10 +2621,21 @@ do
         local dotX = (v.order % 2 == 1) and DOT1_X or DOT2_X
         local dot = makeStatusDot(f, dotX, yPos + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
         local active = false
+        local lastActionAt = 0
+        local function actionReady()
+            local cooldown = v.name == "Teleport" and 0.35
+                or v.name == "View" and 0.30
+                or 0.15
+            local now = os.clock()
+            if now - lastActionAt < cooldown then return false end
+            lastActionAt = now
+            return true
+        end
         if v.instant then
             -- ação instantânea (não toggle)
             btn.MouseButton1Click:Connect(function()
                 if not targetUser then return end
+                if not actionReady() then return end
                 GLOBAL.__288TargetUserId = targetUser.UserId
                 if v.name == "CopyID" then
                     pcall(function() setclipboard(tostring(targetUser.UserId)) end)
@@ -2637,6 +2648,7 @@ do
         else
             btn.MouseButton1Click:Connect(function()
                 if not targetUser then return end
+                if not actionReady() then return end
                 GLOBAL.__288TargetUserId = targetUser.UserId
                 active = not active
                 dot.setActive(active)
