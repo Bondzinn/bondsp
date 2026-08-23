@@ -77,26 +77,26 @@ local function trackConnect(signal, callback)
 end
 
 -- ==================== TEMA ====================
-local ACCENT = Color3.fromRGB(255, 146, 250) -- #ff92fa
-local BG_BASE = Color3.fromRGB(17, 18, 20)       -- #111214
-local SURFACE = Color3.fromRGB(24, 24, 28)
-local SURFACE_2 = Color3.fromRGB(30, 30, 35)
-local STROKE_SOFT = Color3.fromRGB(58, 56, 66)
-local TEXT_MAIN = Color3.fromRGB(240, 240, 244)
-local TEXT_DIM = Color3.fromRGB(151, 151, 162)
+local ACCENT = Color3.fromRGB(238, 126, 255)
+local BG_BASE = Color3.fromRGB(10, 11, 16)
+local SURFACE = Color3.fromRGB(24, 22, 31)
+local SURFACE_2 = Color3.fromRGB(31, 27, 40)
+local STROKE_SOFT = Color3.fromRGB(91, 72, 108)
+local TEXT_MAIN = Color3.fromRGB(248, 246, 252)
+local TEXT_DIM = Color3.fromRGB(166, 158, 177)
 
 local THEMES = {
     dark = {
         main     = BG_BASE,
-        header   = Color3.fromRGB(15, 16, 19),
-        sidebar  = Color3.fromRGB(16, 17, 20),
-        content  = Color3.fromRGB(20, 20, 24),
+        header   = Color3.fromRGB(13, 12, 19),
+        sidebar  = Color3.fromRGB(14, 13, 20),
+        content  = Color3.fromRGB(16, 15, 23),
         btn      = SURFACE,
-        btnHover = Color3.fromRGB(39, 34, 42),
-        btnOn    = Color3.fromRGB(55, 38, 57),
+        btnHover = Color3.fromRGB(46, 36, 56),
+        btnOn    = Color3.fromRGB(67, 42, 73),
         text     = TEXT_MAIN,
         textDim  = TEXT_DIM,
-        sep      = Color3.fromRGB(39, 39, 45),
+        sep      = Color3.fromRGB(47, 40, 55),
         stroke   = STROKE_SOFT,
     },
     light = {
@@ -694,40 +694,59 @@ local Header = Instance.new("Frame")
 Header.Name             = "Header"
 Header.Size             = UDim2.new(1, 0, 0, 42)
 Header.BackgroundColor3 = Color3.fromRGB(14, 15, 18)
-Header.BackgroundTransparency = 0.22
+Header.BackgroundTransparency = 0.34
 Header.BorderSizePixel  = 0
 Header.ZIndex           = 2
 Header.Parent           = MainFrame
 registerTheme(Header, "BackgroundColor3", "header")
 
 local VersionLabel = Instance.new("TextLabel")
-VersionLabel.Size             = UDim2.new(0, 70, 1, 0)
-VersionLabel.Position         = UDim2.new(0, 8, 0, 0)
+VersionLabel.Size             = UDim2.new(0, 58, 0, 22)
+VersionLabel.Position         = UDim2.new(1, -102, 0.5, -11)
 VersionLabel.BackgroundTransparency = 1
 VersionLabel.Text             = VERSION
 VersionLabel.TextColor3       = ACCENT
-VersionLabel.TextSize         = 13
-VersionLabel.Font             = Enum.Font.Gotham
-VersionLabel.TextXAlignment   = Enum.TextXAlignment.Left
+VersionLabel.TextSize         = 10
+VersionLabel.Font             = Enum.Font.GothamBold
+VersionLabel.TextXAlignment   = Enum.TextXAlignment.Center
 VersionLabel.ZIndex           = 3
 VersionLabel.Parent           = Header
+VersionLabel.BackgroundColor3 = Color3.fromRGB(47, 31, 52)
+VersionLabel.BackgroundTransparency = 0.28
+Instance.new("UICorner", VersionLabel).CornerRadius = UDim.new(1, 0)
+
+local HeaderGlow = Instance.new("Frame")
+HeaderGlow.Name = "HeaderAccentGlow"
+HeaderGlow.Size = UDim2.new(0, 160, 0, 1)
+HeaderGlow.Position = UDim2.new(0, 18, 1, -1)
+HeaderGlow.BackgroundColor3 = ACCENT
+HeaderGlow.BackgroundTransparency = 0.18
+HeaderGlow.BorderSizePixel = 0
+HeaderGlow.ZIndex = 3
+HeaderGlow.Parent = Header
+local HeaderGlowGradient = Instance.new("UIGradient")
+HeaderGlowGradient.Transparency = NumberSequence.new({
+    NumberSequenceKeypoint.new(0, 0),
+    NumberSequenceKeypoint.new(1, 1),
+})
+HeaderGlowGradient.Parent = HeaderGlow
 
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size             = UDim2.new(0.5, 0, 1, 0)
-TitleLabel.Position         = UDim2.new(0.25, 0, 0, 0)
+TitleLabel.Size             = UDim2.new(0, 180, 1, 0)
+TitleLabel.Position         = UDim2.new(0, 18, 0, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Text             = "288 Panel"
-TitleLabel.TextSize         = 16
+TitleLabel.TextSize         = 15
 TitleLabel.Font             = Enum.Font.GothamBold
-TitleLabel.TextXAlignment   = Enum.TextXAlignment.Center
+TitleLabel.TextXAlignment   = Enum.TextXAlignment.Left
 TitleLabel.TextColor3       = TEXT_MAIN
 TitleLabel.ZIndex           = 3
 TitleLabel.Parent           = Header
 
 local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size             = UDim2.new(0, 28, 0, 28)
-CloseBtn.Position         = UDim2.new(1, -34, 0.5, -14)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(35, 27, 37)
+CloseBtn.Size             = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position         = UDim2.new(1, -37, 0.5, -15)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(48, 30, 50)
 CloseBtn.Text             = ""
 CloseBtn.TextColor3       = ACCENT
 CloseBtn.TextSize         = 13
@@ -741,7 +760,7 @@ closeStroke.Color = ACCENT
 closeStroke.Transparency = 0.55
 closeStroke.Thickness = 1
 closeStroke.Parent = CloseBtn
-makeVectorIcon(CloseBtn, "close", 6, 6, 16, ACCENT)
+makeVectorIcon(CloseBtn, "close", 7, 7, 16, ACCENT)
 addHover(CloseBtn, false)
 CloseBtn.MouseButton1Click:Connect(function()
     cleanupPanel()
@@ -754,7 +773,7 @@ Sidebar.Name             = "Sidebar"
 Sidebar.Size             = UDim2.new(0, 108, 1, -42)
 Sidebar.Position         = UDim2.new(0, 0, 0, 42)
 Sidebar.BackgroundColor3 = Color3.fromRGB(14, 15, 18)
-Sidebar.BackgroundTransparency = 0.18
+Sidebar.BackgroundTransparency = 0.38
 Sidebar.BorderSizePixel  = 0
 Sidebar.ZIndex           = 2
 Sidebar.Parent           = MainFrame
@@ -762,8 +781,16 @@ registerTheme(Sidebar, "BackgroundColor3", "sidebar")
 
 local SidebarLayout = Instance.new("UIListLayout")
 SidebarLayout.SortOrder = Enum.SortOrder.LayoutOrder
-SidebarLayout.Padding   = UDim.new(0, 0)
+SidebarLayout.Padding   = UDim.new(0, 4)
+SidebarLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
 SidebarLayout.Parent    = Sidebar
+
+local SidebarPadding = Instance.new("UIPadding")
+SidebarPadding.PaddingTop = UDim.new(0, 7)
+SidebarPadding.PaddingBottom = UDim.new(0, 7)
+SidebarPadding.PaddingLeft = UDim.new(0, 8)
+SidebarPadding.PaddingRight = UDim.new(0, 8)
+SidebarPadding.Parent = Sidebar
 
 -- ==================== CONTENT ====================
 local ContentFrame = Instance.new("Frame")
@@ -771,7 +798,7 @@ ContentFrame.Name                  = "Content"
 ContentFrame.Size                  = UDim2.new(1, -108, 1, -42)
 ContentFrame.Position              = UDim2.new(0, 108, 0, 42)
 ContentFrame.BackgroundColor3      = Color3.fromRGB(18, 19, 22)
-ContentFrame.BackgroundTransparency= 0.18
+ContentFrame.BackgroundTransparency= 0.42
 ContentFrame.BorderSizePixel       = 0
 ContentFrame.ZIndex                = 1
 ContentFrame.Parent                = MainFrame
@@ -800,7 +827,8 @@ local function setTab(name)
     for _, t in pairs(Tabs) do
         local active = (t.name == name)
         t.frame.Visible       = active
-        t.btn.BackgroundColor3= active and Color3.fromRGB(40, 30, 42) or T.sidebar
+        t.btn.BackgroundColor3= active and Color3.fromRGB(55, 36, 62) or Color3.fromRGB(22, 20, 29)
+        t.btn.BackgroundTransparency = active and 0.08 or 0.42
         t.btn.TextColor3      = active and ACCENT or T.textDim
         if t.accentBar then
             t.accentBar.Visible = active
@@ -812,22 +840,29 @@ end
 for _, def in ipairs(TABS_DEF) do
     local btn = Instance.new("TextButton")
     btn.Name             = def.name .. "Btn"
-    btn.Size             = UDim2.new(1, 0, 0, 34)
+    btn.Size             = UDim2.new(1, 0, 0, 30)
     btn.BackgroundColor3 = Color3.fromRGB(16, 17, 20)
-    btn.BackgroundTransparency = 0.08
+    btn.BackgroundTransparency = 0.42
     btn.BorderSizePixel  = 0
     btn.Text             = def.name
     btn.TextColor3       = TEXT_DIM
-    btn.TextSize         = 12
-    btn.Font             = Enum.Font.Gotham
+    btn.TextSize         = 11
+    btn.Font             = Enum.Font.GothamMedium
     btn.LayoutOrder      = def.layoutOrder
     btn.ZIndex           = 3
     btn.Parent           = Sidebar
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 9)
+
+    local navStroke = Instance.new("UIStroke")
+    navStroke.Color = STROKE_SOFT
+    navStroke.Transparency = 0.72
+    navStroke.Thickness = 1
+    navStroke.Parent = btn
 
     local navAccent = Instance.new("Frame")
     navAccent.Name = "ActiveAccent"
-    navAccent.Size = UDim2.new(0, 3, 0, 18)
-    navAccent.Position = UDim2.new(0, 0, 0.5, -9)
+    navAccent.Size = UDim2.new(0, 3, 0, 14)
+    navAccent.Position = UDim2.new(1, -6, 0.5, -7)
     navAccent.BackgroundColor3 = ACCENT
     navAccent.BorderSizePixel = 0
     navAccent.Visible = false
@@ -844,6 +879,7 @@ for _, def in ipairs(TABS_DEF) do
     sep.BorderSizePixel  = 0
     sep.ZIndex           = 3
     sep.Parent           = btn
+    sep.Visible          = false
     registerTheme(sep, "BackgroundColor3", "sep")
 
     local frame = Instance.new("ScrollingFrame")
@@ -897,7 +933,7 @@ local function makeButton(parent, text, x, y, w, h, vipOnly)
     btn.Size             = UDim2.new(0, w or BTN_W, 0, h or BTN_H)
     btn.Position         = UDim2.new(0, x, 0, y)
     btn.BackgroundColor3 = SURFACE
-    btn.BackgroundTransparency = 0.06
+    btn.BackgroundTransparency = 0.16
     btn.BorderSizePixel  = 0
     btn.Text             = text
     btn.TextColor3       = TEXT_MAIN
@@ -906,12 +942,12 @@ local function makeButton(parent, text, x, y, w, h, vipOnly)
     btn.TextXAlignment   = Enum.TextXAlignment.Center
     btn.ZIndex           = 4
     btn.Parent           = parent
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 11)
     registerTheme(btn, "BackgroundColor3", "btn")
     registerTheme(btn, "TextColor3", "text")
     local btnStroke = Instance.new("UIStroke")
     btnStroke.Color = STROKE_SOFT
-    btnStroke.Transparency = 0.42
+    btnStroke.Transparency = 0.58
     btnStroke.Thickness = 1
     btnStroke.Parent = btn
     addHover(btn)
@@ -926,10 +962,11 @@ local function makeSectionLabel(parent, text, x, y)
     lbl.Size             = UDim2.new(1, -x*2, 0, 20)
     lbl.Position         = UDim2.new(0, x, 0, y)
     lbl.BackgroundTransparency = 1
-    lbl.Text             = text
-    lbl.TextColor3       = Color3.fromRGB(160, 160, 160)
-    lbl.TextSize         = 12
-    lbl.Font             = Enum.Font.Gotham
+    lbl.Text             = string.upper(text)
+    lbl.TextColor3       = ACCENT
+    lbl.TextTransparency = 0.12
+    lbl.TextSize         = 10
+    lbl.Font             = Enum.Font.GothamBold
     lbl.TextXAlignment   = Enum.TextXAlignment.Left
     lbl.ZIndex           = 4
     lbl.Parent           = parent
@@ -942,7 +979,7 @@ local function makeInput(parent, placeholder, x, y, w, h)
     box.Size             = UDim2.new(0, w or BTN_W, 0, h or BTN_H)
     box.Position         = UDim2.new(0, x, 0, y)
     box.BackgroundColor3 = SURFACE_2
-    box.BackgroundTransparency = 0.05
+    box.BackgroundTransparency = 0.14
     box.BorderSizePixel  = 0
     box.Text             = ""
     box.PlaceholderText  = placeholder
@@ -953,7 +990,7 @@ local function makeInput(parent, placeholder, x, y, w, h)
     box.TextXAlignment   = Enum.TextXAlignment.Center
     box.ZIndex           = 4
     box.Parent           = parent
-    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 8)
+    Instance.new("UICorner", box).CornerRadius = UDim.new(0, 11)
     registerTheme(box, "BackgroundColor3", "btn")
     registerTheme(box, "TextColor3", "text")
     local inputStroke = Instance.new("UIStroke")
@@ -2636,7 +2673,7 @@ local function applyModernPolish()
         elseif obj:IsA("TextButton") or obj:IsA("TextBox") then
             local isSmallCircle = obj.Size.X.Offset == obj.Size.Y.Offset and obj.Size.X.Offset <= 40
             local corner = obj:FindFirstChildOfClass("UICorner") or Instance.new("UICorner")
-            corner.CornerRadius = isSmallCircle and UDim.new(1, 0) or UDim.new(0, 10)
+            corner.CornerRadius = isSmallCircle and UDim.new(1, 0) or UDim.new(0, 12)
             corner.Parent = obj
 
             if not obj:FindFirstChildOfClass("UIStroke") then
