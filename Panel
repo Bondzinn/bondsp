@@ -10,6 +10,7 @@ local RunService       = game:GetService("RunService")
 local TweenService     = game:GetService("TweenService")
 local HttpService      = game:GetService("HttpService")
 local StarterGui       = game:GetService("StarterGui")
+local GuiService       = game:GetService("GuiService")
 local LocalPlayer      = Players.LocalPlayer
 
 -- ==================== DEVICE ====================
@@ -39,7 +40,7 @@ local DEVICE_LABEL = DEVICE_LABELS[DEVICE] or DEVICE_LABELS.desktop
 -- ==================== CONFIG ====================
 local GLOBAL = (getgenv and getgenv()) or _G
 local PANEL_CONFIG = GLOBAL.__288PanelConfig or {}
-local API_BASE   = PANEL_CONFIG.API_BASE or "https://almost-tests-wonder-equilibrium.trycloudflare.com"
+local API_BASE   = PANEL_CONFIG.API_BASE or "https://scientist-edwards-ceremony-separated.trycloudflare.com"
 local GITHUB_RAW = PANEL_CONFIG.GITHUB_RAW or "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
 -- FaÃ§a upload de assets/panel-background.png no Roblox e informe o asset ID aqui
 -- via getgenv().__288PanelConfig.BACKGROUND_IMAGE = "rbxassetid://SEU_ID".
@@ -2623,8 +2624,8 @@ do
         local active = false
         local lastActionAt = 0
         local function actionReady()
-            local cooldown = v.name == "Teleport" and 0.35
-                or v.name == "View" and 0.30
+            local cooldown = v.name == "Teleport" and 0.10
+                or v.name == "View" and 0.08
                 or 0.15
             local now = os.clock()
             if now - lastActionAt < cooldown then return false end
@@ -3095,7 +3096,7 @@ do
     devLbl.Size=UDim2.new(1,-20,0,28)
     devLbl.Position=UDim2.new(0,PAD,0,20)
     devLbl.BackgroundTransparency=1
-    devLbl.Text="Developed by "
+    devLbl.Text="Desenvolvedores:"
     devLbl.TextColor3=Color3.fromRGB(200,200,200)
     devLbl.TextSize=14
     devLbl.Font=Enum.Font.Gotham
@@ -3104,17 +3105,42 @@ do
     devLbl.Parent=f
     registerTheme(devLbl,"TextColor3","textDim")
 
-    local bondLbl = Instance.new("TextLabel")
-    bondLbl.Size=UDim2.new(0,40,0,28)
-    bondLbl.Position=UDim2.new(0,PAD+107,0,20)
-    bondLbl.BackgroundTransparency=1
-    bondLbl.Text="288"
-    bondLbl.TextColor3=Color3.fromRGB(80,160,255)
-    bondLbl.TextSize=14
-    bondLbl.Font=Enum.Font.GothamBold
-    bondLbl.TextXAlignment=Enum.TextXAlignment.Left
-    bondLbl.ZIndex=5
-    bondLbl.Parent=f
+    local function openRobloxProfile(userId, username)
+        local url = "https://www.roblox.com/users/" .. tostring(userId) .. "/profile"
+        local opened = pcall(function() GuiService:OpenBrowserWindow(url) end)
+        if not opened then
+            pcall(function() setclipboard(url) end)
+            pcall(function()
+                StarterGui:SetCore("SendNotification", {
+                    Title = "Perfil de " .. username,
+                    Text = "Link copiado. Cole no navegador para abrir o perfil.",
+                    Duration = 5,
+                })
+            end)
+        end
+    end
+
+    local developers = {
+        { username = "eotaldojapakk", userId = 609332724 },
+        { username = "driblaestado", userId = 4885351053 },
+    }
+    for index, developer in ipairs(developers) do
+        local devButton = Instance.new("TextButton")
+        devButton.Size = UDim2.new(0, 116, 0, 24)
+        devButton.Position = UDim2.new(0, PAD + 120 + ((index - 1) * 125), 0, 22)
+        devButton.BackgroundTransparency = 1
+        devButton.Text = "@" .. developer.username
+        devButton.TextColor3 = Color3.fromRGB(80,160,255)
+        devButton.TextSize = 13
+        devButton.Font = Enum.Font.GothamBold
+        devButton.TextXAlignment = Enum.TextXAlignment.Left
+        devButton.ZIndex = 5
+        devButton.Parent = f
+        addHover(devButton)
+        devButton.MouseButton1Click:Connect(function()
+            openRobloxProfile(developer.userId, developer.username)
+        end)
+    end
 
     local verLbl = Instance.new("TextLabel")
     verLbl.Size=UDim2.new(1,-20,0,28)
