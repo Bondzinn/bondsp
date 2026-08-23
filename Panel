@@ -151,6 +151,18 @@ local THEMES = {
         btn=Color3.fromRGB(57,27,35), btnHover=Color3.fromRGB(82,38,47), btnOn=Color3.fromRGB(104,48,55),
         text=Color3.fromRGB(255,247,240), textDim=Color3.fromRGB(207,169,158), sep=Color3.fromRGB(77,39,46), stroke=Color3.fromRGB(130,67,73),
     },
+    aurora = {
+        label="Aurora", accent=Color3.fromRGB(185,103,255), main=Color3.fromRGB(18,10,30),
+        header=Color3.fromRGB(25,13,40), sidebar=Color3.fromRGB(22,11,36), content=Color3.fromRGB(29,15,46),
+        btn=Color3.fromRGB(43,24,65), btnHover=Color3.fromRGB(62,34,91), btnOn=Color3.fromRGB(80,42,116),
+        text=Color3.fromRGB(250,243,255), textDim=Color3.fromRGB(190,158,213), sep=Color3.fromRGB(61,38,82), stroke=Color3.fromRGB(103,62,139),
+    },
+    gold = {
+        label="Dourado", accent=Color3.fromRGB(255,202,79), main=Color3.fromRGB(24,19,8),
+        header=Color3.fromRGB(32,25,10), sidebar=Color3.fromRGB(29,22,9), content=Color3.fromRGB(37,29,12),
+        btn=Color3.fromRGB(55,43,18), btnHover=Color3.fromRGB(78,61,24), btnOn=Color3.fromRGB(101,78,29),
+        text=Color3.fromRGB(255,251,235), textDim=Color3.fromRGB(207,190,143), sep=Color3.fromRGB(74,59,28), stroke=Color3.fromRGB(126,99,40),
+    },
 }
 local currentTheme = "dark"
 
@@ -1951,7 +1963,7 @@ do
     themeModal.Name = "ThemeModal"
     themeModal.AnchorPoint = Vector2.new(0.5, 0.5)
     themeModal.Position = UDim2.new(0.5, 0, 0.5, 0)
-    themeModal.Size = UDim2.new(0, 370, 0, 204)
+    themeModal.Size = UDim2.new(0, 370, 0, 268)
     themeModal.BackgroundColor3 = THEMES.dark.main
     themeModal.BorderSizePixel = 0
     themeModal.ZIndex = 101
@@ -1989,7 +2001,7 @@ do
     registerTheme(closeTheme, "BackgroundColor3", "btn")
 
     -- Claro/Noturno ficam exclusivamente no controle da aba Sobre.
-    local themeOrder = { "ocean", "crimson", "forest", "sunset" }
+    local themeOrder = { "ocean", "crimson", "forest", "sunset", "aurora", "gold" }
     local themeCards = {}
     for index, themeName in ipairs(themeOrder) do
         local palette = THEMES[themeName]
