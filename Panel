@@ -43,7 +43,7 @@ local API_BASE   = PANEL_CONFIG.API_BASE or "https://digest-vice-decided-isaac.t
 local GITHUB_RAW = PANEL_CONFIG.GITHUB_RAW or "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
 -- FaÃ§a upload de assets/panel-background.png no Roblox e informe o asset ID aqui
 -- via getgenv().__288PanelConfig.BACKGROUND_IMAGE = "rbxassetid://SEU_ID".
-local BACKGROUND_IMAGE = PANEL_CONFIG.BACKGROUND_IMAGE or "rbxassetid://13286350915"
+local BACKGROUND_IMAGE = PANEL_CONFIG.BACKGROUND_IMAGE or "rbxassetid://124602977093923"
 local VERSION    = "v1.0.0"
 
 -- Estado global da sessão/painel
