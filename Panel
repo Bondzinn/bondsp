@@ -95,6 +95,7 @@ local SURFACE_2 = Color3.fromRGB(31, 27, 40)
 local STROKE_SOFT = Color3.fromRGB(91, 72, 108)
 local TEXT_MAIN = Color3.fromRGB(248, 246, 252)
 local TEXT_DIM = Color3.fromRGB(166, 158, 177)
+local themeRoot = nil
 
 local THEMES = {
     dark = {
@@ -105,6 +106,7 @@ local THEMES = {
         sidebar  = Color3.fromRGB(14, 13, 20),
         content  = Color3.fromRGB(16, 15, 23),
         btn      = SURFACE,
+        surface2 = SURFACE_2,
         btnHover = Color3.fromRGB(46, 36, 56),
         btnOn    = Color3.fromRGB(67, 42, 73),
         text     = TEXT_MAIN,
@@ -120,6 +122,7 @@ local THEMES = {
         sidebar  = Color3.fromRGB(238, 236, 241),
         content  = Color3.fromRGB(248, 247, 250),
         btn      = Color3.fromRGB(229, 225, 232),
+        surface2 = Color3.fromRGB(219, 214, 224),
         btnHover = Color3.fromRGB(238, 222, 237),
         btnOn    = Color3.fromRGB(244, 208, 242),
         text     = Color3.fromRGB(28, 27, 31),
@@ -130,37 +133,37 @@ local THEMES = {
     ocean = {
         label="Oceano", accent=Color3.fromRGB(75,190,255), main=Color3.fromRGB(7,18,29),
         header=Color3.fromRGB(8,24,38), sidebar=Color3.fromRGB(8,22,35), content=Color3.fromRGB(9,27,42),
-        btn=Color3.fromRGB(14,39,58), btnHover=Color3.fromRGB(20,57,82), btnOn=Color3.fromRGB(20,75,105),
+        btn=Color3.fromRGB(14,39,58), surface2=Color3.fromRGB(17,47,69), btnHover=Color3.fromRGB(20,57,82), btnOn=Color3.fromRGB(20,75,105),
         text=Color3.fromRGB(238,249,255), textDim=Color3.fromRGB(145,181,201), sep=Color3.fromRGB(28,61,80), stroke=Color3.fromRGB(47,102,132),
     },
     crimson = {
         label="Carmesim", accent=Color3.fromRGB(255,84,111), main=Color3.fromRGB(24,8,13),
         header=Color3.fromRGB(31,10,16), sidebar=Color3.fromRGB(28,9,15), content=Color3.fromRGB(34,12,19),
-        btn=Color3.fromRGB(52,18,27), btnHover=Color3.fromRGB(76,25,37), btnOn=Color3.fromRGB(99,30,45),
+        btn=Color3.fromRGB(52,18,27), surface2=Color3.fromRGB(63,21,32), btnHover=Color3.fromRGB(76,25,37), btnOn=Color3.fromRGB(99,30,45),
         text=Color3.fromRGB(255,242,245), textDim=Color3.fromRGB(201,149,160), sep=Color3.fromRGB(72,31,40), stroke=Color3.fromRGB(126,49,65),
     },
     forest = {
         label="Floresta", accent=Color3.fromRGB(91,222,142), main=Color3.fromRGB(7,20,15),
         header=Color3.fromRGB(9,27,20), sidebar=Color3.fromRGB(8,24,18), content=Color3.fromRGB(11,31,23),
-        btn=Color3.fromRGB(18,46,35), btnHover=Color3.fromRGB(25,66,49), btnOn=Color3.fromRGB(31,86,62),
+        btn=Color3.fromRGB(18,46,35), surface2=Color3.fromRGB(21,55,41), btnHover=Color3.fromRGB(25,66,49), btnOn=Color3.fromRGB(31,86,62),
         text=Color3.fromRGB(239,255,246), textDim=Color3.fromRGB(149,195,169), sep=Color3.fromRGB(31,68,51), stroke=Color3.fromRGB(51,112,81),
     },
     sunset = {
         label="Por do sol", accent=Color3.fromRGB(255,151,82), main=Color3.fromRGB(25,13,18),
         header=Color3.fromRGB(34,16,22), sidebar=Color3.fromRGB(30,14,20), content=Color3.fromRGB(39,18,25),
-        btn=Color3.fromRGB(57,27,35), btnHover=Color3.fromRGB(82,38,47), btnOn=Color3.fromRGB(104,48,55),
+        btn=Color3.fromRGB(57,27,35), surface2=Color3.fromRGB(68,31,40), btnHover=Color3.fromRGB(82,38,47), btnOn=Color3.fromRGB(104,48,55),
         text=Color3.fromRGB(255,247,240), textDim=Color3.fromRGB(207,169,158), sep=Color3.fromRGB(77,39,46), stroke=Color3.fromRGB(130,67,73),
     },
     aurora = {
         label="Aurora", accent=Color3.fromRGB(185,103,255), main=Color3.fromRGB(18,10,30),
         header=Color3.fromRGB(25,13,40), sidebar=Color3.fromRGB(22,11,36), content=Color3.fromRGB(29,15,46),
-        btn=Color3.fromRGB(43,24,65), btnHover=Color3.fromRGB(62,34,91), btnOn=Color3.fromRGB(80,42,116),
+        btn=Color3.fromRGB(43,24,65), surface2=Color3.fromRGB(52,28,78), btnHover=Color3.fromRGB(62,34,91), btnOn=Color3.fromRGB(80,42,116),
         text=Color3.fromRGB(250,243,255), textDim=Color3.fromRGB(190,158,213), sep=Color3.fromRGB(61,38,82), stroke=Color3.fromRGB(103,62,139),
     },
     gold = {
         label="Dourado", accent=Color3.fromRGB(255,202,79), main=Color3.fromRGB(24,19,8),
         header=Color3.fromRGB(32,25,10), sidebar=Color3.fromRGB(29,22,9), content=Color3.fromRGB(37,29,12),
-        btn=Color3.fromRGB(55,43,18), btnHover=Color3.fromRGB(78,61,24), btnOn=Color3.fromRGB(101,78,29),
+        btn=Color3.fromRGB(55,43,18), surface2=Color3.fromRGB(66,51,20), btnHover=Color3.fromRGB(78,61,24), btnOn=Color3.fromRGB(101,78,29),
         text=Color3.fromRGB(255,251,235), textDim=Color3.fromRGB(207,190,143), sep=Color3.fromRGB(74,59,28), stroke=Color3.fromRGB(126,99,40),
     },
 }
@@ -174,8 +177,44 @@ end
 
 local function applyTheme(name)
     if not THEMES[name] then return false end
-    currentTheme = name
+    local previousTheme = THEMES[currentTheme] or THEMES.dark
     local T = THEMES[name]
+    local previousAccent = ACCENT
+
+    -- Atualiza cores diretas que nao foram registradas individualmente:
+    -- fundos, textos, imagens, scrollbars, bordas e todos os SVGs vetoriais.
+    if themeRoot then
+        local colorProps = { "BackgroundColor3", "TextColor3", "ImageColor3", "BorderColor3", "ScrollBarImageColor3", "Color" }
+        for _, obj in ipairs(themeRoot:GetDescendants()) do
+            if not obj:GetAttribute("PreserveThemeColor") then
+                for _, prop in ipairs(colorProps) do
+                    pcall(function()
+                        local oldColor = obj[prop]
+                        if typeof(oldColor) ~= "Color3" then return end
+                        if oldColor == previousAccent then
+                            obj[prop] = T.accent
+                            return
+                        end
+                        for key, oldPaletteColor in pairs(previousTheme) do
+                            if typeof(oldPaletteColor) == "Color3" and oldColor == oldPaletteColor and typeof(T[key]) == "Color3" then
+                                obj[prop] = T[key]
+                                return
+                            end
+                        end
+                    end)
+                end
+                if obj:IsA("UIGradient") and obj.Name == "PanelThemeGradient" then
+                    obj.Color = ColorSequence.new({
+                        ColorSequenceKeypoint.new(0, T.header),
+                        ColorSequenceKeypoint.new(0.55, T.content),
+                        ColorSequenceKeypoint.new(1, T.main),
+                    })
+                end
+            end
+        end
+    end
+
+    currentTheme = name
     ACCENT = T.accent or ACCENT
     for i = #themeTargets, 1, -1 do
         local e = themeTargets[i]
@@ -698,6 +737,7 @@ ScreenGui.Name           = "288Panel"
 ScreenGui.ResetOnSpawn   = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.Parent         = LocalPlayer:WaitForChild("PlayerGui")
+themeRoot = ScreenGui
 
 -- ==================== LOADING UI ====================
 local MainFrame
@@ -706,8 +746,7 @@ local loadingFinished = false
 local LoadingRoot = Instance.new("Frame")
 LoadingRoot.Name = "LoadingScreen"
 LoadingRoot.Size = UDim2.new(1, 0, 1, 0)
-LoadingRoot.BackgroundColor3 = Color3.fromRGB(5, 6, 10)
-LoadingRoot.BackgroundTransparency = 0.18
+LoadingRoot.BackgroundTransparency = 1
 LoadingRoot.BorderSizePixel = 0
 LoadingRoot.ZIndex = 200
 LoadingRoot.Parent = ScreenGui
@@ -972,6 +1011,7 @@ BgTint.ZIndex = 1
 BgTint.Parent = MainFrame
 
 local bgGradient = Instance.new("UIGradient")
+bgGradient.Name = "PanelThemeGradient"
 bgGradient.Rotation = 35
 bgGradient.Color = ColorSequence.new({
     ColorSequenceKeypoint.new(0, Color3.fromRGB(17,18,20)),
@@ -2143,6 +2183,7 @@ do
         local row = math.floor((index - 1) / 2)
         local card = Instance.new("TextButton")
         card.Name = "Theme_" .. themeName
+        card:SetAttribute("PreserveThemeColor", true)
         card.Size = UDim2.new(0, 158, 0, 54)
         card.Position = UDim2.new(0, 20 + column * 172, 0, 54 + row * 64)
         card.BackgroundColor3 = palette.btn
@@ -2156,6 +2197,7 @@ do
         cardStroke.Color = palette.accent
         cardStroke.Transparency = themeName == currentTheme and 0 or 0.68
         cardStroke.Thickness = themeName == currentTheme and 2 or 1
+        cardStroke:SetAttribute("PreserveThemeColor", true)
         cardStroke.Parent = card
         local swatch = Instance.new("Frame")
         swatch.Size = UDim2.new(0, 18, 0, 18)
@@ -2163,6 +2205,7 @@ do
         swatch.BackgroundColor3 = palette.accent
         swatch.BorderSizePixel = 0
         swatch.ZIndex = 103
+        swatch:SetAttribute("PreserveThemeColor", true)
         swatch.Parent = card
         Instance.new("UICorner", swatch).CornerRadius = UDim.new(1, 0)
 
@@ -2177,6 +2220,7 @@ do
         cardLabel.TextXAlignment = Enum.TextXAlignment.Left
         cardLabel.TextTruncate = Enum.TextTruncate.AtEnd
         cardLabel.ZIndex = 103
+        cardLabel:SetAttribute("PreserveThemeColor", true)
         cardLabel.Parent = card
         themeCards[themeName] = cardStroke
 
