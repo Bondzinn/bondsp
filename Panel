@@ -53,6 +53,8 @@ end
 local BACKGROUND_IMAGE = normalizeAssetId(
     PANEL_CONFIG.BACKGROUND_IMAGE or "124602977093923"
 )
+local BACKGROUND_IMAGE_URL = PANEL_CONFIG.BACKGROUND_IMAGE_URL
+    or (GITHUB_RAW .. "/assets/panel-background.png")
 local VERSION    = "v1.0.0"
 
 -- Estado global da sessão/painel
@@ -629,7 +631,9 @@ end
 
 
 -- ==================== MAIN FRAME ====================
-local MainFrame = Instance.new("Frame")
+-- CanvasGroup + UICorner aplica a mascara tambem aos filhos. Em um Frame comum,
+-- Header/Sidebar/Content continuam desenhando por cima dos cantos arredondados.
+local MainFrame = Instance.new("CanvasGroup")
 MainFrame.Name             = "MainFrame"
 MainFrame.Size             = UDim2.new(0, 620, 0, 430)
 MainFrame.Position         = UDim2.new(0.5, -310, 0.5, -215)
@@ -640,6 +644,7 @@ MainFrame.ZIndex           = 0
 MainFrame.Active           = true
 MainFrame.Draggable        = true
 MainFrame.ClipsDescendants = true
+MainFrame.GroupTransparency = 0
 MainFrame.Parent           = ScreenGui
 registerTheme(MainFrame, "BackgroundColor3", "main")
 local MainCorner = Instance.new("UICorner")
@@ -682,11 +687,48 @@ BgLabel.ScaleType        = Enum.ScaleType.Crop
 BgLabel.ZIndex           = 1
 BgLabel.Parent           = MainFrame
 
+-- Alguns assets da Creator Store nao sao entregues para todas as experiencias.
+-- Nesse caso, executores que oferecem getcustomasset usam a mesma imagem do repo.
+task.spawn(function()
+    local ContentProvider = game:GetService("ContentProvider")
+    pcall(function()
+        ContentProvider:PreloadAsync({ BgLabel })
+    end)
+
+    if not BgLabel.Parent or BgLabel.IsLoaded then return end
+
+    local customAsset = getcustomasset or getsynasset
+    if type(customAsset) ~= "function"
+        or type(writefile) ~= "function"
+        or type(isfile) ~= "function" then
+        warn("[288] Background indisponivel. Libere o asset para a experiencia ou use um executor com getcustomasset.")
+        return
+    end
+
+    local cacheFile = "288-panel-background.png"
+    if not isfile(cacheFile) then
+        local okDownload, bytes = pcall(function()
+            return game:HttpGet(BACKGROUND_IMAGE_URL)
+        end)
+        if not okDownload or type(bytes) ~= "string" or #bytes < 1000 then
+            warn("[288] Nao foi possivel baixar o background alternativo.")
+            return
+        end
+        local okWrite = pcall(writefile, cacheFile, bytes)
+        if not okWrite then return end
+    end
+
+    local okAsset, localImage = pcall(customAsset, cacheFile)
+    if okAsset and BgLabel.Parent then
+        BgLabel.Image = localImage
+    end
+end)
+
 local BgTint = Instance.new("Frame")
 BgTint.Name = "GlassTint"
 BgTint.Size = UDim2.new(1,0,1,0)
 BgTint.BackgroundColor3 = BG_BASE
-BgTint.BackgroundTransparency = 0.48
+BgTint.BackgroundTransparency = 0.68
 BgTint.BorderSizePixel = 0
 BgTint.ZIndex = 1
 BgTint.Parent = MainFrame
@@ -811,7 +853,7 @@ ContentFrame.Position              = UDim2.new(0, 132, 0, 54)
 ContentFrame.BackgroundColor3      = Color3.fromRGB(18, 19, 22)
 ContentFrame.BackgroundTransparency= 0.42
 ContentFrame.BorderSizePixel       = 0
-ContentFrame.ZIndex                = 1
+ContentFrame.ZIndex                = 2
 ContentFrame.Parent                = MainFrame
 registerTheme(ContentFrame, "BackgroundColor3", "content")
 
@@ -902,6 +944,10 @@ for _, def in ipairs(TABS_DEF) do
     frame.BorderSizePixel    = 0
     frame.ScrollBarThickness = 4
     frame.ScrollBarImageColor3 = ACCENT
+    frame.ScrollingDirection = Enum.ScrollingDirection.Y
+    frame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    frame.ClipsDescendants = true
+    frame.VerticalScrollBarInset = Enum.ScrollBarInset.ScrollBar
     frame.CanvasSize         = UDim2.new(0,0,0,0)
     frame.Parent             = ContentFrame
 
