@@ -618,33 +618,60 @@ local MORE_MODULE_URLS = {
     feFlip = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/feFlip",
 }
 
-local function executeRemoteScript(url, label)
-    local okFetch, source = pcall(function()
-        return game:HttpGet(url)
-    end)
+local function fetchModuleSource(url)
+    local separator = url:find("?", 1, true) and "&" or "?"
+    local requestUrl = url .. separator .. "_=" .. tostring(os.time())
 
-    if not okFetch or type(source) ~= "string" or source == "" then
-        warn("[288] fetch error [" .. tostring(label) .. "]: " .. tostring(source))
-        return false
+    if executorRequest then
+        local okRequest, response = pcall(executorRequest, { Url = requestUrl, Method = "GET" })
+        if okRequest and response then
+            if type(response) == "string" and #response > 0 then
+                return response
+            elseif type(response) == "table" then
+                local status = tonumber(response.StatusCode or response.Status or response.status_code) or 0
+                local body = response.Body or response.body or response.ResponseBody
+                if (status == 0 or (status >= 200 and status < 300)) and type(body) == "string" and #body > 0 then
+                    return body
+                end
+            end
+        end
+    end
+
+    local okHttp, source = pcall(function() return game:HttpGet(requestUrl) end)
+    if okHttp and type(source) == "string" and #source > 0 then return source end
+    local okPlain, plain = pcall(function() return game:HttpGet(url) end)
+    return okPlain and type(plain) == "string" and #plain > 0 and plain or nil
+end
+
+local function executeModuleSource(source)
+    if type(source) ~= "string" or source == "" then return false, "fonte vazia" end
+    source = source:gsub("^\239\187\191", "")
+    local trimmed = source:match("^%s*(.-)%s*$") or source
+    if trimmed:sub(1, 1) == "<" or trimmed:match('^%{"error"') then
+        return false, "resposta remota nao contem Lua"
     end
 
     local chunk, compileErr = loadstring(source)
-    if not chunk then
-        warn("[288] compile error [" .. tostring(label) .. "]: " .. tostring(compileErr))
-        return false
-    end
-
+    if not chunk then return false, "compile: " .. tostring(compileErr) end
     local okRun, runErr = pcall(chunk)
-    if not okRun then
-        warn("[288] runtime error [" .. tostring(label) .. "]: " .. tostring(runErr))
+    if not okRun then return false, "runtime: " .. tostring(runErr) end
+    return true
+end
+
+local function executeRemoteScript(url, label)
+    local source = fetchModuleSource(url)
+    if not source then
+        warn("[288] fetch error [" .. tostring(label) .. "]: " .. tostring(url))
         return false
     end
-
-    return true
+    local ok, err = executeModuleSource(source)
+    if not ok then warn("[288] module error [" .. tostring(label) .. "]: " .. tostring(err)) end
+    return ok
 end
 
 local function normalizeModuleName(path)
     local name = tostring(path):match("([^/]+)$") or tostring(path)
+    name = name:gsub("%.lua$", "")
     name = name:gsub("Off$", "")
 
     if name == "AnimeSpeed" then
@@ -664,34 +691,29 @@ local function loadModule(path)
     end
 
     -- Os arquivos do repositório não possuem extensão: usa o caminho exatamente como recebido.
-    local candidates = {
-        GITHUB_RAW .. "/" .. tostring(path),
-        API_BASE .. "/raw/" .. tostring(path),
-        API_BASE .. "/" .. tostring(path),
-    }
+    local requestedPath = tostring(path):gsub("^/+", "")
+    local extensionlessPath = requestedPath:gsub("%.lua$", "")
+    local pathVariants = { requestedPath, extensionlessPath }
+    if not requestedPath:match("%.lua$") then
+        table.insert(pathVariants, requestedPath .. ".lua")
+    end
+
+    local candidates = {}
+    for _, modulePath in ipairs(pathVariants) do
+        table.insert(candidates, GITHUB_RAW .. "/" .. modulePath)
+        table.insert(candidates, API_BASE .. "/raw/" .. modulePath)
+    end
 
     local seen = {}
     for _, url in ipairs(candidates) do
         if not seen[url] then
             seen[url] = true
 
-            local okFetch, source = pcall(function()
-                return game:HttpGet(url)
-            end)
-
-            if okFetch and type(source) == "string" and source ~= "" then
-                local chunk, compileErr = loadstring(source)
-                if chunk then
-                    local okRun, runErr = pcall(chunk)
-                    if okRun then
-                        return true
-                    end
-
-                    warn("[288] runtime error [" .. tostring(path) .. "]: " .. tostring(runErr))
-                    return false
-                elseif compileErr then
-                    warn("[288] compile error [" .. tostring(path) .. "]: " .. tostring(compileErr))
-                end
+            local source = fetchModuleSource(url)
+            if source then
+                local okRun, moduleError = executeModuleSource(source)
+                if okRun then return true end
+                warn("[288] candidate failed [" .. tostring(url) .. "]: " .. tostring(moduleError))
             end
         end
     end
