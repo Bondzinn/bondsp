@@ -863,26 +863,21 @@ end
 
 -- ==================== ROLES ====================
 local ROLE_COLORS_MAP = {
-    ["User"]       = Color3.fromRGB(170, 170, 170),
-    ["VIP"]        = Color3.fromRGB(170, 0,   255),
-    ["Helper"]     = Color3.fromRGB(0,   187, 255),
-    ["Supporter"]  = Color3.fromRGB(0,   204, 170),
+    ["User"]       = Color3.fromRGB(255, 255, 255),
+    ["VIP"]        = Color3.fromRGB(255, 240, 0),
+    ["Helper"]     = Color3.fromRGB(0, 187, 255),
+    ["Supporter"]  = Color3.fromRGB(0, 204, 170),
     ["Designer"]   = Color3.fromRGB(255, 105, 180),
-    ["Marketing"]  = Color3.fromRGB(255, 136, 0  ),
-    ["Influencer"] = Color3.fromRGB(255, 79, 216),
-    ["Admin"]      = Color3.fromRGB(255, 51,  51 ),
-    ["Supervisor"] = Color3.fromRGB(255, 102, 0  ),
-    ["Manager"]    = Color3.fromRGB(204, 0,   255),
-    ["Co-Owner"]   = Color3.fromRGB(0,   221, 255),
-    ["Owner"]      = Color3.fromRGB(30,  30,  30 ),
+    ["Influencer"] = Color3.fromRGB(255, 0, 170),
+    ["Marketing"]  = Color3.fromRGB(0, 177, 21),
+    ["Admin"]      = Color3.fromRGB(255, 51, 51),
+    ["Supervisor"] = Color3.fromRGB(255, 102, 0),
+    ["Manager"]    = Color3.fromRGB(204, 0, 255),
+    ["Co-Owner"]   = Color3.fromRGB(0, 221, 255),
+    ["Owner"]      = Color3.fromRGB(0, 0, 1),
 }
 
 local MIRROR_SHINE_RANKS = {
-    Influencer = true,
-    Admin = true,
-    Supervisor = true,
-    Manager = true,
-    ["Co-Owner"] = true,
     Owner = true,
 }
 
@@ -1794,8 +1789,11 @@ local function createBillboard(character, rank, device, remoteVisible)
     lbl.TextTransparency = 0
     lbl.AutoLocalize = false
 
-    -- Bold + contorno preto para legibilidade em qualquer cenário.
-    lbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
+    -- Bold + contorno de contraste para legibilidade em qualquer cenário.
+    local luminance = color.R * 0.299 + color.G * 0.587 + color.B * 0.114
+    lbl.TextStrokeColor3 = luminance < 0.5
+        and Color3.fromRGB(255, 255, 255)
+        or Color3.fromRGB(0, 0, 0)
     lbl.TextStrokeTransparency = 0
     lbl.TextSize = 14
     lbl.Font = Enum.Font.GothamBold
@@ -1831,34 +1829,55 @@ local function createBillboard(character, rank, device, remoteVisible)
     end)
 
     if MIRROR_SHINE_RANKS[rank] then
+        -- Mantem a tag base igual as demais e desenha somente o reflexo por cima.
+        local reflectionText = Instance.new("TextLabel")
+        reflectionText.Name = "MirrorReflection"
+        reflectionText.Size = UDim2.fromScale(1, 1)
+        reflectionText.Position = UDim2.fromScale(0, 0)
+        reflectionText.BackgroundTransparency = 1
+        reflectionText.BorderSizePixel = 0
+        reflectionText.Text = rank
+        reflectionText.TextColor3 = Color3.fromRGB(255, 255, 255)
+        reflectionText.TextTransparency = 0
+        reflectionText.TextStrokeTransparency = 1
+        reflectionText.TextSize = lbl.TextSize
+        reflectionText.Font = lbl.Font
+        reflectionText.TextXAlignment = lbl.TextXAlignment
+        reflectionText.TextYAlignment = lbl.TextYAlignment
+        reflectionText.AutoLocalize = false
+        reflectionText.ZIndex = lbl.ZIndex + 1
+        reflectionText.Parent = lbl
+
         local shine = Instance.new("UIGradient")
         shine.Name = "MirrorShine"
-        shine.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, color),
-            ColorSequenceKeypoint.new(0.42, color),
-            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
-            ColorSequenceKeypoint.new(0.58, color),
-            ColorSequenceKeypoint.new(1, color),
+        shine.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255))
+        shine.Transparency = NumberSequence.new({
+            NumberSequenceKeypoint.new(0, 1),
+            NumberSequenceKeypoint.new(0.38, 1),
+            NumberSequenceKeypoint.new(0.47, 0.35),
+            NumberSequenceKeypoint.new(0.5, 0),
+            NumberSequenceKeypoint.new(0.53, 0.35),
+            NumberSequenceKeypoint.new(0.62, 1),
+            NumberSequenceKeypoint.new(1, 1),
         })
         shine.Offset = Vector2.new(-1.25, 0)
         shine.Rotation = 0
-        shine.Parent = lbl
+        shine.Parent = reflectionText
 
         task.spawn(function()
-            while bb.Parent and lbl.Parent and shine.Parent do
+            while bb.Parent and lbl.Parent and reflectionText.Parent do
                 shine.Offset = Vector2.new(-1.25, 0)
                 local reflection = TweenService:Create(
                     shine,
-                    TweenInfo.new(1.15, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
+                    TweenInfo.new(0.95, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
                     {Offset = Vector2.new(1.25, 0)}
                 )
                 reflection:Play()
                 reflection.Completed:Wait()
-                task.wait(0.65)
+                task.wait(0.45)
             end
         end)
     end
-
     return bb
 end
 
