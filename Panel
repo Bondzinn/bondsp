@@ -627,6 +627,11 @@ local MORE_MODULE_URLS = {
     feFlip = GITHUB_RAW .. "/modules/Emphasis/feFlip",
 }
 
+-- Keep Emphasis/More on the executor workspace for now. Change this setting
+-- to false (or set it through __288PanelConfig) after publishing the modules.
+local USE_LOCAL_SPECIAL_MODULES = PANEL_CONFIG.USE_LOCAL_SPECIAL_MODULES
+if USE_LOCAL_SPECIAL_MODULES == nil then USE_LOCAL_SPECIAL_MODULES = true end
+
 local function fetchModuleSource(url)
     local separator = url:find("?", 1, true) and "&" or "?"
     local requestUrl = url .. separator .. "_=" .. tostring(os.time())
@@ -694,8 +699,30 @@ local function loadModule(path)
     local name = normalizeModuleName(path)
     local exactUrl = MORE_MODULE_URLS[name]
 
-    -- More/Emphasis especiais: usa SEMPRE o raw exato.
+    if type(readfile) == "function" then
+        local requestedPath = tostring(path):gsub("^/+", "")
+        local localVariants = {requestedPath, requestedPath:gsub("%.lua$", "")}
+        if not requestedPath:match("%.lua$") then table.insert(localVariants, requestedPath .. ".lua") end
+        local checked = {}
+        for _, localPath in ipairs(localVariants) do
+            if not checked[localPath] then
+                checked[localPath] = true
+                local okRead, source = pcall(readfile, localPath)
+                if okRead and type(source) == "string" and source ~= "" then
+                    local okRun, moduleError = executeModuleSource(source)
+                    if okRun then return true end
+                    warn("[288] local module failed [" .. localPath .. "]: " .. tostring(moduleError))
+                end
+            end
+        end
+    end
+
+    -- Emphasis/More are local-only until their GitHub migration is enabled.
     if exactUrl then
+        if USE_LOCAL_SPECIAL_MODULES then
+            warn("[288] local module not found: " .. tostring(path))
+            return false
+        end
         return executeRemoteScript(exactUrl, name)
     end
 
@@ -3096,16 +3123,23 @@ do
     local espActive = false
     local espInitialized = false
     local function setEsp(state)
+        if state == espActive then return true end
+        local loaded = runPanelModule("ESP")
+        if not loaded then
+            espDot.setActive(false)
+            espBtn.BackgroundColor3 = THEMES[currentTheme].btn
+            notifyPanel("ESP", "Local file modules/More/ESP was not found in the executor workspace.", "error", 6)
+            return false
+        end
         espActive = state
         espDot.setActive(espActive)
         espBtn.BackgroundColor3 = espActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
 
         -- O script remoto controla a própria ativação/desativação.
-        runPanelModule("ESP")
+        return true
     end
     espBtn.MouseButton1Click:Connect(function()
-        espInitialized = true
-        setEsp(not espActive)
+        if setEsp(not espActive) then espInitialized = true end
     end)
     registerCleanup("ESP", function()
         if espActive then runPanelModule("ESP") end
