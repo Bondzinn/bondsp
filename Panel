@@ -765,6 +765,7 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name           = "288Panel"
 ScreenGui.ResetOnSpawn   = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.AutoLocalize   = false
 ScreenGui.Parent         = LocalPlayer:WaitForChild("PlayerGui")
 themeRoot = ScreenGui
 
@@ -776,7 +777,18 @@ NotificationGui.ResetOnSpawn = false
 NotificationGui.IgnoreGuiInset = true
 NotificationGui.DisplayOrder = 1000
 NotificationGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+NotificationGui.AutoLocalize = false
 NotificationGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+local function keepEnglishText(root)
+    trackConnect(root.DescendantAdded, function(obj)
+        if obj:IsA("GuiBase2d") then
+            obj.AutoLocalize = false
+        end
+    end)
+end
+keepEnglishText(ScreenGui)
+keepEnglishText(NotificationGui)
 
 local NotificationStack = Instance.new("Frame")
 NotificationStack.Name = "Stack"
@@ -926,7 +938,7 @@ local loadingSubtitle = Instance.new("TextLabel")
 loadingSubtitle.Size = UDim2.new(1, -92, 0, 20)
 loadingSubtitle.Position = UDim2.new(0, 76, 0, 45)
 loadingSubtitle.BackgroundTransparency = 1
-loadingSubtitle.Text = "INICIANDO RECURSOS"
+loadingSubtitle.Text = "STARTING FEATURES"
 loadingSubtitle.TextColor3 = TEXT_DIM
 loadingSubtitle.TextSize = 10
 loadingSubtitle.Font = Enum.Font.GothamMedium
@@ -956,7 +968,7 @@ local loadingStatus = Instance.new("TextLabel")
 loadingStatus.Size = UDim2.new(1, -88, 0, 24)
 loadingStatus.Position = UDim2.new(0, 22, 0, 116)
 loadingStatus.BackgroundTransparency = 1
-loadingStatus.Text = "Preparando interface..."
+loadingStatus.Text = "Preparing interface..."
 loadingStatus.TextColor3 = TEXT_DIM
 loadingStatus.TextSize = 11
 loadingStatus.Font = Enum.Font.Gotham
@@ -989,7 +1001,7 @@ end
 local function finishLoading(status)
     if loadingFinished then return end
     loadingFinished = true
-    loadingStatus.Text = status or "Tudo pronto!"
+    loadingStatus.Text = status or "All set!"
     loadingPercent.Text = "100%"
     loadingFill.Size = UDim2.new(1, 0, 1, 0)
     if MainFrame then MainFrame.Visible = true end
@@ -1002,7 +1014,7 @@ local function finishLoading(status)
     end)
 end
 
-setLoadingProgress(12, "Carregando componentes...")
+setLoadingProgress(12, "Loading components...")
 
 -- Remove qualquer blur deixado por versões anteriores do painel.
 do
@@ -1443,8 +1455,8 @@ local function makeButton(parent, text, x, y, w, h, vipOnly)
                 return
             end
             local state = toggleStates and toggleStates[btn]
-            local detail = state == nil and "Função ativada."
-                or (state and "Função ativada." or "Função desativada.")
+            local detail = state == nil and "Feature enabled."
+                or (state and "Feature enabled." or "Feature disabled.")
             notifyPanel(btn.Text, detail, state == false and "warning" or "success")
         end)
     end)
@@ -2008,7 +2020,7 @@ do
     greetLabel.Size             = UDim2.new(0, TEXT_W, 0, 30)
     greetLabel.Position         = UDim2.new(0, TEXT_X, 0, 40)
     greetLabel.BackgroundTransparency = 1
-    greetLabel.Text             = "Ol" .. utf8.char(0x00E1) .. " " .. LocalPlayer.DisplayName .. "."
+    greetLabel.Text             = "Hello, " .. LocalPlayer.DisplayName .. "."
     greetLabel.TextColor3       = TEXT_MAIN
     greetLabel.TextSize         = 17
     greetLabel.Font             = Enum.Font.GothamBold
@@ -2022,7 +2034,7 @@ do
     hintLabel.Size             = UDim2.new(0, TEXT_W, 0, 44)
     hintLabel.Position         = UDim2.new(0, TEXT_X, 0, 72)
     hintLabel.BackgroundTransparency = 1
-    hintLabel.Text             = "Pressione " .. "<b>[B]</b>" .. " para\nabrir/fechar o painel"
+    hintLabel.Text             = "Press " .. "<b>[B]</b>" .. " to\nopen/close the panel"
     hintLabel.TextColor3       = TEXT_DIM
     hintLabel.TextSize         = 12
     hintLabel.Font             = Enum.Font.Gotham
@@ -2139,13 +2151,13 @@ do
 
     local pingVal = makeHomeStat("PING", 24, ACCENT)
     local onlineVal = makeHomeStat("ONLINE", 178, TEXT_MAIN)
-    local usersVal = makeHomeStat("USU" .. utf8.char(0x00C1) .. "RIOS", 332, TEXT_MAIN)
+    local usersVal = makeHomeStat("USERS", 332, TEXT_MAIN)
     pingVal.Text = "-- ms"
 
     local dateLabel = Instance.new("TextLabel")
     dateLabel.Size             = UDim2.new(1, -48, 0, 42)
     dateLabel.Position         = UDim2.new(0, 24, 0, 240)
-    local sessionTitle = "SESS" .. utf8.char(0x00C3) .. "O"
+    local sessionTitle = "SESSION"
     local sessionSeparator = utf8.char(0x2022)
     dateLabel.Text             = sessionTitle .. "  " .. sessionSeparator .. "  --"
     dateLabel.TextColor3       = ACCENT
@@ -2614,7 +2626,7 @@ do
     usernameInput.BackgroundColor3 = SURFACE_2
     usernameInput.BorderSizePixel  = 0
     usernameInput.Text             = ""
-    usernameInput.PlaceholderText  = "@username ou displayname..."
+    usernameInput.PlaceholderText  = "@username or display name..."
     usernameInput.PlaceholderColor3= TEXT_DIM
     usernameInput.TextColor3       = TEXT_MAIN
     usernameInput.TextSize         = 12
@@ -2650,7 +2662,7 @@ do
     hintLbl.Size             = UDim2.new(0, 175, 0, 32)
     hintLbl.Position         = UDim2.new(0, inputStartX, 0, 76)
     hintLbl.BackgroundTransparency = 1
-    hintLbl.Text             = "Digite um nome acima\npara buscar um jogador"
+    hintLbl.Text             = "Enter a name above\nto find a player"
     hintLbl.TextColor3       = Color3.fromRGB(120,120,120)
     hintLbl.TextSize         = 11
     hintLbl.Font             = Enum.Font.Gotham
@@ -2824,7 +2836,7 @@ do
         clearingTarget = false
 
         if notificationTitle then
-            notifyPanel(notificationTitle, notificationText or "Todas as ações foram encerradas.", "warning", 5)
+            notifyPanel(notificationTitle, notificationText or "All actions have been stopped.", "warning", 5)
         end
         task.spawn(function()
             for _, modulePath in ipairs(modulesToDisable) do
@@ -2878,7 +2890,7 @@ do
             and (player.DisplayName .. " (@" .. player.Name .. ")")
             or ("@" .. player.Name)
 
-        clearTarget("Target saiu", departedName .. " saiu do servidor. Todas as ações foram encerradas.")
+        clearTarget("Target left", departedName .. " left the server. All actions have been stopped.")
     end)
 
     local function showDropdown(matches)
@@ -2990,7 +3002,7 @@ do
     usernameInput:GetPropertyChangedSignal("Text"):Connect(function()
         inputStroke.Color = Color3.fromRGB(60,60,60)
         if usernameInput.Text == "" and targetUser and not clearingTarget then
-            clearTarget("Target limpo", "Todas as ações sobre o alvo foram encerradas.")
+            clearTarget("Target cleared", "All actions on the target have been stopped.")
             return
         end
         searchPlayers(usernameInput.Text)
@@ -3163,7 +3175,7 @@ do
     local http_request = http and http.request or syn and syn.request or request
     local HttpService = game:GetService("HttpService")
     
-    makeSectionLabel(f, "Amigos em outros servidores:", PAD, 8)
+    makeSectionLabel(f, "Friends on other servers:", PAD, 8)
     
     local refreshBtn = makeButton(f, "↻ Atualizar", COL2, 4, BTN_W, BTN_H)
 
@@ -3187,7 +3199,7 @@ do
     local noFriendsLabel = Instance.new("TextLabel")
     noFriendsLabel.Size = UDim2.new(1, 0, 1, 0)
     noFriendsLabel.BackgroundTransparency = 1
-    noFriendsLabel.Text = "Nenhum amigo neste jogo em outro servidor."
+    noFriendsLabel.Text = "No friends are playing this game on another server."
     noFriendsLabel.TextColor3 = TEXT_DIM
     noFriendsLabel.TextSize = 11
     noFriendsLabel.Font = Enum.Font.Gotham
@@ -3195,7 +3207,7 @@ do
     noFriendsLabel.ZIndex = 4
     noFriendsLabel.Parent = friendList
 
-    makeSectionLabel(f, "Servidores disponíveis:", PAD, 111)
+    makeSectionLabel(f, "Available servers:", PAD, 111)
 
     local serverList = Instance.new("ScrollingFrame")
     serverList.Size = UDim2.new(1, -PAD*2, 1, -139)
@@ -3214,7 +3226,7 @@ do
 
     local function makeFriendCard(friend, layoutOrder)
         local userId = tonumber(friend.VisitorId or friend.UserId or friend.Id)
-        local username = tostring(friend.UserName or friend.Username or "Amigo")
+        local username = tostring(friend.UserName or friend.Username or "Friend")
         local displayName = tostring(friend.DisplayName or username)
         local serverId = tostring(friend.GameId or "")
 
@@ -3263,7 +3275,7 @@ do
         joinLabel.Size = UDim2.new(1, -58, 0, 16)
         joinLabel.Position = UDim2.new(0, 55, 0, 29)
         joinLabel.BackgroundTransparency = 1
-        joinLabel.Text = "Entrar no servidor"
+        joinLabel.Text = "Join server"
         joinLabel.TextColor3 = ACCENT
         joinLabel.TextSize = 9
         joinLabel.Font = Enum.Font.Gotham
@@ -3423,7 +3435,7 @@ do
     devLbl.Size=UDim2.new(1,-20,0,28)
     devLbl.Position=UDim2.new(0,PAD,0,20)
     devLbl.BackgroundTransparency=1
-    devLbl.Text="Desenvolvedores:"
+    devLbl.Text="Developers:"
     devLbl.TextColor3=Color3.fromRGB(200,200,200)
     devLbl.TextSize=14
     devLbl.Font=Enum.Font.Gotham
@@ -3439,8 +3451,8 @@ do
             pcall(function() setclipboard(url) end)
             pcall(function()
                 StarterGui:SetCore("SendNotification", {
-                    Title = "Perfil de " .. username,
-                    Text = "Link copiado. Cole no navegador para abrir o perfil.",
+                    Title = username .. "'s profile",
+                    Text = "Link copied. Paste it into your browser to open the profile.",
                     Duration = 5,
                 })
             end)
@@ -3511,7 +3523,7 @@ do
     donLink.Size=UDim2.new(0,160,0,22)
     donLink.Position=UDim2.new(0,PAD+64,0,100)
     donLink.BackgroundTransparency=1
-    donLink.Text="ajudar projeto"
+    donLink.Text="support project"
     donLink.TextColor3=Color3.fromRGB(80,140,255)
     donLink.TextSize=12
     donLink.Font=Enum.Font.Gotham
@@ -3526,7 +3538,7 @@ do
     
     local supLink= donLink:Clone()
     supLink.Position=UDim2.new(0,PAD+68,0,126)
-    supLink.Text="acessar\nsuporte"
+    supLink.Text="open\nsupport"
     supLink.Size=UDim2.new(0,160,0,36)
     supLink.Parent=f
 
@@ -3576,6 +3588,9 @@ end
 -- ==================== MODERN VISUAL POLISH ====================
 local function applyModernPolish()
     for _, obj in ipairs(ScreenGui:GetDescendants()) do
+        if obj:IsA("GuiBase2d") then
+            obj.AutoLocalize = false
+        end
         if obj:IsA("TextLabel") then
             if obj.TextColor3 == Color3.fromRGB(200,200,200)
                 or obj.TextColor3 == Color3.fromRGB(180,180,180)
