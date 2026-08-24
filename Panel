@@ -2596,6 +2596,7 @@ end
 do
     local f    = Tabs["Emphasis"].frame
     local y = 10
+    local noClipControl = nil
     local emphasisBtns = {
         {name="Invisible", order=1}, {name="ClickTP", order=2},
         {name="NoClip", order=3}, {name="Emote", order=4},
@@ -2615,18 +2616,41 @@ do
         local statusDot = makeStatusDot(f, dotX, yPos + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
         local moduleName = tostring(v.name):gsub("%s+", "")
         if moduleName == "AnimSpeed" then moduleName = "AnimeSpeed" end
+        if moduleName == "NoClip" then
+            noClipControl = {btn=btn, statusDot=statusDot, moduleName=moduleName, initialized=false}
+        end
 
         -- Todos os Emphasis executam o raw diretamente em cada clique, igual ao PianoAuto.
         btn.MouseButton1Click:Connect(function()
             local active = toggleStates[btn] == true
             statusDot.setActive(active)
 
-            loadModule("modules/Emphasis/" .. moduleName)
+            local loaded = loadModule("modules/Emphasis/" .. moduleName)
+            if moduleName == "NoClip" and loaded and noClipControl then
+                noClipControl.initialized = true
+            end
         end)
         registerCleanup("Emphasis/" .. v.name, function()
             if toggleStates[btn] then loadModule("modules/Emphasis/" .. moduleName) end
         end)
     end
+
+    trackConnect(UserInputService.InputBegan, function(input, gpe)
+        if gpe or input.KeyCode ~= Enum.KeyCode.N then return end
+        local control = noClipControl
+        if not control or not control.initialized then return end
+
+        local nextState = not (toggleStates[control.btn] == true)
+        local loaded = loadModule("modules/Emphasis/" .. control.moduleName)
+        if not loaded then return end
+
+        toggleStates[control.btn] = nextState
+        control.btn.BackgroundColor3 = nextState
+            and THEMES[currentTheme].btnOn
+            or THEMES[currentTheme].btn
+        control.statusDot.setActive(nextState)
+    end)
+
     refreshCanvas(f)
 end
 
@@ -3247,16 +3271,23 @@ do
     local aimBtn  = makeButton(f,"Aimbot",COL2,y,BTN_W,BTN_H)
     local aimDot  = makeStatusDot(f, DOT2_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
     local aimActive = false
+    local aimInitialized = false
     local function setAimbot(state)
+        if state == aimActive then return true end
+        local loaded = runPanelModule("Aimbot")
+        if not loaded then
+            aimDot.setActive(false)
+            aimBtn.BackgroundColor3 = THEMES[currentTheme].btn
+            notifyPanel("Aimbot", "The API could not load modules/More/Aimbot.", "error", 6)
+            return false
+        end
         aimActive = state
         aimDot.setActive(aimActive)
         aimBtn.BackgroundColor3 = aimActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-
-        -- O script remoto controla a própria ativação/desativação.
-        runPanelModule("Aimbot")
+        return true
     end
     aimBtn.MouseButton1Click:Connect(function()
-        setAimbot(not aimActive)
+        if setAimbot(not aimActive) then aimInitialized = true end
     end)
     registerCleanup("Aimbot", function()
         if aimActive then runPanelModule("Aimbot") end
@@ -3267,7 +3298,7 @@ do
         if gpe then return end
         if input.KeyCode == Enum.KeyCode.E and espInitialized then
             setEsp(not espActive)
-        elseif input.KeyCode == Enum.KeyCode.F then
+        elseif input.KeyCode == Enum.KeyCode.F and aimInitialized then
             setAimbot(not aimActive)
         end
     end)
