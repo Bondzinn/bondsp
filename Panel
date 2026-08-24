@@ -46,7 +46,7 @@ end
 -- ==================== CONFIG ====================
 local GLOBAL = (getgenv and getgenv()) or _G
 local PANEL_CONFIG = GLOBAL.__288PanelConfig or {}
-local API_BASE   = PANEL_CONFIG.API_BASE or "https://gibraltar-whole-soa-welcome.trycloudflare.com"
+local API_BASE   = PANEL_CONFIG.API_BASE or "https://planes-perl-roster-casinos.trycloudflare.com"
 local GITHUB_RAW = PANEL_CONFIG.GITHUB_RAW or "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
 -- FaÃ§a upload de assets/panel-background.png no Roblox e informe o asset ID aqui
 -- via getgenv().__288PanelConfig.BACKGROUND_IMAGE = "rbxassetid://SEU_ID".
@@ -710,6 +710,7 @@ local function runEmbeddedESP()
     end
 
     local state = {visuals = {}}
+    local MAX_DISTANCE, INFO_DISTANCE = 500, 300
     local function line(width)
         local object = Drawing.new("Line")
         object.Visible, object.Thickness = false, width or 1
@@ -751,12 +752,24 @@ local function runEmbeddedESP()
         local camera = workspace.CurrentCamera
         local ownRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
         if not camera then return end
+        local candidates = {}
         for player, visual in pairs(state.visuals) do
+            hide(visual)
             local character = player.Character
             local humanoid = character and character:FindFirstChildOfClass("Humanoid")
             local root = character and character:FindFirstChild("HumanoidRootPart")
             local head = character and character:FindFirstChild("Head")
-            if not humanoid or humanoid.Health <= 0 or not root or not head then hide(visual) continue end
+            if not humanoid or humanoid.Health <= 0 or not root or not head then continue end
+            local distance = ownRoot and (ownRoot.Position-root.Position).Magnitude or math.huge
+            if distance <= MAX_DISTANCE then
+                table.insert(candidates, {player=player, visual=visual, humanoid=humanoid, root=root, head=head, distance=distance})
+            end
+        end
+        table.sort(candidates, function(a, b) return a.distance < b.distance end)
+        for index = 1, #candidates do
+            local item = candidates[index]
+            local player, visual = item.player, item.visual
+            local humanoid, root, head, distance = item.humanoid, item.root, item.head, item.distance
             local center, visible = camera:WorldToViewportPoint(root.Position)
             local top = camera:WorldToViewportPoint(head.Position + Vector3.new(0, .75, 0))
             local bottom = camera:WorldToViewportPoint(root.Position - Vector3.new(0, 3, 0))
@@ -773,10 +786,11 @@ local function runEmbeddedESP()
             visual.hpBack.Color,visual.hpBack.Visible=Color3.fromRGB(35,35,40),true
             visual.hp.From,visual.hp.To=Vector2.new(left-6,bottom.Y),Vector2.new(left-6,bottom.Y-height*hpRatio)
             visual.hp.Color,visual.hp.Visible=Color3.fromHSV(hpRatio*.33,.9,1),true
-            visual.name.Text,visual.name.Position,visual.name.Color,visual.name.Visible=player.DisplayName,Vector2.new(center.X,top.Y-17),color,true
-            local distance=ownRoot and math.floor((ownRoot.Position-root.Position).Magnitude+.5) or 0
-            visual.info.Text=string.format("%d HP | %d studs",math.floor(humanoid.Health+.5),distance)
-            visual.info.Position,visual.info.Color,visual.info.Visible=Vector2.new(center.X,bottom.Y+3),Color3.new(1,1,1),true
+            visual.name.Text,visual.name.Position,visual.name.Color=player.DisplayName,Vector2.new(center.X,top.Y-17),color
+            visual.name.Visible=true
+            visual.info.Text=string.format("%d HP | %d studs",math.floor(humanoid.Health+.5),math.floor(distance+.5))
+            visual.info.Position,visual.info.Color=Vector2.new(center.X,bottom.Y+3),Color3.new(1,1,1)
+            visual.info.Visible=distance <= INFO_DISTANCE
         end
     end)
     GLOBAL[key] = state
