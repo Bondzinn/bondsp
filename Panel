@@ -609,22 +609,22 @@ GLOBAL.__288PanelCleanup = cleanupPanel
 -- HttpGet -> loadstring -> execução do chunk. Não esperamos retorno/função de módulo.
 
 local MORE_MODULE_URLS = {
-    ESP = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/ESP",
-    Aimbot = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Aimbot",
-    PianoAuto = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/PianoAuto",
+    ESP = GITHUB_RAW .. "/modules/More/ESP",
+    Aimbot = GITHUB_RAW .. "/modules/More/Aimbot",
+    PianoAuto = GITHUB_RAW .. "/modules/More/PianoAuto",
 
-    AnimSpeed = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/AnimeSpeed",
-    AnimeSpeed = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/AnimeSpeed",
-    AntiVoid = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/AntiVoid",
-    ClickTP = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/ClickTP",
-    FaceBang = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/FaceBang",
-    Flashback = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Flashback",
-    Impulse = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Impulse",
-    Invisible = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Invisible",
-    JerkOff = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/JerkOff",
-    NoClip = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/NoClip",
-    Spin = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/Spin",
-    feFlip = "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/modules/More/feFlip",
+    AnimSpeed = GITHUB_RAW .. "/modules/Emphasis/AnimeSpeed",
+    AnimeSpeed = GITHUB_RAW .. "/modules/Emphasis/AnimeSpeed",
+    AntiVoid = GITHUB_RAW .. "/modules/Emphasis/AntiVoid",
+    ClickTP = GITHUB_RAW .. "/modules/Emphasis/ClickTP",
+    FaceTarget = GITHUB_RAW .. "/modules/Emphasis/FaceTarget",
+    Flashback = GITHUB_RAW .. "/modules/Emphasis/Flashback",
+    Impulse = GITHUB_RAW .. "/modules/Emphasis/Impulse",
+    Invisible = GITHUB_RAW .. "/modules/Emphasis/Invisible",
+    Emote = GITHUB_RAW .. "/modules/Emphasis/Emote",
+    NoClip = GITHUB_RAW .. "/modules/Emphasis/NoClip",
+    Spin = GITHUB_RAW .. "/modules/Emphasis/Spin",
+    feFlip = GITHUB_RAW .. "/modules/Emphasis/feFlip",
 }
 
 local function fetchModuleSource(url)
@@ -2472,8 +2472,8 @@ do
     local y = 10
     local emphasisBtns = {
         {name="Invisible", order=1}, {name="ClickTP", order=2},
-        {name="NoClip", order=3}, {name="JerkOff", order=4},
-        {name="Impulse", order=5}, {name="FaceBang", order=6},
+        {name="NoClip", order=3}, {name="Emote", order=4},
+        {name="Impulse", order=5}, {name="Face Target", order=6},
         {name="Spin", order=7}, {name="AnimSpeed", order=8},
         {name="feFlip", order=9}, {name="Flashback", order=10},
         {name="AntiVoid", order=11},
@@ -2495,10 +2495,10 @@ do
             local active = toggleStates[btn] == true
             statusDot.setActive(active)
 
-            runPanelModule(moduleName)
+            loadModule("modules/Emphasis/" .. moduleName)
         end)
         registerCleanup("Emphasis/" .. v.name, function()
-            if toggleStates[btn] then runPanelModule(moduleName) end
+            if toggleStates[btn] then loadModule("modules/Emphasis/" .. moduleName) end
         end)
     end
     refreshCanvas(f)
@@ -3067,7 +3067,7 @@ do
     makeSectionLabel(f,"Casual",PAD,y)
     y = y + 20 + GAP
     
-    local antiBanBtn = makeButton(f,"AntiBanVC  -  BLOQUEADO",COL1,y,BTN_W,BTN_H)
+    local antiBanBtn = makeButton(f,"AntiBanVC  -  LOCKED",COL1,y,BTN_W,BTN_H)
     antiBanBtn:SetAttribute("HoverDisabled", true)
     antiBanBtn.Active = false
     antiBanBtn.Selectable = false
@@ -3094,6 +3094,7 @@ do
     local espBtn  = makeButton(f,"ESP",COL1,y,BTN_W,BTN_H)
     local espDot  = makeStatusDot(f, DOT1_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
     local espActive = false
+    local espInitialized = false
     local function setEsp(state)
         espActive = state
         espDot.setActive(espActive)
@@ -3103,6 +3104,7 @@ do
         runPanelModule("ESP")
     end
     espBtn.MouseButton1Click:Connect(function()
+        espInitialized = true
         setEsp(not espActive)
     end)
     registerCleanup("ESP", function()
@@ -3130,8 +3132,7 @@ do
 
     trackConnect(UserInputService.InputBegan, function(input, gpe)
         if gpe then return end
-        if CurrentTab ~= "More" then return end
-        if input.KeyCode == Enum.KeyCode.E then
+        if input.KeyCode == Enum.KeyCode.E and espInitialized then
             setEsp(not espActive)
         elseif input.KeyCode == Enum.KeyCode.F then
             setAimbot(not aimActive)
