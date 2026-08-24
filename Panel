@@ -1869,12 +1869,12 @@ local function createBillboard(character, rank, device, remoteVisible)
                 shine.Offset = Vector2.new(-1.25, 0)
                 local reflection = TweenService:Create(
                     shine,
-                    TweenInfo.new(0.95, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
+                    TweenInfo.new(2.4, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
                     {Offset = Vector2.new(1.25, 0)}
                 )
                 reflection:Play()
                 reflection.Completed:Wait()
-                task.wait(0.45)
+                task.wait(1)
             end
         end)
     end
@@ -2687,6 +2687,9 @@ do
 
         btn.MouseButton1Click:Connect(function()
             local active = toggleStates[btn] == true
+            if moduleName == "ClickTP" then
+                GLOBAL.__288ClickTPDesiredState = active
+            end
             local loaded = loadModule("modules/Emphasis/" .. moduleName)
             if not loaded then return end
 
@@ -2704,7 +2707,12 @@ do
         end)
 
         registerCleanup("Emphasis/" .. v.name, function()
-            if toggleStates[btn] then loadModule("modules/Emphasis/" .. moduleName) end
+            if toggleStates[btn] then
+                if moduleName == "ClickTP" then
+                    GLOBAL.__288ClickTPDesiredState = false
+                end
+                loadModule("modules/Emphasis/" .. moduleName)
+            end
         end)
     end
 
@@ -3065,7 +3073,13 @@ do
         btn:SetAttribute("288RequiresTarget", true)
         btn.TextSize = 13
         local dotX = (v.order % 2 == 1) and DOT1_X or DOT2_X
-        local dot = makeStatusDot(f, dotX, yPos + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
+        local dot
+        if v.name == "CopyID" or v.name == "Teleport" then
+            makeMouseDot(f, dotX, yPos + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
+            dot = {setActive = function() end}
+        else
+            dot = makeStatusDot(f, dotX, yPos + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
+        end
         local active = false
         table.insert(targetControls, {
             button = btn,
