@@ -869,6 +869,7 @@ local ROLE_COLORS_MAP = {
     ["Supporter"]  = Color3.fromRGB(0,   204, 170),
     ["Designer"]   = Color3.fromRGB(255, 105, 180),
     ["Marketing"]  = Color3.fromRGB(255, 136, 0  ),
+    ["Influencer"] = Color3.fromRGB(255, 79, 216),
     ["Admin"]      = Color3.fromRGB(255, 51,  51 ),
     ["Supervisor"] = Color3.fromRGB(255, 102, 0  ),
     ["Manager"]    = Color3.fromRGB(204, 0,   255),
@@ -876,13 +877,13 @@ local ROLE_COLORS_MAP = {
     ["Owner"]      = Color3.fromRGB(30,  30,  30 ),
 }
 
-local OWNER_SHINE = {
-    Color3.fromRGB(26, 26, 26), Color3.fromRGB(50, 50, 50),
-    Color3.fromRGB(80, 80, 80), Color3.fromRGB(110,110,110),
-    Color3.fromRGB(150,150,150),Color3.fromRGB(200,200,200),
-    Color3.fromRGB(240,240,240),Color3.fromRGB(200,200,200),
-    Color3.fromRGB(150,150,150),Color3.fromRGB(110,110,110),
-    Color3.fromRGB(80, 80, 80), Color3.fromRGB(50, 50, 50),
+local MIRROR_SHINE_RANKS = {
+    Influencer = true,
+    Admin = true,
+    Supervisor = true,
+    Manager = true,
+    ["Co-Owner"] = true,
+    Owner = true,
 }
 
 -- ==================== GUI ROOT ====================
@@ -909,12 +910,16 @@ NotificationGui.ResetOnSpawn = false
 NotificationGui.IgnoreGuiInset = true
 NotificationGui.DisplayOrder = 1000
 NotificationGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-NotificationGui.AutoLocalize = false
+NotificationGui.AutoLocalize = true
 NotificationGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local function keepEnglishText(root)
     trackConnect(root.DescendantAdded, function(obj)
         if obj:IsA("GuiBase2d") then
+            if obj:GetAttribute("288AllowLocalization") then
+                obj.AutoLocalize = true
+                return
+            end
             obj.AutoLocalize = false
             if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
                 local englishText = obj.Text
@@ -1004,6 +1009,9 @@ local function notifyPanel(title, message, kind, duration)
     messageLabel.TextWrapped = true
     messageLabel.TextXAlignment = Enum.TextXAlignment.Left
     messageLabel.TextYAlignment = Enum.TextYAlignment.Top
+    messageLabel.Name = "NotificationDescription"
+    messageLabel:SetAttribute("288AllowLocalization", true)
+    messageLabel.AutoLocalize = true
     messageLabel.Parent = toast
 
     TweenService:Create(toast, TweenInfo.new(0.22, Enum.EasingStyle.Quad), {
@@ -1721,6 +1729,7 @@ local function createBillboard(character, rank, device, remoteVisible)
     local bb = Instance.new("BillboardGui")
     bb.Name = "288TagGui"
     bb.Size = UDim2.new(0, 220, 0, 30)
+    bb.AutoLocalize = false
 
     -- Mantém a tag próxima da cabeça.
     -- A elevação extra com o zoom é propositalmente pequena.
@@ -1783,6 +1792,7 @@ local function createBillboard(character, rank, device, remoteVisible)
     lbl.Text = rank
     lbl.TextColor3 = color
     lbl.TextTransparency = 0
+    lbl.AutoLocalize = false
 
     -- Bold + contorno preto para legibilidade em qualquer cenário.
     lbl.TextStrokeColor3 = Color3.fromRGB(0, 0, 0)
@@ -1820,14 +1830,31 @@ local function createBillboard(character, rank, device, remoteVisible)
         end
     end)
 
-    if rank == "Owner" then
+    if MIRROR_SHINE_RANKS[rank] then
+        local shine = Instance.new("UIGradient")
+        shine.Name = "MirrorShine"
+        shine.Color = ColorSequence.new({
+            ColorSequenceKeypoint.new(0, color),
+            ColorSequenceKeypoint.new(0.42, color),
+            ColorSequenceKeypoint.new(0.5, Color3.fromRGB(255, 255, 255)),
+            ColorSequenceKeypoint.new(0.58, color),
+            ColorSequenceKeypoint.new(1, color),
+        })
+        shine.Offset = Vector2.new(-1.25, 0)
+        shine.Rotation = 0
+        shine.Parent = lbl
+
         task.spawn(function()
-            local i = 1
-            while bb.Parent and lbl.Parent do
-                lbl.TextColor3 = OWNER_SHINE[i]
-                -- O ícone da plataforma permanece preto.
-                i = (i % #OWNER_SHINE) + 1
-                task.wait(0.07)
+            while bb.Parent and lbl.Parent and shine.Parent do
+                shine.Offset = Vector2.new(-1.25, 0)
+                local reflection = TweenService:Create(
+                    shine,
+                    TweenInfo.new(1.15, Enum.EasingStyle.Linear, Enum.EasingDirection.Out),
+                    {Offset = Vector2.new(1.25, 0)}
+                )
+                reflection:Play()
+                reflection.Completed:Wait()
+                task.wait(0.65)
             end
         end)
     end
@@ -2594,47 +2621,69 @@ end
 
 -- ==================== EMPHASIS TAB ====================
 do
-    local f    = Tabs["Emphasis"].frame
+    local f = Tabs["Emphasis"].frame
     local y = 10
-    local noClipControl = nil
-    local flashbackControl = nil
-    local emphasisBtns = {
-        {name="Invisible", order=1}, {name="ClickTP", order=2},
-        {name="NoClip", order=3}, {name="Emote", order=4},
-        {name="Impulse", order=5}, {name="Face Target", order=6},
-        {name="Spin", order=7}, {name="AnimSpeed", order=8},
-        {name="feFlip", order=9}, {name="Flashback", order=10},
-        {name="AntiVoid", order=11},
+    local controls = {}
+    local keyStatus = {
+        Flashback = false,
+        AnimeSlow = false,
+        AnimeFast = false,
     }
+    local emphasisBtns = {
+        {name="Invisible", order=1, hint="Mouse: para Ativar/Desativar"},
+        {name="ClickTP", order=2, hint="Ctrl + Clique: para teleportar"},
+        {name="NoClip", order=3, hint="N: para Ativar/Desativar"},
+        {name="Emote", order=4, hint="Mouse: para Ativar/Desativar"},
+        {name="Impulse", order=5, hint="M: para Ativar"},
+        {name="Face Target", order=6, hint="Mouse: para Ativar/Desativar"},
+        {name="Spin", order=7, hint="Mouse: para Ativar/Desativar"},
+        {name="AnimSpeed", order=8, hint="Q: Lento | E: Rapido"},
+        {name="feFlip", order=9, hint="X: Frontflip | C: Backflip"},
+        {name="Flashback", order=10, hint="V: para Ativar/Desativar"},
+        {name="AntiVoid", order=11, hint="Mouse: para Ativar/Desativar"},
+    }
+
+    local function setControlState(control, active)
+        toggleStates[control.btn] = active
+        control.btn.BackgroundColor3 = active
+            and THEMES[currentTheme].btnOn
+            or THEMES[currentTheme].btn
+    end
+
     for _, v in ipairs(emphasisBtns) do
         local col = (v.order % 2 == 1) and COL1 or COL2
         local row = math.floor((v.order - 1) / 2)
         local yPos = y + row * (BTN_H + GAP)
         local btn = makeToggleButton(f, v.name, col, yPos, BTN_W, BTN_H)
         btn.TextSize = 13
+        btn:SetAttribute("288SilentNotification", true)
 
         local dotX = (v.order % 2 == 1) and DOT1_X or DOT2_X
-        local statusDot = makeStatusDot(f, dotX, yPos + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
+        makeMouseDot(f, dotX, yPos + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
+
         local moduleName = tostring(v.name):gsub("%s+", "")
         if moduleName == "AnimSpeed" then moduleName = "AnimeSpeed" end
-        if moduleName == "NoClip" then
-            noClipControl = {btn=btn, statusDot=statusDot, moduleName=moduleName, initialized=false}
-        elseif moduleName == "Flashback" then
-            flashbackControl = {btn=btn, statusDot=statusDot, moduleName=moduleName, initialized=false}
-        end
+        local control = {btn=btn, moduleName=moduleName, initialized=false, hint=v.hint}
+        controls[moduleName] = control
 
-        -- Todos os Emphasis executam o raw diretamente em cada clique, igual ao PianoAuto.
         btn.MouseButton1Click:Connect(function()
             local active = toggleStates[btn] == true
-            statusDot.setActive(active)
-
             local loaded = loadModule("modules/Emphasis/" .. moduleName)
-            if moduleName == "NoClip" and loaded and noClipControl then
-                noClipControl.initialized = true
-            elseif moduleName == "Flashback" and loaded and flashbackControl then
-                flashbackControl.initialized = true
+            if not loaded then return end
+
+            control.initialized = true
+            if active then
+                notifyPanel(moduleName == "AnimeSpeed" and "AnimeSpeed" or v.name, v.hint, "success")
+            else
+                notifyPanel(moduleName == "AnimeSpeed" and "AnimeSpeed" or v.name, "Status: Desativado", "warning")
+                if moduleName == "Flashback" then keyStatus.Flashback = false end
+                if moduleName == "AnimeSpeed" then
+                    keyStatus.AnimeSlow = false
+                    keyStatus.AnimeFast = false
+                end
             end
         end)
+
         registerCleanup("Emphasis/" .. v.name, function()
             if toggleStates[btn] then loadModule("modules/Emphasis/" .. moduleName) end
         end)
@@ -2644,30 +2693,44 @@ do
         if gpe then return end
 
         if input.KeyCode == Enum.KeyCode.N then
-            local control = noClipControl
+            local control = controls.NoClip
             if not control or not control.initialized then return end
-
             local nextState = not (toggleStates[control.btn] == true)
-            local loaded = loadModule("modules/Emphasis/" .. control.moduleName)
-            if not loaded then return end
-
-            toggleStates[control.btn] = nextState
-            control.btn.BackgroundColor3 = nextState
-                and THEMES[currentTheme].btnOn
-                or THEMES[currentTheme].btn
-            control.statusDot.setActive(nextState)
-            notifyPanel("NoClip", nextState and "Feature enabled via N." or "Feature disabled via N.", nextState and "success" or "warning")
+            if not loadModule("modules/Emphasis/" .. control.moduleName) then return end
+            setControlState(control, nextState)
+            notifyPanel("NoClip", nextState and "Status: Ativado" or "Status: Desativado", nextState and "success" or "warning")
         elseif input.KeyCode == Enum.KeyCode.V then
-            local control = flashbackControl
+            local control = controls.Flashback
+            if not control or not control.initialized or toggleStates[control.btn] ~= true then return end
+            keyStatus.Flashback = not keyStatus.Flashback
+            notifyPanel("Flashback", keyStatus.Flashback and "Status: Ativado" or "Status: Desativado", keyStatus.Flashback and "success" or "warning")
+        elseif input.KeyCode == Enum.KeyCode.Q or input.KeyCode == Enum.KeyCode.E then
+            local control = controls.AnimeSpeed
+            if not control or not control.initialized or toggleStates[control.btn] ~= true then return end
+            if input.KeyCode == Enum.KeyCode.Q then
+                keyStatus.AnimeSlow = not keyStatus.AnimeSlow
+                keyStatus.AnimeFast = false
+                notifyPanel("AnimeSpeed", keyStatus.AnimeSlow and "Q - Status: Ativado" or "Q - Status: Desativado", keyStatus.AnimeSlow and "success" or "warning")
+            else
+                keyStatus.AnimeFast = not keyStatus.AnimeFast
+                keyStatus.AnimeSlow = false
+                notifyPanel("AnimeSpeed", keyStatus.AnimeFast and "E - Status: Ativado" or "E - Status: Desativado", keyStatus.AnimeFast and "success" or "warning")
+            end
+        elseif input.KeyCode == Enum.KeyCode.M then
+            local control = controls.Impulse
             if control and control.initialized and toggleStates[control.btn] == true then
-                notifyPanel("Flashback", "Replaying your path backwards.", "success")
+                notifyPanel("Impulse", "M - Status: Ativado", "success")
+            end
+        elseif input.KeyCode == Enum.KeyCode.X or input.KeyCode == Enum.KeyCode.C then
+            local control = controls.feFlip
+            if control and control.initialized and toggleStates[control.btn] == true then
+                notifyPanel("feFlip", input.KeyCode == Enum.KeyCode.X and "X: Frontflip" or "C: Backflip", "success")
             end
         end
     end)
 
     refreshCanvas(f)
 end
-
 -- ==================== CHARACTER TAB ====================
 do
     local f = Tabs["Character"].frame
@@ -2693,11 +2756,20 @@ do
         local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if h then h.WalkSpeed = DEFAULT_WS end
     end)
+    local wsNotificationVersion = 0
     wsInput:GetPropertyChangedSignal("Text"):Connect(function()
         if not wsActive then return end
         local val = tonumber(wsInput.Text)
         local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if val and h then h.WalkSpeed = val end
+        if not val then return end
+        wsNotificationVersion += 1
+        local version = wsNotificationVersion
+        task.delay(0.45, function()
+            if version == wsNotificationVersion and wsActive then
+                notifyPanel("Walk Speed", "Velocidade: " .. tostring(val), "info")
+            end
+        end)
     end)
 
     y = y + BTN_H + GAP
@@ -2719,11 +2791,20 @@ do
         local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if h then h.JumpPower = DEFAULT_JP end
     end)
+    local jpNotificationVersion = 0
     jpInput:GetPropertyChangedSignal("Text"):Connect(function()
         if not jpActive then return end
         local val = tonumber(jpInput.Text)
         local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
         if val and h then h.JumpPower = val end
+        if not val then return end
+        jpNotificationVersion += 1
+        local version = jpNotificationVersion
+        task.delay(0.45, function()
+            if version == jpNotificationVersion and jpActive then
+                notifyPanel("Jump Power", "Potencia: " .. tostring(val), "info")
+            end
+        end)
     end)
 
     y = y + BTN_H + GAP
@@ -2732,6 +2813,22 @@ do
     local flyDot   = makeStatusDot(f, DOT1_X, y + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
     local flyInput = makeInput(f,"[0-n]",DOT1_X + DOT_SIZE + GAP, y, BTN_W, BTN_H)
     local flyActive = false
+    local flyInitialized = false
+    flyBtn:SetAttribute("288SilentNotification", true)
+    local flyNotificationVersion = 0
+    flyInput:GetPropertyChangedSignal("Text"):Connect(function()
+        local val = tonumber(flyInput.Text)
+        if not val then return end
+        GLOBAL.__288FlySpeed = val
+        if not flyActive then return end
+        flyNotificationVersion += 1
+        local version = flyNotificationVersion
+        task.delay(0.45, function()
+            if version == flyNotificationVersion and flyActive then
+                notifyPanel("Fly", "Velocidade: " .. tostring(val), "info")
+            end
+        end)
+    end)
 
     local function setFly(state)
         flyActive = state
@@ -2744,16 +2841,24 @@ do
         end
     end
 
-    flyBtn.MouseButton1Click:Connect(function() setFly(not flyActive) end)
+    flyBtn.MouseButton1Click:Connect(function()
+        flyInitialized = true
+        setFly(not flyActive)
+        notifyPanel(
+            "Fly",
+            flyActive and "F: para Ativar/Desativar" or "Status: Desativado",
+            flyActive and "success" or "warning"
+        )
+    end)
     registerCleanup("Fly", function()
         if flyActive then loadModule("modules/Emphasis/FlyOff.lua") end
     end)
 
     trackConnect(UserInputService.InputBegan, function(input, gpe)
         if gpe then return end
-        if input.KeyCode == Enum.KeyCode.F and CurrentTab == "Character" then
+        if input.KeyCode == Enum.KeyCode.F and flyInitialized then
             setFly(not flyActive)
-            notifyPanel("Fly", flyActive and "Feature enabled via F." or "Feature disabled via F.", flyActive and "success" or "warning")
+            notifyPanel("Fly", flyActive and "Status: Ativado" or "Status: Desativado", flyActive and "success" or "warning")
         end
     end)
 
