@@ -36,6 +36,12 @@ local DEVICE_LABELS = {
     console = "CONSOLE",
 }
 local DEVICE_LABEL = DEVICE_LABELS[DEVICE] or DEVICE_LABELS.desktop
+-- Invisible word joiner prevents Roblox/game localization tables from matching
+-- English UI strings while leaving their visual appearance unchanged.
+local ENGLISH_LOCK = utf8.char(0x2060)
+local function keepEnglish(value)
+    return tostring(value or "") .. ENGLISH_LOCK
+end
 
 -- ==================== CONFIG ====================
 local GLOBAL = (getgenv and getgenv()) or _G
@@ -100,7 +106,7 @@ local themeRoot = nil
 
 local THEMES = {
     dark = {
-        label    = "Noturno",
+        label    = "Dark",
         accent   = ACCENT,
         main     = BG_BASE,
         header   = Color3.fromRGB(13, 12, 19),
@@ -116,7 +122,7 @@ local THEMES = {
         stroke   = STROKE_SOFT,
     },
     light = {
-        label    = "Claro",
+        label    = "Light",
         accent   = Color3.fromRGB(181, 72, 190),
         main     = Color3.fromRGB(232, 231, 235),
         header   = Color3.fromRGB(246, 244, 248),
@@ -132,25 +138,25 @@ local THEMES = {
         stroke   = Color3.fromRGB(184, 177, 190),
     },
     ocean = {
-        label="Oceano", accent=Color3.fromRGB(75,190,255), main=Color3.fromRGB(7,18,29),
+        label="Ocean", accent=Color3.fromRGB(75,190,255), main=Color3.fromRGB(7,18,29),
         header=Color3.fromRGB(8,24,38), sidebar=Color3.fromRGB(8,22,35), content=Color3.fromRGB(9,27,42),
         btn=Color3.fromRGB(14,39,58), surface2=Color3.fromRGB(17,47,69), btnHover=Color3.fromRGB(20,57,82), btnOn=Color3.fromRGB(20,75,105),
         text=Color3.fromRGB(238,249,255), textDim=Color3.fromRGB(145,181,201), sep=Color3.fromRGB(28,61,80), stroke=Color3.fromRGB(47,102,132),
     },
     crimson = {
-        label="Carmesim", accent=Color3.fromRGB(255,84,111), main=Color3.fromRGB(24,8,13),
+        label="Crimson", accent=Color3.fromRGB(255,84,111), main=Color3.fromRGB(24,8,13),
         header=Color3.fromRGB(31,10,16), sidebar=Color3.fromRGB(28,9,15), content=Color3.fromRGB(34,12,19),
         btn=Color3.fromRGB(52,18,27), surface2=Color3.fromRGB(63,21,32), btnHover=Color3.fromRGB(76,25,37), btnOn=Color3.fromRGB(99,30,45),
         text=Color3.fromRGB(255,242,245), textDim=Color3.fromRGB(201,149,160), sep=Color3.fromRGB(72,31,40), stroke=Color3.fromRGB(126,49,65),
     },
     forest = {
-        label="Floresta", accent=Color3.fromRGB(91,222,142), main=Color3.fromRGB(7,20,15),
+        label="Forest", accent=Color3.fromRGB(91,222,142), main=Color3.fromRGB(7,20,15),
         header=Color3.fromRGB(9,27,20), sidebar=Color3.fromRGB(8,24,18), content=Color3.fromRGB(11,31,23),
         btn=Color3.fromRGB(18,46,35), surface2=Color3.fromRGB(21,55,41), btnHover=Color3.fromRGB(25,66,49), btnOn=Color3.fromRGB(31,86,62),
         text=Color3.fromRGB(239,255,246), textDim=Color3.fromRGB(149,195,169), sep=Color3.fromRGB(31,68,51), stroke=Color3.fromRGB(51,112,81),
     },
     sunset = {
-        label="Por do sol", accent=Color3.fromRGB(255,151,82), main=Color3.fromRGB(25,13,18),
+        label="Sunset", accent=Color3.fromRGB(255,151,82), main=Color3.fromRGB(25,13,18),
         header=Color3.fromRGB(34,16,22), sidebar=Color3.fromRGB(30,14,20), content=Color3.fromRGB(39,18,25),
         btn=Color3.fromRGB(57,27,35), surface2=Color3.fromRGB(68,31,40), btnHover=Color3.fromRGB(82,38,47), btnOn=Color3.fromRGB(104,48,55),
         text=Color3.fromRGB(255,247,240), textDim=Color3.fromRGB(207,169,158), sep=Color3.fromRGB(77,39,46), stroke=Color3.fromRGB(130,67,73),
@@ -162,7 +168,7 @@ local THEMES = {
         text=Color3.fromRGB(250,243,255), textDim=Color3.fromRGB(190,158,213), sep=Color3.fromRGB(61,38,82), stroke=Color3.fromRGB(103,62,139),
     },
     gold = {
-        label="Dourado", accent=Color3.fromRGB(255,202,79), main=Color3.fromRGB(24,19,8),
+        label="Gold", accent=Color3.fromRGB(255,202,79), main=Color3.fromRGB(24,19,8),
         header=Color3.fromRGB(32,25,10), sidebar=Color3.fromRGB(29,22,9), content=Color3.fromRGB(37,29,12),
         btn=Color3.fromRGB(55,43,18), surface2=Color3.fromRGB(66,51,20), btnHover=Color3.fromRGB(78,61,24), btnOn=Color3.fromRGB(101,78,29),
         text=Color3.fromRGB(255,251,235), textDim=Color3.fromRGB(207,190,143), sep=Color3.fromRGB(74,59,28), stroke=Color3.fromRGB(126,99,40),
@@ -786,8 +792,14 @@ local function keepEnglishText(root)
             obj.AutoLocalize = false
             if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
                 local englishText = obj.Text
-                obj.Text = ""
-                obj.Text = englishText
+                if obj.Name ~= "TagText" and englishText ~= ""
+                    and englishText:sub(-#ENGLISH_LOCK) ~= ENGLISH_LOCK then
+                    obj.Text = englishText .. ENGLISH_LOCK
+                end
+                if obj:IsA("TextBox") and obj.PlaceholderText ~= ""
+                    and obj.PlaceholderText:sub(-#ENGLISH_LOCK) ~= ENGLISH_LOCK then
+                    obj.PlaceholderText = obj.PlaceholderText .. ENGLISH_LOCK
+                end
             end
         end
     end)
@@ -1325,7 +1337,7 @@ for _, def in ipairs(TABS_DEF) do
     btn.BackgroundColor3 = Color3.fromRGB(16, 17, 20)
     btn.BackgroundTransparency = 0.42
     btn.BorderSizePixel  = 0
-    btn.Text             = def.name
+    btn.Text             = keepEnglish(def.name)
     btn.TextColor3       = TEXT_DIM
     btn.TextSize         = 11
     btn.Font             = Enum.Font.GothamMedium
@@ -1435,7 +1447,7 @@ local function makeButton(parent, text, x, y, w, h, vipOnly)
     btn.BackgroundColor3 = SURFACE
     btn.BackgroundTransparency = 0.16
     btn.BorderSizePixel  = 0
-    btn.Text             = text
+    btn.Text             = keepEnglish(text)
     btn.TextColor3       = TEXT_MAIN
     btn.TextSize         = 12
     btn.Font             = Enum.Font.Gotham
@@ -1476,7 +1488,7 @@ local function makeSectionLabel(parent, text, x, y)
     lbl.Size             = UDim2.new(1, -x*2, 0, 20)
     lbl.Position         = UDim2.new(0, x, 0, y)
     lbl.BackgroundTransparency = 1
-    lbl.Text             = string.upper(text)
+    lbl.Text             = keepEnglish(string.upper(text))
     lbl.TextColor3       = ACCENT
     lbl.TextTransparency = 0.12
     lbl.TextSize         = 10
@@ -1497,7 +1509,7 @@ local function makeInput(parent, placeholder, x, y, w, h)
     box.BackgroundTransparency = 0.14
     box.BorderSizePixel  = 0
     box.Text             = ""
-    box.PlaceholderText  = placeholder
+    box.PlaceholderText  = keepEnglish(placeholder)
     box.PlaceholderColor3= TEXT_DIM
     box.TextColor3       = TEXT_MAIN
     box.TextSize         = 12
@@ -2261,7 +2273,7 @@ do
     vipTitle.Size             = UDim2.new(1,0,0,40)
     vipTitle.Position         = UDim2.new(0,0,0.35,0)
     vipTitle.BackgroundTransparency = 1
-    vipTitle.Text             = "ADQUIRIR VIP"
+    vipTitle.Text             = keepEnglish("GET VIP")
     vipTitle.TextColor3       = ACCENT
     vipTitle.TextSize         = 22
     vipTitle.Font             = Enum.Font.GothamBold
@@ -2272,7 +2284,7 @@ do
     vipLink.Size             = UDim2.new(1,0,0,24)
     vipLink.Position         = UDim2.new(0,0,0.35,44)
     vipLink.BackgroundTransparency = 1
-    vipLink.Text             = "ACESSE: https://discord.gg/288Panel"
+    vipLink.Text             = keepEnglish("VISIT: https://discord.gg/288Panel")
     vipLink.TextColor3       = Color3.fromRGB(200,200,200)
     vipLink.TextSize         = 13
     vipLink.Font             = Enum.Font.Gotham
@@ -2340,7 +2352,7 @@ do
     modalTitle.Size = UDim2.new(1, -64, 0, 48)
     modalTitle.Position = UDim2.new(0, 20, 0, 4)
     modalTitle.BackgroundTransparency = 1
-    modalTitle.Text = "TEMAS VIP"
+    modalTitle.Text = keepEnglish("VIP THEMES")
     modalTitle.TextColor3 = TEXT_MAIN
     modalTitle.TextSize = 15
     modalTitle.Font = Enum.Font.GothamBold
@@ -2400,7 +2412,7 @@ do
         cardLabel.Size = UDim2.new(1, -54, 1, 0)
         cardLabel.Position = UDim2.new(0, 44, 0, 0)
         cardLabel.BackgroundTransparency = 1
-        cardLabel.Text = palette.label
+        cardLabel.Text = keepEnglish(palette.label)
         cardLabel.TextColor3 = palette.text
         cardLabel.TextSize = 12
         cardLabel.Font = Enum.Font.GothamMedium
@@ -2635,7 +2647,7 @@ do
     usernameInput.BackgroundColor3 = SURFACE_2
     usernameInput.BorderSizePixel  = 0
     usernameInput.Text             = ""
-    usernameInput.PlaceholderText  = "@username or display name..."
+    usernameInput.PlaceholderText  = keepEnglish("@username or display name...")
     usernameInput.PlaceholderColor3= TEXT_DIM
     usernameInput.TextColor3       = TEXT_MAIN
     usernameInput.TextSize         = 12
@@ -3601,8 +3613,14 @@ local function applyModernPolish()
             obj.AutoLocalize = false
             if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
                 local englishText = obj.Text
-                obj.Text = ""
-                obj.Text = englishText
+                if obj.Name ~= "TagText" and englishText ~= ""
+                    and englishText:sub(-#ENGLISH_LOCK) ~= ENGLISH_LOCK then
+                    obj.Text = englishText .. ENGLISH_LOCK
+                end
+                if obj:IsA("TextBox") and obj.PlaceholderText ~= ""
+                    and obj.PlaceholderText:sub(-#ENGLISH_LOCK) ~= ENGLISH_LOCK then
+                    obj.PlaceholderText = obj.PlaceholderText .. ENGLISH_LOCK
+                end
             end
         end
         if obj:IsA("TextLabel") then
