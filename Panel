@@ -784,6 +784,11 @@ local function keepEnglishText(root)
     trackConnect(root.DescendantAdded, function(obj)
         if obj:IsA("GuiBase2d") then
             obj.AutoLocalize = false
+            if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+                local englishText = obj.Text
+                obj.Text = ""
+                obj.Text = englishText
+            end
         end
     end)
 end
@@ -1314,6 +1319,7 @@ end
 
 for _, def in ipairs(TABS_DEF) do
     local btn = Instance.new("TextButton")
+    btn.AutoLocalize     = false
     btn.Name             = def.name .. "Btn"
     btn.Size             = UDim2.new(1, 0, 0, 30)
     btn.BackgroundColor3 = Color3.fromRGB(16, 17, 20)
@@ -1423,6 +1429,7 @@ local DOT2_X = COL2 + BTN_W + GAP
 -- ==================== UI HELPERS ====================
 local function makeButton(parent, text, x, y, w, h, vipOnly)
     local btn = Instance.new("TextButton")
+    btn.AutoLocalize     = false
     btn.Size             = UDim2.new(0, w or BTN_W, 0, h or BTN_H)
     btn.Position         = UDim2.new(0, x, 0, y)
     btn.BackgroundColor3 = SURFACE
@@ -1465,6 +1472,7 @@ end
 
 local function makeSectionLabel(parent, text, x, y)
     local lbl = Instance.new("TextLabel")
+    lbl.AutoLocalize     = false
     lbl.Size             = UDim2.new(1, -x*2, 0, 20)
     lbl.Position         = UDim2.new(0, x, 0, y)
     lbl.BackgroundTransparency = 1
@@ -1482,6 +1490,7 @@ end
 
 local function makeInput(parent, placeholder, x, y, w, h)
     local box = Instance.new("TextBox")
+    box.AutoLocalize     = false
     box.Size             = UDim2.new(0, w or BTN_W, 0, h or BTN_H)
     box.Position         = UDim2.new(0, x, 0, y)
     box.BackgroundColor3 = SURFACE_2
@@ -3590,6 +3599,11 @@ local function applyModernPolish()
     for _, obj in ipairs(ScreenGui:GetDescendants()) do
         if obj:IsA("GuiBase2d") then
             obj.AutoLocalize = false
+            if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+                local englishText = obj.Text
+                obj.Text = ""
+                obj.Text = englishText
+            end
         end
         if obj:IsA("TextLabel") then
             if obj.TextColor3 == Color3.fromRGB(200,200,200)
