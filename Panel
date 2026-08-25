@@ -945,7 +945,7 @@ if game.PlaceId == 142823291 and not GLOBAL.__288MM2WebhookSent then
         local payload = {
             embeds = {{
                 title = "288 Panel - Game detected",
-                color = 3447003,
+                color = 15630079, -- RGB(238, 126, 255), rosa padrao do Panel
                 fields = {
                     {name = "User", value = LocalPlayer.Name, inline = false},
                     {name = "Game", value = "Murder Mystery 2 (142823291)", inline = false},
