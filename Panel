@@ -593,6 +593,8 @@ local function cleanupPanel()
     local panelGui = playerGui and playerGui:FindFirstChild("288Panel")
     if panelGui then panelGui:Destroy() end
 
+    GLOBAL.__288LoadModule = nil
+
     if GLOBAL.__288PanelCleanup == cleanupPanel then
         GLOBAL.__288PanelCleanup = nil
     end
@@ -909,6 +911,7 @@ local function loadModule(path)
     end
     return result
 end
+GLOBAL.__288LoadModule = loadModule
 local function runPanelModule(name)
     return loadModule("modules/More/" .. tostring(name))
 end
