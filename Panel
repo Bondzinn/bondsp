@@ -46,7 +46,7 @@ end
 -- ==================== CONFIG ====================
 local GLOBAL = (getgenv and getgenv()) or _G
 local PANEL_CONFIG = GLOBAL.__288PanelConfig or {}
-local API_BASE   = PANEL_CONFIG.API_BASE or "https://instantly-hats-musicians-department.trycloudflare.com"
+local API_BASE   = PANEL_CONFIG.API_BASE or "https://require-fwd-shakira-governments.trycloudflare.com"
 local GITHUB_RAW = PANEL_CONFIG.GITHUB_RAW or "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
 -- FaÃ§a upload de assets/panel-background.png no Roblox e informe o asset ID aqui
 -- via getgenv().__288PanelConfig.BACKGROUND_IMAGE = "rbxassetid://SEU_ID".
@@ -880,6 +880,12 @@ local ROLE_COLORS_MAP = {
 local MIRROR_SHINE_RANKS = {
     Owner = true,
 }
+
+local TAG_FONT_FACE = Font.new(
+    "rbxasset://fonts/families/FredokaOne.json",
+    Enum.FontWeight.Regular,
+    Enum.FontStyle.Normal
+)
 
 -- ==================== GUI ROOT ====================
 if LocalPlayer.PlayerGui:FindFirstChild("288Panel") then
@@ -1796,7 +1802,7 @@ local function createBillboard(character, rank, device, remoteVisible)
         or Color3.fromRGB(0, 0, 0)
     lbl.TextStrokeTransparency = 0
     lbl.TextSize = 14
-    lbl.Font = Enum.Font.GothamBold
+    lbl.FontFace = TAG_FONT_FACE
     lbl.TextXAlignment = Enum.TextXAlignment.Center
     lbl.TextYAlignment = Enum.TextYAlignment.Center
     lbl.Parent = row
@@ -1841,7 +1847,7 @@ local function createBillboard(character, rank, device, remoteVisible)
         reflectionText.TextTransparency = 0
         reflectionText.TextStrokeTransparency = 1
         reflectionText.TextSize = lbl.TextSize
-        reflectionText.Font = lbl.Font
+        reflectionText.FontFace = TAG_FONT_FACE
         reflectionText.TextXAlignment = lbl.TextXAlignment
         reflectionText.TextYAlignment = lbl.TextYAlignment
         reflectionText.AutoLocalize = false
@@ -2658,7 +2664,7 @@ do
         {name="Spin", order=7, hint="Mouse: para Ativar/Desativar"},
         {name="AnimSpeed", order=8, hint="Q: Lento | E: Rapido"},
         {name="feFlip", order=9, hint="X: Frontflip | C: Backflip"},
-        {name="Flashback", order=10, hint="V: para Ativar/Desativar"},
+        {name="Flashback", order=10, hint="Segure V para voltar; solte para parar"},
         {name="AntiVoid", order=11, hint="Mouse: para Ativar/Desativar"},
     }
 
@@ -2682,28 +2688,37 @@ do
 
         local moduleName = tostring(v.name):gsub("%s+", "")
         if moduleName == "AnimSpeed" then moduleName = "AnimeSpeed" end
-        local control = {btn=btn, moduleName=moduleName, initialized=false, hint=v.hint}
+        local control = {btn=btn, moduleName=moduleName, initialized=false, hint=v.hint, activationNotified=false}
         controls[moduleName] = control
 
         btn.MouseButton1Click:Connect(function()
-            local active = toggleStates[btn] == true
-            if moduleName == "ClickTP" then
-                GLOBAL.__288ClickTPDesiredState = active
-            end
-            local loaded = loadModule("modules/Emphasis/" .. moduleName)
-            if not loaded then return end
-
-            control.initialized = true
-            if active then
-                notifyPanel(moduleName == "AnimeSpeed" and "AnimeSpeed" or v.name, v.hint, "success")
-            else
-                notifyPanel(moduleName == "AnimeSpeed" and "AnimeSpeed" or v.name, "Status: Desativado", "warning")
-                if moduleName == "Flashback" then keyStatus.Flashback = false end
-                if moduleName == "AnimeSpeed" then
-                    keyStatus.AnimeSlow = false
-                    keyStatus.AnimeFast = false
+            -- Aguarda o makeToggleButton concluir para sempre ler o estado final.
+            task.defer(function()
+                if not btn.Parent then return end
+                local active = toggleStates[btn] == true
+                if moduleName == "ClickTP" then
+                    GLOBAL.__288ClickTPDesiredState = active
                 end
-            end
+                local loaded = loadModule("modules/Emphasis/" .. moduleName)
+                if not loaded then return end
+
+                control.initialized = true
+                local title = moduleName == "AnimeSpeed" and "AnimeSpeed" or v.name
+                if moduleName == "Flashback" then
+                    if active and not control.activationNotified then
+                        control.activationNotified = true
+                        notifyPanel(title, v.hint, "success")
+                    end
+                elseif active then
+                    notifyPanel(title, v.hint, "success")
+                else
+                    notifyPanel(title, "Status: Desativado", "warning")
+                    if moduleName == "AnimeSpeed" then
+                        keyStatus.AnimeSlow = false
+                        keyStatus.AnimeFast = false
+                    end
+                end
+            end)
         end)
 
         registerCleanup("Emphasis/" .. v.name, function()
@@ -2726,11 +2741,7 @@ do
             if not loadModule("modules/Emphasis/" .. control.moduleName) then return end
             setControlState(control, nextState)
             notifyPanel("NoClip", nextState and "Status: Ativado" or "Status: Desativado", nextState and "success" or "warning")
-        elseif input.KeyCode == Enum.KeyCode.V then
-            local control = controls.Flashback
-            if not control or not control.initialized or toggleStates[control.btn] ~= true then return end
-            keyStatus.Flashback = not keyStatus.Flashback
-            notifyPanel("Flashback", keyStatus.Flashback and "Status: Ativado" or "Status: Desativado", keyStatus.Flashback and "success" or "warning")
+
         elseif input.KeyCode == Enum.KeyCode.Q or input.KeyCode == Enum.KeyCode.E then
             local control = controls.AnimeSpeed
             if not control or not control.initialized or toggleStates[control.btn] ~= true then return end
@@ -2743,11 +2754,7 @@ do
                 keyStatus.AnimeSlow = false
                 notifyPanel("AnimeSpeed", keyStatus.AnimeFast and "E - Status: Ativado" or "E - Status: Desativado", keyStatus.AnimeFast and "success" or "warning")
             end
-        elseif input.KeyCode == Enum.KeyCode.M then
-            local control = controls.Impulse
-            if control and control.initialized and toggleStates[control.btn] == true then
-                notifyPanel("Impulse", "M - Status: Ativado", "success")
-            end
+
         elseif input.KeyCode == Enum.KeyCode.X or input.KeyCode == Enum.KeyCode.C then
             local control = controls.feFlip
             if control and control.initialized and toggleStates[control.btn] == true then
@@ -2755,6 +2762,7 @@ do
             end
         end
     end)
+
 
     refreshCanvas(f)
 end
