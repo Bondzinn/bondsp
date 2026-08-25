@@ -629,7 +629,7 @@ local MORE_MODULE_URLS = {
 
 local USE_LOCAL_SPECIAL_MODULES = true
 
-local function fetchModuleSource(url)
+local function fetchModuleSourceUncached(url)
     local separator = url:find("?", 1, true) and "&" or "?"
     local requestUrl = url .. separator .. "_=" .. tostring(os.time())
 
@@ -654,6 +654,28 @@ local function fetchModuleSource(url)
     return okPlain and type(plain) == "string" and #plain > 0 and plain or nil
 end
 
+local moduleSourceCache = {}
+local moduleFetchInProgress = {}
+
+local function fetchModuleSource(url)
+    local cached = moduleSourceCache[url]
+    if cached then return cached end
+
+    local running = moduleFetchInProgress[url]
+    if running then
+        local deadline = os.clock() + 2
+        while moduleFetchInProgress[url] and os.clock() < deadline do
+            RunService.Heartbeat:Wait()
+        end
+        return moduleSourceCache[url]
+    end
+
+    moduleFetchInProgress[url] = true
+    local source = fetchModuleSourceUncached(url)
+    moduleFetchInProgress[url] = nil
+    if source then moduleSourceCache[url] = source end
+    return source
+end
 local function executeModuleSource(source)
     if type(source) ~= "string" or source == "" then return false, "fonte vazia" end
     source = source:gsub("^\239\187\191", "")
@@ -797,7 +819,7 @@ local function runEmbeddedESP()
     return true
 end
 
-local function loadModule(path)
+local function loadModuleUnsafe(path)
     local name = normalizeModuleName(path)
     local exactUrl = MORE_MODULE_URLS[name]
 
@@ -857,10 +879,59 @@ local function loadModule(path)
     return false
 end
 
+local crashGuardSeconds = {
+    PianoAuto = 0.75,
+    Bring = 0.75,
+    Respawn = 1.0,
+}
+local crashGuardLastUse = {}
+local crashGuardRunning = {}
+
+local function loadModule(path)
+    local name = normalizeModuleName(path)
+    local cooldown = crashGuardSeconds[name]
+    if cooldown then
+        local now = os.clock()
+        if crashGuardRunning[name] or now - (crashGuardLastUse[name] or -math.huge) < cooldown then
+            return false
+        end
+        crashGuardRunning[name] = true
+    end
+
+    local ok, result = pcall(loadModuleUnsafe, path)
+    if cooldown then
+        crashGuardRunning[name] = nil
+        crashGuardLastUse[name] = os.clock()
+    end
+    if not ok then
+        warn("[288] module loader error [" .. tostring(name) .. "]: " .. tostring(result))
+        return false
+    end
+    return result
+end
 local function runPanelModule(name)
     return loadModule("modules/More/" .. tostring(name))
 end
 
+-- Preload common toggles without blocking the interface. Subsequent activations
+-- execute from memory and no longer wait for another HTTP request.
+task.spawn(function()
+    local commonModules = {
+        "modules/Character/Fly", "modules/Character/FlyOff",
+        "modules/Character/WalkSpeed", "modules/Character/WalkSpeedOff",
+        "modules/Character/JumpPower", "modules/Character/JumpPowerOff",
+        "modules/Character/Checkpoint", "modules/Character/CheckpointOff",
+        "modules/More/ESP", "modules/More/Aimbot",
+    }
+    for _, modulePath in ipairs(commonModules) do
+        local pathToFetch = modulePath
+        task.spawn(function()
+            if not _shuttingDown then
+                fetchModuleSource(API_BASE .. "/raw/" .. pathToFetch)
+            end
+        end)
+    end
+end)
 -- ==================== ROLES ====================
 local ROLE_COLORS_MAP = {
     ["User"]       = Color3.fromRGB(255, 255, 255),
