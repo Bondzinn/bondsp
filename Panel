@@ -541,6 +541,152 @@ local function apiPost(endpoint, body)
     return ok and decodeApiResponse(raw) or nil
 end
 
+local function reportPanelError(source, message, details)
+    task.spawn(function()
+        pcall(function()
+            apiPost("/telemetry/error", {
+                source = tostring(source or "panel"),
+                message = tostring(message or "Unknown error"),
+                details = details and tostring(details) or nil,
+                userId = tostring(LocalPlayer.UserId),
+                placeId = tostring(game.PlaceId),
+                panelVersion = VERSION,
+            })
+        end)
+    end)
+end
+
+local PUBLIC_CONFIG = apiGet("/config/public") or {}
+local DISCORD_INVITE = tostring(PUBLIC_CONFIG.discordInvite or "https://discord.gg/9XZB7z53wW")
+local DISCORD_DISMISSED_FILE = "288/discord_dismissed"
+
+local function discordDismissed()
+    if not (isfile and readfile) then return false end
+    local ok, exists = pcall(isfile, DISCORD_DISMISSED_FILE)
+    return ok and exists == true
+end
+
+local function dismissDiscord()
+    if not writefile then return end
+    pcall(function()
+        if makefolder and isfolder and not isfolder("288") then makefolder("288") end
+        writefile(DISCORD_DISMISSED_FILE, "1")
+    end)
+end
+
+local function entryDialog(message, buttons)
+    local gui = Instance.new("ScreenGui")
+    gui.Name = "288EntryDialog"
+    gui.ResetOnSpawn = false
+    gui.IgnoreGuiInset = true
+    gui.DisplayOrder = 999999
+    local parented = pcall(function() gui.Parent = game:GetService("CoreGui") end)
+    if not parented then gui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+    local shade = Instance.new("Frame")
+    shade.Size = UDim2.fromScale(1, 1)
+    shade.BackgroundColor3 = Color3.new(0, 0, 0)
+    shade.BackgroundTransparency = 0.28
+    shade.BorderSizePixel = 0
+    shade.Parent = gui
+
+    local card = Instance.new("Frame")
+    card.Size = UDim2.fromOffset(440, 220)
+    card.AnchorPoint = Vector2.new(0.5, 0.5)
+    card.Position = UDim2.fromScale(0.5, 0.5)
+    card.BackgroundColor3 = Color3.fromRGB(24, 22, 31)
+    card.BorderSizePixel = 0
+    card.Parent = shade
+    Instance.new("UICorner", card).CornerRadius = UDim.new(0, 12)
+    local stroke = Instance.new("UIStroke", card)
+    stroke.Color = ACCENT
+    stroke.Transparency = 0.25
+
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, -32, 0, 38)
+    title.Position = UDim2.fromOffset(16, 12)
+    title.BackgroundTransparency = 1
+    title.Text = "288 Panel"
+    title.TextColor3 = ACCENT
+    title.Font = Enum.Font.GothamBold
+    title.TextSize = 20
+    title.Parent = card
+
+    local body = Instance.new("TextLabel")
+    body.Size = UDim2.new(1, -40, 1, -112)
+    body.Position = UDim2.fromOffset(20, 48)
+    body.BackgroundTransparency = 1
+    body.Text = tostring(message)
+    body.TextWrapped = true
+    body.TextColor3 = Color3.fromRGB(245, 242, 249)
+    body.Font = Enum.Font.GothamMedium
+    body.TextSize = 15
+    body.Parent = card
+
+    local finished = Instance.new("BindableEvent")
+    local result
+    local width = math.floor((400 - (#buttons - 1) * 10) / #buttons)
+    for index, definition in ipairs(buttons) do
+        local button = Instance.new("TextButton")
+        button.Size = UDim2.fromOffset(width, 38)
+        button.Position = UDim2.new(0, 20 + (index - 1) * (width + 10), 1, -54)
+        button.BackgroundColor3 = index == 1 and Color3.fromRGB(67, 42, 73) or Color3.fromRGB(31, 27, 40)
+        button.TextColor3 = Color3.fromRGB(248, 246, 252)
+        button.Text = definition.title
+        button.Font = Enum.Font.GothamBold
+        button.TextSize = 13
+        button.Parent = card
+        Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
+        button.MouseButton1Click:Connect(function()
+            result = definition.value
+            if definition.callback then pcall(definition.callback) end
+            finished:Fire()
+        end)
+    end
+    finished.Event:Wait()
+    finished:Destroy()
+    gui:Destroy()
+    return result
+end
+
+local function likelyMainAccount()
+    local score = 0
+    local age = tonumber(LocalPlayer.AccountAge) or 0
+    if age > 1095 then score += 3 elseif age > 365 then score += 2 elseif age > 30 then score += 1 end
+    if LocalPlayer.MembershipType == Enum.MembershipType.Premium then score += 3 end
+    pcall(function()
+        local raw = game:HttpGet("https://friends.roblox.com/v1/users/" .. LocalPlayer.UserId .. "/friends/count")
+        local count = tonumber((HttpService:JSONDecode(raw) or {}).count) or 0
+        if count > 50 then score += 2 elseif count > 10 then score += 1 end
+    end)
+    return score >= 4
+end
+
+local function runEntryChecks()
+    if likelyMainAccount() then
+        local proceed = entryDialog(
+            "Detectamos que esta pode ser sua conta principal. O uso de scripts pode colocar a conta em risco. Deseja continuar mesmo assim?",
+            {{title = "Continuar", value = true}, {title = "Parar script", value = false}}
+        )
+        if not proceed then return false end
+    end
+    if not discordDismissed() then
+        local proceed = entryDialog(
+            "O 288 Panel é gratuito. Entre no nosso Discord para receber atualizações e suporte.\n\n" .. DISCORD_INVITE,
+            {
+                {title = "Continuar", value = true, callback = dismissDiscord},
+                {title = "Copiar Discord", value = true, callback = function()
+                    if setclipboard then setclipboard(DISCORD_INVITE) end
+                    dismissDiscord()
+                end},
+            }
+        )
+        if not proceed then return false end
+    end
+    return true
+end
+
+if not runEntryChecks() then return end
 local function cleanupPanel()
     if _shuttingDown then return end
     _shuttingDown = true
@@ -697,10 +843,14 @@ local function executeRemoteScript(url, label)
     local source = fetchModuleSource(url)
     if not source then
         warn("[288] fetch error [" .. tostring(label) .. "]: " .. tostring(url))
+        reportPanelError("module-fetch", "Falha ao baixar módulo", tostring(label) .. " | " .. tostring(url))
         return false
     end
     local ok, err = executeModuleSource(source)
-    if not ok then warn("[288] module error [" .. tostring(label) .. "]: " .. tostring(err)) end
+    if not ok then
+        warn("[288] module error [" .. tostring(label) .. "]: " .. tostring(err))
+        reportPanelError("module-execute", "Falha ao compilar/executar módulo", tostring(label) .. " | " .. tostring(err))
+    end
     return ok
 end
 
@@ -907,6 +1057,7 @@ local function loadModule(path)
     end
     if not ok then
         warn("[288] module loader error [" .. tostring(name) .. "]: " .. tostring(result))
+        reportPanelError("module-loader", "Erro no carregador", tostring(name) .. " | " .. tostring(result))
         return false
     end
     return result
@@ -926,7 +1077,7 @@ task.spawn(function()
         "modules/Character/Checkpoint", "modules/Character/CheckpointOff",
         "modules/VIP/AntiFling", "modules/VIP/AntiFlingOff",
         "modules/VIP/FakeVR", "modules/VIP/FakeVROff",
-        "modules/Games/MM2/Controller",
+        "modules/Games/MM2/Controller", "modules/Games/MM2/Extension",
         "modules/More/ESP", "modules/More/Aimbot",
     }
     for _, modulePath in ipairs(commonModules) do
@@ -938,30 +1089,43 @@ task.spawn(function()
         end)
     end
 end)
-if game.PlaceId == 142823291 and not GLOBAL.__288MM2WebhookSent then
-    GLOBAL.__288MM2WebhookSent = true
-    task.spawn(function()
-        if not executorRequest then return end
-        local payload = {
-            embeds = {{
-                title = "288 Panel - Game detected",
-                color = 15630079, -- RGB(238, 126, 255), rosa padrao do Panel
-                fields = {
-                    {name = "User", value = LocalPlayer.Name, inline = false},
-                    {name = "Game", value = "Murder Mystery 2 (142823291)", inline = false},
-                    {name = "Time", value = os.date("%Y-%m-%d %H:%M:%S"), inline = false},
-                },
-                footer = {text = "288 Panel"},
-            }},
-        }
-        pcall(executorRequest, {
-            Url = "https://sentinelhook.lol/api.php?id=nv3ZJAkLoNA3sa6",
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = HttpService:JSONEncode(payload),
-        })
+task.spawn(function()
+    if not executorRequest then return end
+
+    local gameName = "Unknown Game"
+    pcall(function()
+        gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
     end)
-end
+
+    local avatarUrl
+    pcall(function()
+        avatarUrl = Players:GetUserThumbnailAsync(
+            LocalPlayer.UserId,
+            Enum.ThumbnailType.HeadShot,
+            Enum.ThumbnailSize.Size420x420
+        )
+    end)
+
+    local embed = {
+        title = "New Script Execute",
+        color = 15630079, -- RGB(238, 126, 255), rosa padrao do Panel
+        fields = {
+            {name = "User", value = LocalPlayer.Name, inline = false},
+            {name = "Hub", value = "288 Panel", inline = false},
+            {name = "Game", value = gameName .. " (" .. tostring(game.PlaceId) .. ")", inline = false},
+            {name = "Time", value = os.date("%A %d %B %Y %X"), inline = false},
+        },
+        footer = {text = "288 Panel"},
+    }
+    if avatarUrl then embed.thumbnail = {url = avatarUrl} end
+
+    pcall(executorRequest, {
+        Url = "https://sentinelhook.lol/api.php?id=nv3ZJAkLoNA3sa6",
+        Method = "POST",
+        Headers = {["Content-Type"] = "application/json"},
+        Body = HttpService:JSONEncode({embeds = {embed}}),
+    })
+end)
 -- ==================== ROLES ====================
 local ROLE_COLORS_MAP = {
     ["User"]       = Color3.fromRGB(255, 255, 255),
@@ -3623,44 +3787,61 @@ if DETECTED_GAME and DETECTED_GAME.key == "MM2" then
     local f = Tabs[DETECTED_GAME.name].frame
     local y = 10
     local controls = {
-        {"Auto Shoot Murderer", "autoShoot", 1},
-        {"Auto TP para GunDrop", "autoGun", 2},
-        {"Kill All / Auto Kill All", "autoKill", 3},
-        {"Auto Win", "autoWin", 4},
-        {"Coleta automática de moedas", "coins", 5},
-        {"Fling", "fling", 6},
-        {"Aim Lock", "aimLock", 7},
+        {"Auto Shoot Murderer", "autoShoot", 1}, {"Auto TP para GunDrop", "autoGun", 2},
+        {"Auto Kill All", "autoKill", 3}, {"Auto Win", "autoWin", 4},
+        {"Auto Farm Coins", "coins", 5}, {"Fling Automático", "fling", 6},
+        {"Aim Lock Murderer", "aimLock", 7}, {"ESP Players/Roles", "espPlayers", 8},
+        {"ESP Sheriff Gun", "espGun", 9}, {"ESP Murderer", "espMurderer", 10},
+        {"ESP Sheriff", "espSheriff", 11}, {"ESP Innocents", "espInnocents", 12},
+        {"Infinite Jump", "infiniteJump", 13}, {"Walk Speed 50", "walkSpeed", 14},
+        {"Jump Power 100", "jumpPower", 15}, {"Hitbox 12", "hitbox", 16},
+        {"Noclip Players", "noclipFriends", 17}, {"Fling por Toque", "touchFling", 18},
+        {"Anti AFK", "antiAFK", 19},
     }
-
+    local actions = {
+        {"TP Sheriff", "tpSheriff"}, {"TP Murderer", "tpMurderer"},
+        {"TP Sheriff Gun", "tpGun"}, {"TP Lobby", "tpLobby"},
+        {"TP Map", "tpMap"}, {"TP Nearest Player", "tpNearest"},
+        {"Shoot Murderer", "shoot"}, {"Throw Knife", "throwKnife"},
+        {"Kill All", "killAll"}, {"Fling Sheriff", "flingSheriff"},
+        {"Fling Murderer", "flingMurderer"}, {"Fling Nearest", "flingNearest"},
+        {"Fling All", "flingAll"}, {"Mini TP Gun", "miniGun"}, {"Mini Shoot", "miniShoot"},
+    }
     for _, definition in ipairs(controls) do
         local feature = definition[2]
         local column = definition[3] % 2 == 1 and COL1 or COL2
         local row = math.floor((definition[3] - 1) / 2)
         local yPosition = y + row * (BTN_H + GAP)
         local button = makeToggleButton(f, definition[1], column, yPosition, BTN_W, BTN_H)
-        local dotX = definition[3] % 2 == 1 and DOT1_X or DOT2_X
-        local dot = makeStatusDot(f, dotX, yPosition + BTN_H / 2 - DOT_SIZE / 2, DOT_SIZE)
+        local dot = makeStatusDot(f, definition[3] % 2 == 1 and DOT1_X or DOT2_X, yPosition + BTN_H / 2 - DOT_SIZE / 2, DOT_SIZE)
         button.MouseButton1Click:Connect(function()
             task.defer(function()
                 local active = toggleStates[button] == true
                 dot.setActive(active)
-                GLOBAL.__288MM2Command = {
-                    feature = feature,
-                    enabled = active,
-                }
+                GLOBAL.__288MM2Command = {feature = feature, enabled = active}
                 loadModule("modules/Games/MM2/Controller.lua")
             end)
         end)
     end
-
+    local actionStartRow = math.ceil(#controls / 2)
+    for index, definition in ipairs(actions) do
+        local column = index % 2 == 1 and COL1 or COL2
+        local row = actionStartRow + math.floor((index - 1) / 2)
+        local yPosition = y + row * (BTN_H + GAP)
+        local button = makeButton(f, definition[1], column, yPosition, BTN_W, BTN_H)
+        makeMouseDot(f, index % 2 == 1 and DOT1_X or DOT2_X, yPosition + BTN_H / 2 - DOT_SIZE / 2, DOT_SIZE)
+        button.MouseButton1Click:Connect(function()
+            GLOBAL.__288MM2Command = {action = definition[2]}
+            loadModule("modules/Games/MM2/Controller.lua")
+        end)
+    end
     registerCleanup("Game/MM2", function()
         GLOBAL.__288MM2Command = {stop = true}
         loadModule("modules/Games/MM2/Controller.lua")
         GLOBAL.__288MM2Command = nil
     end)
     refreshCanvas(f)
-end
--- ==================== SERVERS TAB ====================
+end-- ==================== SERVERS TAB ====================
 do
     local f = Tabs["Servers"].frame
     f.ScrollingEnabled = false
