@@ -926,6 +926,7 @@ task.spawn(function()
         "modules/Character/Checkpoint", "modules/Character/CheckpointOff",
         "modules/VIP/AntiFling", "modules/VIP/AntiFlingOff",
         "modules/VIP/FakeVR", "modules/VIP/FakeVROff",
+        "modules/Games/MM2/Controller",
         "modules/More/ESP", "modules/More/Aimbot",
     }
     for _, modulePath in ipairs(commonModules) do
@@ -937,6 +938,30 @@ task.spawn(function()
         end)
     end
 end)
+if game.PlaceId == 142823291 and not GLOBAL.__288MM2WebhookSent then
+    GLOBAL.__288MM2WebhookSent = true
+    task.spawn(function()
+        if not executorRequest then return end
+        local payload = {
+            embeds = {{
+                title = "288 Panel - Game detected",
+                color = 3447003,
+                fields = {
+                    {name = "User", value = LocalPlayer.Name, inline = false},
+                    {name = "Game", value = "Murder Mystery 2 (142823291)", inline = false},
+                    {name = "Time", value = os.date("%Y-%m-%d %H:%M:%S"), inline = false},
+                },
+                footer = {text = "288 Panel"},
+            }},
+        }
+        pcall(executorRequest, {
+            Url = "https://sentinelhook.lol/api.php?id=nv3ZJAkLoNA3sa6",
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode(payload),
+        })
+    end)
+end
 -- ==================== ROLES ====================
 local ROLE_COLORS_MAP = {
     ["User"]       = Color3.fromRGB(255, 255, 255),
@@ -1520,9 +1545,15 @@ local TABS_DEF = {
     { name = "Target",     layoutOrder = 5 },
     { name = "More",       layoutOrder = 6 },
     { name = "Misc",       layoutOrder = 7 },
-    { name = "Servers",    layoutOrder = 8 },
-    { name = "About",      layoutOrder = 9 },
+    { name = "Servers",    layoutOrder = 9 },
+    { name = "About",      layoutOrder = 10 },
 }
+
+local DETECTED_GAME
+if game.PlaceId == 142823291 then
+    DETECTED_GAME = {key = "MM2", name = "Murder Mystery 2"}
+    table.insert(TABS_DEF, {name = DETECTED_GAME.name, layoutOrder = 8})
+end
 
 local function setTab(name)
     CurrentTab = name
@@ -3587,6 +3618,48 @@ do
     refreshCanvas(f)
 end
 
+-- ==================== DETECTED GAME TAB ====================
+if DETECTED_GAME and DETECTED_GAME.key == "MM2" then
+    local f = Tabs[DETECTED_GAME.name].frame
+    local y = 10
+    local controls = {
+        {"Auto Shoot Murderer", "autoShoot", 1},
+        {"Auto TP para GunDrop", "autoGun", 2},
+        {"Kill All / Auto Kill All", "autoKill", 3},
+        {"Auto Win", "autoWin", 4},
+        {"Coleta automática de moedas", "coins", 5},
+        {"Fling", "fling", 6},
+        {"Aim Lock", "aimLock", 7},
+    }
+
+    for _, definition in ipairs(controls) do
+        local feature = definition[2]
+        local column = definition[3] % 2 == 1 and COL1 or COL2
+        local row = math.floor((definition[3] - 1) / 2)
+        local yPosition = y + row * (BTN_H + GAP)
+        local button = makeToggleButton(f, definition[1], column, yPosition, BTN_W, BTN_H)
+        local dotX = definition[3] % 2 == 1 and DOT1_X or DOT2_X
+        local dot = makeStatusDot(f, dotX, yPosition + BTN_H / 2 - DOT_SIZE / 2, DOT_SIZE)
+        button.MouseButton1Click:Connect(function()
+            task.defer(function()
+                local active = toggleStates[button] == true
+                dot.setActive(active)
+                GLOBAL.__288MM2Command = {
+                    feature = feature,
+                    enabled = active,
+                }
+                loadModule("modules/Games/MM2/Controller.lua")
+            end)
+        end)
+    end
+
+    registerCleanup("Game/MM2", function()
+        GLOBAL.__288MM2Command = {stop = true}
+        loadModule("modules/Games/MM2/Controller.lua")
+        GLOBAL.__288MM2Command = nil
+    end)
+    refreshCanvas(f)
+end
 -- ==================== SERVERS TAB ====================
 do
     local f = Tabs["Servers"].frame
