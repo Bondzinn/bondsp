@@ -627,7 +627,7 @@ local MORE_MODULE_URLS = {
     feFlip = GITHUB_RAW .. "/modules/Emphasis/feFlip",
 }
 
-local USE_LOCAL_SPECIAL_MODULES = false
+local USE_LOCAL_SPECIAL_MODULES = true
 
 local function fetchModuleSource(url)
     local separator = url:find("?", 1, true) and "&" or "?"
@@ -2782,22 +2782,19 @@ do
         wsActive = not wsActive
         wsDot.setActive(wsActive)
         wsBtn.BackgroundColor3 = wsActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if h then
-            h.WalkSpeed = wsActive and (tonumber(wsInput.Text) or DEFAULT_WS) or DEFAULT_WS
-        end
+        GLOBAL.__288WalkSpeedValue = tonumber(wsInput.Text) or DEFAULT_WS
+        loadModule(wsActive and "modules/Character/WalkSpeed.lua" or "modules/Character/WalkSpeedOff.lua")
     end)
     registerCleanup("WalkSpeed", function()
-        local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if h then h.WalkSpeed = DEFAULT_WS end
+        if wsActive then loadModule("modules/Character/WalkSpeedOff.lua") end
     end)
     local wsNotificationVersion = 0
     wsInput:GetPropertyChangedSignal("Text"):Connect(function()
         if not wsActive then return end
         local val = tonumber(wsInput.Text)
-        local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if val and h then h.WalkSpeed = val end
         if not val then return end
+        GLOBAL.__288WalkSpeedValue = val
+        loadModule("modules/Character/WalkSpeed.lua")
         wsNotificationVersion += 1
         local version = wsNotificationVersion
         task.delay(0.45, function()
@@ -2817,22 +2814,19 @@ do
         jpActive = not jpActive
         jpDot.setActive(jpActive)
         jpBtn.BackgroundColor3 = jpActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if h then
-            h.JumpPower = jpActive and (tonumber(jpInput.Text) or DEFAULT_JP) or DEFAULT_JP
-        end
+        GLOBAL.__288JumpPowerValue = tonumber(jpInput.Text) or DEFAULT_JP
+        loadModule(jpActive and "modules/Character/JumpPower.lua" or "modules/Character/JumpPowerOff.lua")
     end)
     registerCleanup("JumpPower", function()
-        local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if h then h.JumpPower = DEFAULT_JP end
+        if jpActive then loadModule("modules/Character/JumpPowerOff.lua") end
     end)
     local jpNotificationVersion = 0
     jpInput:GetPropertyChangedSignal("Text"):Connect(function()
         if not jpActive then return end
         local val = tonumber(jpInput.Text)
-        local h = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-        if val and h then h.JumpPower = val end
         if not val then return end
+        GLOBAL.__288JumpPowerValue = val
+        loadModule("modules/Character/JumpPower.lua")
         jpNotificationVersion += 1
         local version = jpNotificationVersion
         task.delay(0.45, function()
@@ -2870,9 +2864,9 @@ do
         flyDot.setActive(flyActive)
         flyBtn.BackgroundColor3 = flyActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
         if flyActive then
-            loadModule("modules/Emphasis/Fly.lua")
+            loadModule("modules/Character/Fly.lua")
         else
-            loadModule("modules/Emphasis/FlyOff.lua")
+            loadModule("modules/Character/FlyOff.lua")
         end
     end
 
@@ -2886,7 +2880,7 @@ do
         )
     end)
     registerCleanup("Fly", function()
-        if flyActive then loadModule("modules/Emphasis/FlyOff.lua") end
+        if flyActive then loadModule("modules/Character/FlyOff.lua") end
     end)
 
     trackConnect(UserInputService.InputBegan, function(input, gpe)
@@ -2904,7 +2898,7 @@ do
     local ckDot      = makeStatusDot(f, DOT2_X, y + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
     local ckActive    = false
     respawnBtn.MouseButton1Click:Connect(function()
-        if LocalPlayer.Character then LocalPlayer.Character:BreakJoints() end
+        loadModule("modules/Character/Respawn.lua")
     end)
     ckBtn.MouseButton1Click:Connect(function()
         ckActive = not ckActive
