@@ -562,6 +562,32 @@ do
     VERSION = "v" .. packageVersion
 end
 local DISCORD_INVITE = tostring(PUBLIC_CONFIG.discordInvite or "https://discord.gg/9XZB7z53wW")
+
+-- Envia a execução durante o bootstrap e aguarda a API antes de criar qualquer UI.
+do
+    local gameName = "Unknown Game"
+    pcall(function()
+        gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
+    end)
+    local avatarUrl
+    pcall(function()
+        avatarUrl = Players:GetUserThumbnailAsync(
+            LocalPlayer.UserId,
+            Enum.ThumbnailType.HeadShot,
+            Enum.ThumbnailSize.Size420x420
+        )
+    end)
+    local response = apiPost("/telemetry/execute", {
+        username = LocalPlayer.Name,
+        userId = tostring(LocalPlayer.UserId),
+        gameName = gameName,
+        placeId = tostring(game.PlaceId),
+        avatarUrl = avatarUrl,
+    })
+    if not response or response.success ~= true then
+        warn("[288] Falha ao enviar webhook de execução durante o loading.")
+    end
+end
 local DISCORD_DISMISSED_FILE = "288/discord_dismissed"
 
 local function discordDismissed()
@@ -1091,30 +1117,6 @@ task.spawn(function()
                 fetchModuleSource(API_BASE .. "/raw/" .. pathToFetch)
             end
         end)
-    end
-end)
-task.spawn(function()
-    local gameName = "Unknown Game"
-    pcall(function()
-        gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
-    end)
-    local avatarUrl
-    pcall(function()
-        avatarUrl = Players:GetUserThumbnailAsync(
-            LocalPlayer.UserId,
-            Enum.ThumbnailType.HeadShot,
-            Enum.ThumbnailSize.Size420x420
-        )
-    end)
-    local response = apiPost("/telemetry/execute", {
-        username = LocalPlayer.Name,
-        userId = tostring(LocalPlayer.UserId),
-        gameName = gameName,
-        placeId = tostring(game.PlaceId),
-        avatarUrl = avatarUrl,
-    })
-    if not response or response.success ~= true then
-        warn("[288] Falha ao enviar webhook de execução pela API.")
     end
 end)
 -- ==================== ROLES ====================
