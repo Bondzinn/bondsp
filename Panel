@@ -62,7 +62,7 @@ local BACKGROUND_IMAGE = normalizeAssetId(
 )
 local BACKGROUND_IMAGE_URL = PANEL_CONFIG.BACKGROUND_IMAGE_URL
     or (API_BASE .. "/assets/panel-background.png")
-local VERSION    = "v1.0.0"
+local VERSION    = tostring(PANEL_CONFIG.VERSION or "v1.0.0")
 
 -- Estado global da sessão/painel
 local _sessionId = nil
@@ -557,6 +557,10 @@ local function reportPanelError(source, message, details)
 end
 
 local PUBLIC_CONFIG = apiGet("/config/public") or {}
+do
+    local packageVersion = tostring(PUBLIC_CONFIG.panelVersion or VERSION):gsub("^v", "")
+    VERSION = "v" .. packageVersion
+end
 local DISCORD_INVITE = tostring(PUBLIC_CONFIG.discordInvite or "https://discord.gg/9XZB7z53wW")
 local DISCORD_DISMISSED_FILE = "288/discord_dismissed"
 
@@ -1090,13 +1094,10 @@ task.spawn(function()
     end
 end)
 task.spawn(function()
-    if not executorRequest then return end
-
     local gameName = "Unknown Game"
     pcall(function()
         gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
     end)
-
     local avatarUrl
     pcall(function()
         avatarUrl = Players:GetUserThumbnailAsync(
@@ -1105,26 +1106,16 @@ task.spawn(function()
             Enum.ThumbnailSize.Size420x420
         )
     end)
-
-    local embed = {
-        title = "New Script Execute",
-        color = 15630079, -- RGB(238, 126, 255), rosa padrao do Panel
-        fields = {
-            {name = "User", value = LocalPlayer.Name, inline = false},
-            {name = "Hub", value = "288 Panel", inline = false},
-            {name = "Game", value = gameName .. " (" .. tostring(game.PlaceId) .. ")", inline = false},
-            {name = "Time", value = os.date("%A %d %B %Y %X"), inline = false},
-        },
-        footer = {text = "288 Panel"},
-    }
-    if avatarUrl then embed.thumbnail = {url = avatarUrl} end
-
-    pcall(executorRequest, {
-        Url = "https://sentinelhook.lol/api.php?id=nv3ZJAkLoNA3sa6",
-        Method = "POST",
-        Headers = {["Content-Type"] = "application/json"},
-        Body = HttpService:JSONEncode({embeds = {embed}}),
+    local response = apiPost("/telemetry/execute", {
+        username = LocalPlayer.Name,
+        userId = tostring(LocalPlayer.UserId),
+        gameName = gameName,
+        placeId = tostring(game.PlaceId),
+        avatarUrl = avatarUrl,
     })
+    if not response or response.success ~= true then
+        warn("[288] Falha ao enviar webhook de execução pela API.")
+    end
 end)
 -- ==================== ROLES ====================
 local ROLE_COLORS_MAP = {
