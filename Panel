@@ -1099,6 +1099,7 @@ local function runPanelModule(name)
     return loadModule("modules/More/" .. tostring(name))
 end
 
+local commonModulePreloadRemaining = 0
 -- Preload common toggles without blocking the interface. Subsequent activations
 -- execute from memory and no longer wait for another HTTP request.
 task.spawn(function()
@@ -1112,12 +1113,14 @@ task.spawn(function()
         "modules/Games/MM2/Controller", "modules/Games/MM2/Extension",
         "modules/More/ESP", "modules/More/Aimbot",
     }
+    commonModulePreloadRemaining = #commonModules
     for _, modulePath in ipairs(commonModules) do
         local pathToFetch = modulePath
         task.spawn(function()
             if not _shuttingDown then
                 fetchModuleSource(API_BASE .. "/raw/" .. pathToFetch)
             end
+            commonModulePreloadRemaining = math.max(0, commonModulePreloadRemaining - 1)
         end)
     end
 end)
@@ -1338,6 +1341,50 @@ loadingIcon.ZIndex = 202
 loadingIcon.Parent = LoadingCard
 Instance.new("UICorner", loadingIcon).CornerRadius = UDim.new(0, 12)
 
+-- Os assets visuais são baixados e registrados enquanto apenas o loading está aberto.
+local preloadedHeaderLogoAsset
+local function preloadPanelAsset(url, cacheFile)
+    local customAsset = getcustomasset or getsynasset
+    if type(customAsset) ~= "function" or type(writefile) ~= "function" then return nil end
+    local okDownload, bytes = pcall(function()
+        return game:HttpGet(url .. "?v=" .. tostring(os.time()))
+    end)
+    if not okDownload or type(bytes) ~= "string" or #bytes < 100 then return nil end
+    if not pcall(writefile, cacheFile, bytes) then return nil end
+    local okAsset, asset = pcall(customAsset, cacheFile)
+    return okAsset and type(asset) == "string" and asset or nil
+end
+
+loadingIcon.ImageRectSize = Vector2.new(96, 96)
+local preloadedLoadingLogoAsset = preloadPanelAsset(
+    LOADING_LOGO_URL,
+    "288-panel-logo-spritesheet.png"
+)
+if preloadedLoadingLogoAsset then
+    loadingIcon.Image = preloadedLoadingLogoAsset
+    local imageDeadline = os.clock() + 4
+    while loadingIcon.Parent and not loadingIcon.IsLoaded and os.clock() < imageDeadline do
+        RunService.RenderStepped:Wait()
+    end
+    loadingLogoReady = loadingIcon.IsLoaded
+    task.spawn(function()
+        local frame = 0
+        while loadingIcon.Parent do
+            loadingIcon.ImageRectOffset = Vector2.new(
+                (frame % 8) * 96,
+                math.floor(frame / 8) * 96
+            )
+            frame = (frame + 1) % 40
+            task.wait(0.06)
+        end
+    end)
+end
+
+preloadedHeaderLogoAsset = preloadPanelAsset(
+    LOGO_IMAGE_URL,
+    "288-panel-logo.png"
+)
+
 local loadingTitle = Instance.new("TextLabel")
 loadingTitle.Size = UDim2.new(1, -92, 0, 28)
 loadingTitle.Position = UDim2.new(0, 76, 0, 20)
@@ -1418,28 +1465,38 @@ local function finishLoading(status)
     if loadingFinished or loadingFinishing then return end
     loadingFinishing = true
 
-    -- Evita que uma resposta muito rápida da API esconda o loading antes da logo.
     local logoDeadline = os.clock() + 5
     while LoadingRoot.Parent and not loadingLogoReady and os.clock() < logoDeadline do
         task.wait(0.05)
     end
-    local minimumVisible = 2.6
-    local remaining = minimumVisible - (os.clock() - loadingStartedAt)
-    if remaining > 0 then task.wait(remaining) end
+    local modulesDeadline = os.clock() + 10
+    while commonModulePreloadRemaining > 0 and os.clock() < modulesDeadline do
+        task.wait(0.05)
+    end
 
+    local remaining = 2.6 - (os.clock() - loadingStartedAt)
+    if remaining > 0 then task.wait(remaining) end
     if not LoadingRoot.Parent then return end
+
     loadingFinished = true
     loadingStatus.Text = status or "Tudo pronto!"
     loadingPercent.Text = "100%"
     loadingFill.Size = UDim2.new(1, 0, 1, 0)
-    if MainFrame then MainFrame.Visible = true end
-    task.delay(0.22, function()
-        if not LoadingRoot.Parent then return end
-        TweenService:Create(LoadingRoot, TweenInfo.new(0.25), { BackgroundTransparency = 1 }):Play()
-        TweenService:Create(LoadingCard, TweenInfo.new(0.25), { GroupTransparency = 1 }):Play()
-        task.wait(0.28)
-        if LoadingRoot.Parent then LoadingRoot:Destroy() end
-    end)
+
+    task.wait(0.22)
+    if not LoadingRoot.Parent then return end
+    local fadeRoot = TweenService:Create(LoadingRoot, TweenInfo.new(0.25), {BackgroundTransparency = 1})
+    local fadeCard = TweenService:Create(LoadingCard, TweenInfo.new(0.25), {GroupTransparency = 1})
+    fadeRoot:Play()
+    fadeCard:Play()
+    fadeCard.Completed:Wait()
+    if LoadingRoot.Parent then LoadingRoot:Destroy() end
+
+    -- A janela principal só aparece dois segundos completos após o loading sair.
+    task.wait(2)
+    if MainFrame and MainFrame.Parent and ScreenGui.Parent then
+        MainFrame.Visible = true
+    end
 end
 
 setLoadingProgress(12, "Loading components...")
@@ -1643,6 +1700,7 @@ HeaderLogo.BackgroundTransparency = 1
 HeaderLogo.ScaleType = Enum.ScaleType.Fit
 HeaderLogo.ZIndex = 3
 HeaderLogo.Parent = Header
+if preloadedHeaderLogoAsset then HeaderLogo.Image = preloadedHeaderLogoAsset end
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size             = UDim2.new(0, 150, 1, 0)
@@ -1656,37 +1714,6 @@ TitleLabel.TextColor3       = TEXT_MAIN
 TitleLabel.ZIndex           = 3
 TitleLabel.Parent           = Header
 
-local function loadPanelImage(url, cacheFile, target)
-    local customAsset = getcustomasset or getsynasset
-    if type(customAsset) ~= "function" or type(writefile) ~= "function" then return nil end
-    local okDownload, bytes = pcall(function()
-        return game:HttpGet(url .. "?v=" .. tostring(os.time()))
-    end)
-    if not okDownload or type(bytes) ~= "string" or #bytes < 100 then return nil end
-    if not pcall(writefile, cacheFile, bytes) then return nil end
-    local okAsset, asset = pcall(customAsset, cacheFile)
-    if okAsset and type(asset) == "string" and target and target.Parent then
-        target.Image = asset
-        return asset
-    end
-    return nil
-end
-
-task.spawn(function()
-    local asset = loadPanelImage(LOADING_LOGO_URL, "288-panel-logo-spritesheet.png", loadingIcon)
-    if not asset or not loadingIcon.Parent then return end
-    loadingIcon.ImageRectSize = Vector2.new(96, 96)
-    local loadDeadline = os.clock() + 3
-    while loadingIcon.Parent and not loadingIcon.IsLoaded and os.clock() < loadDeadline do task.wait() end
-    loadingLogoReady = loadingIcon.Parent ~= nil and loadingIcon.IsLoaded
-    local frame = 0
-    while loadingIcon.Parent do
-        loadingIcon.ImageRectOffset = Vector2.new((frame % 8) * 96, math.floor(frame / 8) * 96)
-        frame = (frame + 1) % 40
-        task.wait(0.06)
-    end
-end)
-task.spawn(loadPanelImage, LOGO_IMAGE_URL, "288-panel-logo.png", HeaderLogo)
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size             = UDim2.new(0, 30, 0, 30)
