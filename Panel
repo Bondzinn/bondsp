@@ -1177,10 +1177,19 @@ NotificationGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 NotificationGui.AutoLocalize = true
 NotificationGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
+local function allowsRobloxLocalization(obj)
+    local current = obj
+    while current do
+        if current:GetAttribute("288AllowLocalization") then return true end
+        current = current.Parent
+    end
+    return false
+end
+
 local function keepEnglishText(root)
     trackConnect(root.DescendantAdded, function(obj)
         if obj:IsA("GuiBase2d") then
-            if obj:GetAttribute("288AllowLocalization") then
+            if allowsRobloxLocalization(obj) then
                 obj.AutoLocalize = true
                 return
             end
@@ -1301,6 +1310,7 @@ end)
 
 -- ==================== LOADING UI ====================
 local MainFrame
+local FloatingToggle
 local loadingFinished = false
 local loadingFinishing = false
 local loadingLogoReady = false
@@ -1496,6 +1506,7 @@ local function finishLoading(status)
     task.wait(2)
     if MainFrame and MainFrame.Parent and ScreenGui.Parent then
         MainFrame.Visible = true
+        if FloatingToggle then FloatingToggle.Visible = true end
     end
 end
 
@@ -1701,6 +1712,39 @@ HeaderLogo.ScaleType = Enum.ScaleType.Fit
 HeaderLogo.ZIndex = 3
 HeaderLogo.Parent = Header
 if preloadedHeaderLogoAsset then HeaderLogo.Image = preloadedHeaderLogoAsset end
+
+FloatingToggle = Instance.new("ImageButton")
+FloatingToggle.Name = "PanelFloatingToggle"
+FloatingToggle.Size = UDim2.fromOffset(50, 50)
+FloatingToggle.AnchorPoint = Vector2.new(0, 0.5)
+FloatingToggle.Position = UDim2.new(0, 12, 0.5, 0)
+FloatingToggle.BackgroundColor3 = SURFACE_2
+FloatingToggle.BackgroundTransparency = 0.08
+FloatingToggle.BorderSizePixel = 0
+FloatingToggle.AutoButtonColor = false
+FloatingToggle.ScaleType = Enum.ScaleType.Fit
+FloatingToggle.ZIndex = 500
+FloatingToggle.Visible = false
+FloatingToggle.Parent = ScreenGui
+if preloadedHeaderLogoAsset then FloatingToggle.Image = preloadedHeaderLogoAsset end
+Instance.new("UICorner", FloatingToggle).CornerRadius = UDim.new(1, 0)
+local floatingStroke = Instance.new("UIStroke")
+floatingStroke.Color = ACCENT
+floatingStroke.Transparency = 0.18
+floatingStroke.Thickness = 1.5
+floatingStroke.Parent = FloatingToggle
+local floatingPadding = Instance.new("UIPadding")
+floatingPadding.PaddingTop = UDim.new(0, 5)
+floatingPadding.PaddingBottom = UDim.new(0, 5)
+floatingPadding.PaddingLeft = UDim.new(0, 5)
+floatingPadding.PaddingRight = UDim.new(0, 5)
+floatingPadding.Parent = FloatingToggle
+addHover(FloatingToggle, false)
+FloatingToggle.MouseButton1Click:Connect(function()
+    if not loadingFinished or not MainFrame then return end
+    MainFrame.Visible = not MainFrame.Visible
+    floatingStroke.Transparency = MainFrame.Visible and 0.05 or 0.42
+end)
 
 local TitleLabel = Instance.new("TextLabel")
 TitleLabel.Size             = UDim2.new(0, 150, 1, 0)
@@ -3337,6 +3381,8 @@ do
     hintLbl.TextXAlignment   = Enum.TextXAlignment.Left
     hintLbl.TextWrapped      = true
     hintLbl.ZIndex           = 4
+    hintLbl:SetAttribute("288AllowLocalization", true)
+    hintLbl.AutoLocalize     = true
     hintLbl.Parent           = f
     registerTheme(hintLbl,"TextColor3","textDim")
 
@@ -4337,12 +4383,39 @@ do
 
 end
 
+local function enableRobloxLocalization(root)
+    if not root then return end
+    root:SetAttribute("288AllowLocalization", true)
+    local objects = {root}
+    for _, child in ipairs(root:GetDescendants()) do objects[#objects + 1] = child end
+    for _, obj in ipairs(objects) do
+        if obj:IsA("GuiBase2d") then
+            obj:SetAttribute("288AllowLocalization", true)
+            obj.AutoLocalize = true
+            if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+                obj.Text = tostring(obj.Text or ""):gsub(ENGLISH_LOCK, "")
+                if obj:IsA("TextBox") then
+                    obj.PlaceholderText = tostring(obj.PlaceholderText or ""):gsub(ENGLISH_LOCK, "")
+                end
+            end
+        end
+    end
+end
+
+enableRobloxLocalization(Tabs["Home"] and Tabs["Home"].frame)
+enableRobloxLocalization(Tabs["Home"] and Tabs["Home"].btn)
+enableRobloxLocalization(Tabs["About"] and Tabs["About"].frame)
+enableRobloxLocalization(Tabs["About"] and Tabs["About"].btn)
+enableRobloxLocalization(Tabs["Servers"] and Tabs["Servers"].frame)
+enableRobloxLocalization(Tabs["Servers"] and Tabs["Servers"].btn)
+
 -- ==================== MODERN VISUAL POLISH ====================
 local function applyModernPolish()
     for _, obj in ipairs(ScreenGui:GetDescendants()) do
         if obj:IsA("GuiBase2d") then
-            obj.AutoLocalize = false
-            if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+            local allowLocalization = allowsRobloxLocalization(obj)
+            obj.AutoLocalize = allowLocalization
+            if not allowLocalization and (obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox")) then
                 local englishText = obj.Text
                 if obj.Name ~= "TagText" and englishText ~= ""
                     and englishText:sub(-#ENGLISH_LOCK) ~= ENGLISH_LOCK then
@@ -4506,8 +4579,8 @@ local function handlePanelKey(input, gpe)
         return
     end
 
-    if input.KeyCode == Enum.KeyCode.B then
-        ScreenGui.Enabled = not ScreenGui.Enabled
+    if input.KeyCode == Enum.KeyCode.B and loadingFinished and MainFrame then
+        MainFrame.Visible = not MainFrame.Visible
     end
 end
 
