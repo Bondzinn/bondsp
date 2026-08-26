@@ -63,7 +63,7 @@ local BACKGROUND_IMAGE = normalizeAssetId(
 local BACKGROUND_IMAGE_URL = PANEL_CONFIG.BACKGROUND_IMAGE_URL
     or (API_BASE .. "/assets/panel-background.png")
 local LOGO_IMAGE_URL = PANEL_CONFIG.LOGO_IMAGE_URL or (API_BASE .. "/assets/logo.png")
-local LOADING_LOGO_URL = PANEL_CONFIG.LOADING_LOGO_URL or (API_BASE .. "/assets/logo.gif")
+local LOADING_LOGO_URL = PANEL_CONFIG.LOADING_LOGO_URL or (API_BASE .. "/assets/logo-spritesheet.png")
 local VERSION    = tostring(PANEL_CONFIG.VERSION or "v1.0.0")
 
 -- Estado global da sessão/painel
@@ -1299,6 +1299,9 @@ end)
 -- ==================== LOADING UI ====================
 local MainFrame
 local loadingFinished = false
+local loadingFinishing = false
+local loadingLogoReady = false
+local loadingStartedAt = os.clock()
 
 local LoadingRoot = Instance.new("Frame")
 LoadingRoot.Name = "LoadingScreen"
@@ -1412,9 +1415,21 @@ local function setLoadingProgress(percent, status)
 end
 
 local function finishLoading(status)
-    if loadingFinished then return end
+    if loadingFinished or loadingFinishing then return end
+    loadingFinishing = true
+
+    -- Evita que uma resposta muito rápida da API esconda o loading antes da logo.
+    local logoDeadline = os.clock() + 5
+    while LoadingRoot.Parent and not loadingLogoReady and os.clock() < logoDeadline do
+        task.wait(0.05)
+    end
+    local minimumVisible = 2.6
+    local remaining = minimumVisible - (os.clock() - loadingStartedAt)
+    if remaining > 0 then task.wait(remaining) end
+
+    if not LoadingRoot.Parent then return end
     loadingFinished = true
-    loadingStatus.Text = status or "All set!"
+    loadingStatus.Text = status or "Tudo pronto!"
     loadingPercent.Text = "100%"
     loadingFill.Size = UDim2.new(1, 0, 1, 0)
     if MainFrame then MainFrame.Visible = true end
@@ -1643,20 +1658,34 @@ TitleLabel.Parent           = Header
 
 local function loadPanelImage(url, cacheFile, target)
     local customAsset = getcustomasset or getsynasset
-    if type(customAsset) ~= "function" or type(writefile) ~= "function" then return end
+    if type(customAsset) ~= "function" or type(writefile) ~= "function" then return nil end
     local okDownload, bytes = pcall(function()
         return game:HttpGet(url .. "?v=" .. tostring(os.time()))
     end)
-    if not okDownload or type(bytes) ~= "string" or #bytes < 100 then return end
-    local okWrite = pcall(writefile, cacheFile, bytes)
-    if not okWrite then return end
+    if not okDownload or type(bytes) ~= "string" or #bytes < 100 then return nil end
+    if not pcall(writefile, cacheFile, bytes) then return nil end
     local okAsset, asset = pcall(customAsset, cacheFile)
     if okAsset and type(asset) == "string" and target and target.Parent then
         target.Image = asset
+        return asset
     end
+    return nil
 end
 
-task.spawn(loadPanelImage, LOADING_LOGO_URL, "288-panel-logo.gif", loadingIcon)
+task.spawn(function()
+    local asset = loadPanelImage(LOADING_LOGO_URL, "288-panel-logo-spritesheet.png", loadingIcon)
+    if not asset or not loadingIcon.Parent then return end
+    loadingIcon.ImageRectSize = Vector2.new(96, 96)
+    local loadDeadline = os.clock() + 3
+    while loadingIcon.Parent and not loadingIcon.IsLoaded and os.clock() < loadDeadline do task.wait() end
+    loadingLogoReady = loadingIcon.Parent ~= nil and loadingIcon.IsLoaded
+    local frame = 0
+    while loadingIcon.Parent do
+        loadingIcon.ImageRectOffset = Vector2.new((frame % 8) * 96, math.floor(frame / 8) * 96)
+        frame = (frame + 1) % 40
+        task.wait(0.06)
+    end
+end)
 task.spawn(loadPanelImage, LOGO_IMAGE_URL, "288-panel-logo.png", HeaderLogo)
 
 local CloseBtn = Instance.new("TextButton")
