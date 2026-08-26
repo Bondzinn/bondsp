@@ -62,6 +62,8 @@ local BACKGROUND_IMAGE = normalizeAssetId(
 )
 local BACKGROUND_IMAGE_URL = PANEL_CONFIG.BACKGROUND_IMAGE_URL
     or (API_BASE .. "/assets/panel-background.png")
+local LOGO_IMAGE_URL = PANEL_CONFIG.LOGO_IMAGE_URL or (API_BASE .. "/assets/logo.png")
+local LOADING_LOGO_URL = PANEL_CONFIG.LOADING_LOGO_URL or (API_BASE .. "/assets/logo.gif")
 local VERSION    = tostring(PANEL_CONFIG.VERSION or "v1.0.0")
 
 -- Estado global da sessão/painel
@@ -1322,15 +1324,16 @@ loadingStroke.Transparency = 0.32
 loadingStroke.Thickness = 1.2
 loadingStroke.Parent = LoadingCard
 
-local loadingIcon = Instance.new("Frame")
+local loadingIcon = Instance.new("ImageLabel")
+loadingIcon.Name = "PanelLogo"
 loadingIcon.Size = UDim2.new(0, 40, 0, 40)
 loadingIcon.Position = UDim2.new(0, 22, 0, 20)
 loadingIcon.BackgroundColor3 = SURFACE_2
 loadingIcon.BorderSizePixel = 0
+loadingIcon.ScaleType = Enum.ScaleType.Fit
 loadingIcon.ZIndex = 202
 loadingIcon.Parent = LoadingCard
 Instance.new("UICorner", loadingIcon).CornerRadius = UDim.new(0, 12)
-makeVectorIcon(loadingIcon, "star", 9, 9, 22, ACCENT)
 
 local loadingTitle = Instance.new("TextLabel")
 loadingTitle.Size = UDim2.new(1, -92, 0, 28)
@@ -1617,9 +1620,18 @@ HeaderGlowGradient.Transparency = NumberSequence.new({
 })
 HeaderGlowGradient.Parent = HeaderGlow
 
+local HeaderLogo = Instance.new("ImageLabel")
+HeaderLogo.Name = "PanelLogo"
+HeaderLogo.Size = UDim2.fromOffset(34, 34)
+HeaderLogo.Position = UDim2.new(0, 16, 0.5, -17)
+HeaderLogo.BackgroundTransparency = 1
+HeaderLogo.ScaleType = Enum.ScaleType.Fit
+HeaderLogo.ZIndex = 3
+HeaderLogo.Parent = Header
+
 local TitleLabel = Instance.new("TextLabel")
-TitleLabel.Size             = UDim2.new(0, 180, 1, 0)
-TitleLabel.Position         = UDim2.new(0, 18, 0, 0)
+TitleLabel.Size             = UDim2.new(0, 150, 1, 0)
+TitleLabel.Position         = UDim2.new(0, 58, 0, 0)
 TitleLabel.BackgroundTransparency = 1
 TitleLabel.Text             = "288 Panel"
 TitleLabel.TextSize         = 15
@@ -1628,6 +1640,24 @@ TitleLabel.TextXAlignment   = Enum.TextXAlignment.Left
 TitleLabel.TextColor3       = TEXT_MAIN
 TitleLabel.ZIndex           = 3
 TitleLabel.Parent           = Header
+
+local function loadPanelImage(url, cacheFile, target)
+    local customAsset = getcustomasset or getsynasset
+    if type(customAsset) ~= "function" or type(writefile) ~= "function" then return end
+    local okDownload, bytes = pcall(function()
+        return game:HttpGet(url .. "?v=" .. tostring(os.time()))
+    end)
+    if not okDownload or type(bytes) ~= "string" or #bytes < 100 then return end
+    local okWrite = pcall(writefile, cacheFile, bytes)
+    if not okWrite then return end
+    local okAsset, asset = pcall(customAsset, cacheFile)
+    if okAsset and type(asset) == "string" and target and target.Parent then
+        target.Image = asset
+    end
+end
+
+task.spawn(loadPanelImage, LOADING_LOGO_URL, "288-panel-logo.gif", loadingIcon)
+task.spawn(loadPanelImage, LOGO_IMAGE_URL, "288-panel-logo.png", HeaderLogo)
 
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size             = UDim2.new(0, 30, 0, 30)
