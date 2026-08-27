@@ -4000,7 +4000,7 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
     local autoButton = makeToggleButton(f, "Auto Fish", COL1, y, 410, BTN_H)
     local options = Instance.new("Frame")
     options.Name = "AutoFishOptions"
-    options.Size = UDim2.new(0, 430, 0, 142)
+    options.Size = UDim2.new(0, 430, 0, 54)
     options.Position = UDim2.new(0, COL1 - 10, 0, y + BTN_H + GAP)
     options.BackgroundColor3 = THEMES[currentTheme].content
     options.BackgroundTransparency = 0.08
@@ -4053,21 +4053,6 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
     end
     makeAutomationSwitch("Auto Venda", "autoSell", 10)
     makeAutomationSwitch("Auto Reparo", "autoRepair", 230)
-
-    local actions = {
-        {"Capturar Agora", "capture", 10, 52},
-        {"Vender Agora", "sell", 230, 52},
-        {"Reparar Agora", "repair", 10, 94},
-        {"Atualizar Dados", "refresh", 230, 94},
-    }
-    for _, definition in ipairs(actions) do
-        local button = makeButton(options, definition[1], definition[3], definition[4], 190, BTN_H)
-        button:SetAttribute("288SilentNotification", true)
-        button.MouseButton1Click:Connect(function()
-            GLOBAL.__288MushYOCommand = {action = definition[2]}
-            loadModule("modules/Games/MushYO/Controller.lua")
-        end)
-    end
 
     autoButton.MouseButton1Click:Connect(function()
         task.defer(function()
