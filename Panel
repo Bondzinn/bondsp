@@ -46,7 +46,7 @@ end
 -- ==================== CONFIG ====================
 local GLOBAL = (getgenv and getgenv()) or _G
 local PANEL_CONFIG = GLOBAL.__288PanelConfig or {}
-local API_BASE   = PANEL_CONFIG.API_BASE or "https://tough-southampton-hair-remix.trycloudflare.com"
+local API_BASE   = PANEL_CONFIG.API_BASE or "https://investigation-cleaning-harmony-documentation.trycloudflare.com"
 local GITHUB_RAW = PANEL_CONFIG.GITHUB_RAW or "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
 -- FaÃ§a upload de assets/panel-background.png no Roblox e informe o asset ID aqui
 -- via getgenv().__288PanelConfig.BACKGROUND_IMAGE = "rbxassetid://SEU_ID".
@@ -1111,6 +1111,7 @@ task.spawn(function()
         "modules/VIP/AntiFling", "modules/VIP/AntiFlingOff",
         "modules/VIP/FakeVR", "modules/VIP/FakeVROff",
         "modules/Games/MM2/Controller", "modules/Games/MM2/Extension",
+        "modules/Games/MushYO/Controller", "modules/Games/MushYO/Extension",
         "modules/More/ESP", "modules/More/Aimbot",
     }
     commonModulePreloadRemaining = #commonModules
@@ -1549,6 +1550,27 @@ local MainScale = Instance.new("UIScale")
 MainScale.Name = "ResponsiveScale"
 MainScale.Scale = 1
 MainScale.Parent = MainFrame
+local clampingMainFrame = false
+local function clampMainFrameToWindow()
+    if clampingMainFrame or not MainFrame or not MainFrame.Parent then return end
+    local camera = workspace.CurrentCamera
+    if not camera then return end
+    local viewport = camera.ViewportSize
+    local inset = GuiService:GetGuiInset()
+    local position = MainFrame.AbsolutePosition
+    local size = MainFrame.AbsoluteSize
+    local targetX = math.clamp(position.X, 0, math.max(0, viewport.X - size.X))
+    local targetY = math.clamp(position.Y, inset.Y, math.max(inset.Y, viewport.Y - size.Y))
+    local deltaX, deltaY = targetX - position.X, targetY - position.Y
+    if math.abs(deltaX) > 0.5 or math.abs(deltaY) > 0.5 then
+        clampingMainFrame = true
+        local current = MainFrame.Position
+        MainFrame.Position = UDim2.new(current.X.Scale, current.X.Offset + deltaX, current.Y.Scale, current.Y.Offset + deltaY)
+        clampingMainFrame = false
+    end
+end
+trackConnect(MainFrame:GetPropertyChangedSignal("Position"), clampMainFrameToWindow)
+trackConnect(MainScale:GetPropertyChangedSignal("Scale"), function() task.defer(clampMainFrameToWindow) end)
 
 local function updateResponsiveScale()
     local camera = workspace.CurrentCamera
@@ -1557,6 +1579,7 @@ local function updateResponsiveScale()
     local scaleX = (viewport.X - 24) / 620
     local scaleY = (viewport.Y - 24) / 430
     MainScale.Scale = math.clamp(math.min(scaleX, scaleY, 1), 0.55, 1)
+    task.defer(clampMainFrameToWindow)
 end
 updateResponsiveScale()
 if workspace.CurrentCamera then
@@ -1839,6 +1862,9 @@ local TABS_DEF = {
 local DETECTED_GAME
 if game.PlaceId == 142823291 then
     DETECTED_GAME = {key = "MM2", name = "Murder Mystery 2"}
+    table.insert(TABS_DEF, {name = DETECTED_GAME.name, layoutOrder = 8})
+elseif game.PlaceId == 17274762379 then
+    DETECTED_GAME = {key = "MushYO", name = "MushYO"}
     table.insert(TABS_DEF, {name = DETECTED_GAME.name, layoutOrder = 8})
 end
 
@@ -3966,7 +3992,67 @@ if DETECTED_GAME and DETECTED_GAME.key == "MM2" then
         GLOBAL.__288MM2Command = nil
     end)
     refreshCanvas(f)
-end-- ==================== SERVERS TAB ====================
+end
+
+if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
+    local f = Tabs[DETECTED_GAME.name].frame
+    local y = 10
+
+    local autoButton = makeToggleButton(f, "Auto Fish Pro", COL1, y, BTN_W, BTN_H)
+    local autoDot = makeStatusDot(f, DOT1_X, y + BTN_H / 2 - DOT_SIZE / 2, DOT_SIZE)
+    autoButton.MouseButton1Click:Connect(function()
+        task.defer(function()
+            local active = toggleStates[autoButton] == true
+            autoDot.setActive(active)
+            GLOBAL.__288MushYOCommand = {feature = "autoFish", enabled = active}
+            loadModule("modules/Games/MushYO/Controller.lua")
+        end)
+    end)
+
+    local automationToggles = {
+        {"Auto Venda", "autoSell", COL1, DOT1_X},
+        {"Auto Reparo", "autoRepair", COL2, DOT2_X},
+    }
+    for _, definition in ipairs(automationToggles) do
+        local yPosition = y + BTN_H + GAP
+        local button = makeToggleButton(f, definition[1], definition[3], yPosition, BTN_W, BTN_H)
+        local dot = makeStatusDot(f, definition[4], yPosition + BTN_H / 2 - DOT_SIZE / 2, DOT_SIZE)
+        button.MouseButton1Click:Connect(function()
+            task.defer(function()
+                local active = toggleStates[button] == true
+                dot.setActive(active)
+                GLOBAL.__288MushYOCommand = {feature = definition[2], enabled = active}
+                loadModule("modules/Games/MushYO/Controller.lua")
+            end)
+        end)
+    end
+
+    local actions = {
+        {"Capturar Agora", "capture", COL2, DOT2_X},
+        {"Vender Agora", "sell", COL1, DOT1_X},
+        {"Reparar Agora", "repair", COL2, DOT2_X},
+        {"Atualizar Dados", "refresh", COL1, DOT1_X},
+    }
+    for index, definition in ipairs(actions) do
+        local row = math.floor((index + 3) / 2)
+        local yPosition = y + row * (BTN_H + GAP)
+        local button = makeButton(f, definition[1], definition[3], yPosition, BTN_W, BTN_H)
+        makeMouseDot(f, definition[4], yPosition + BTN_H / 2 - DOT_SIZE / 2, DOT_SIZE)
+        button.MouseButton1Click:Connect(function()
+            GLOBAL.__288MushYOCommand = {action = definition[2]}
+            loadModule("modules/Games/MushYO/Controller.lua")
+        end)
+    end
+
+    registerCleanup("Game/MushYO", function()
+        GLOBAL.__288MushYOCommand = {stop = true}
+        loadModule("modules/Games/MushYO/Controller.lua")
+        GLOBAL.__288MushYOCommand = nil
+    end)
+    refreshCanvas(f)
+end
+
+-- ==================== SERVERS TAB ====================
 do
     local f = Tabs["Servers"].frame
     f.ScrollingEnabled = false
@@ -4383,32 +4469,88 @@ do
 
 end
 
+local ROBLOX_LOCALE = tostring(game:GetService("LocalizationService").RobloxLocaleId or "en-us"):lower()
+local USE_PORTUGUESE_FALLBACK = ROBLOX_LOCALE:sub(1, 2) == "pt"
+local PORTUGUESE_TEXT = {
+    ["Home"] = "Início", ["Target"] = "Alvo", ["Servers"] = "Servidores", ["About"] = "Sobre",
+    ["ONLINE"] = "ONLINE", ["USERS"] = "USUÁRIOS", ["SESSION"] = "SESSÃO",
+    ["Friends on other servers:"] = "Amigos em outros servidores:",
+    ["Available servers:"] = "Servidores disponíveis:",
+    ["No friends are playing this game on another server."] = "Nenhum amigo está jogando este jogo em outro servidor.",
+    ["Join server"] = "Entrar no servidor", ["Friend"] = "Amigo",
+    ["Enter a name above\nto find a player"] = "Digite um nome acima\npara encontrar um jogador",
+    ["@username or display name..."] = "@usuário ou nome de exibição...",
+    ["UserID:"] = "ID do usuário:", ["Display:"] = "Exibição:", ["Name:"] = "Nome:",
+    ["View"] = "Visualizar", ["Focus"] = "Focar", ["Follow"] = "Seguir", ["Stand"] = "Ficar em pé",
+    ["Bang"] = "Bang", ["Drag"] = "Arrastar", ["Headsit"] = "Sentar na cabeça", ["Doggy"] = "Doggy",
+    ["Backpack"] = "Mochila", ["CopyID"] = "Copiar ID", ["Bring"] = "Trazer", ["Teleport"] = "Teleportar",
+    ["Developers:"] = "Desenvolvedores:", ["Version: "] = "Versão: ", ["Donate:"] = "Doar:",
+    ["support project"] = "apoiar projeto", ["Support:"] = "Suporte:", ["open\nsupport"] = "abrir\nsuporte",
+}
+
+local function portugueseFallback(source)
+    source = tostring(source or ""):gsub(ENGLISH_LOCK, "")
+    if not USE_PORTUGUESE_FALLBACK or source == "" then return source end
+    if PORTUGUESE_TEXT[source] then return PORTUGUESE_TEXT[source] end
+    if source:match("^SESSION%s") then return source:gsub("^SESSION", "SESSÃO", 1) end
+    local displayName = source:match("^Hello, (.+)%.$")
+    if displayName then return "Olá, " .. displayName .. "." end
+    if source:find("Press ", 1, true) and source:find("to\nopen/close the panel", 1, true) then
+        return source:gsub("Press ", "Pressione "):gsub("to\nopen/close the panel", "para\nabrir/fechar o painel")
+    end
+    local value = source:match("^UserID:%s*(.*)$")
+    if value then return "ID do usuário: " .. value end
+    value = source:match("^Display:%s*(.*)$")
+    if value then return "Exibição: " .. value end
+    value = source:match("^Name:%s*(.*)$")
+    if value then return "Nome: " .. value end
+    return source
+end
+
+local localizationUpdating = setmetatable({}, {__mode = "k"})
+local function localizeGuiObject(obj)
+    if not obj or not obj:IsA("GuiBase2d") then return end
+    obj:SetAttribute("288AllowLocalization", true)
+    obj.AutoLocalize = true
+    if not (obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox")) then return end
+
+    local function refresh()
+        if localizationUpdating[obj] then return end
+        localizationUpdating[obj] = true
+        local translated = portugueseFallback(obj.Text)
+        if obj.Text ~= translated then obj.Text = translated end
+        if obj:IsA("TextBox") then
+            local placeholder = portugueseFallback(obj.PlaceholderText)
+            if obj.PlaceholderText ~= placeholder then obj.PlaceholderText = placeholder end
+        end
+        localizationUpdating[obj] = nil
+    end
+    refresh()
+    if not obj:GetAttribute("288LocalizationBound") then
+        obj:SetAttribute("288LocalizationBound", true)
+        trackConnect(obj:GetPropertyChangedSignal("Text"), refresh)
+        if obj:IsA("TextBox") then trackConnect(obj:GetPropertyChangedSignal("PlaceholderText"), refresh) end
+    end
+end
+
 local function enableRobloxLocalization(root)
     if not root then return end
     root:SetAttribute("288AllowLocalization", true)
-    local objects = {root}
-    for _, child in ipairs(root:GetDescendants()) do objects[#objects + 1] = child end
-    for _, obj in ipairs(objects) do
-        if obj:IsA("GuiBase2d") then
-            obj:SetAttribute("288AllowLocalization", true)
-            obj.AutoLocalize = true
-            if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-                obj.Text = tostring(obj.Text or ""):gsub(ENGLISH_LOCK, "")
-                if obj:IsA("TextBox") then
-                    obj.PlaceholderText = tostring(obj.PlaceholderText or ""):gsub(ENGLISH_LOCK, "")
-                end
-            end
-        end
-    end
+    localizeGuiObject(root)
+    for _, child in ipairs(root:GetDescendants()) do localizeGuiObject(child) end
+    trackConnect(root.DescendantAdded, function(child)
+        task.defer(localizeGuiObject, child)
+    end)
 end
 
 enableRobloxLocalization(Tabs["Home"] and Tabs["Home"].frame)
 enableRobloxLocalization(Tabs["Home"] and Tabs["Home"].btn)
+enableRobloxLocalization(Tabs["Target"] and Tabs["Target"].frame)
+enableRobloxLocalization(Tabs["Target"] and Tabs["Target"].btn)
 enableRobloxLocalization(Tabs["About"] and Tabs["About"].frame)
 enableRobloxLocalization(Tabs["About"] and Tabs["About"].btn)
 enableRobloxLocalization(Tabs["Servers"] and Tabs["Servers"].frame)
 enableRobloxLocalization(Tabs["Servers"] and Tabs["Servers"].btn)
-
 -- ==================== MODERN VISUAL POLISH ====================
 local function applyModernPolish()
     for _, obj in ipairs(ScreenGui:GetDescendants()) do
