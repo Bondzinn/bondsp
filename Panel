@@ -4000,7 +4000,8 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
     local autoButton = makeToggleButton(f, "Auto Fish", COL1, y, BTN_W, BTN_H)
     local options = Instance.new("Frame")
     options.Name = "AutoFishOptions"
-    options.Size = UDim2.new(0, 430, 0, 28)
+    options.Size = UDim2.new(0, 430, 0, 0)
+    options.ClipsDescendants = true
     options.Position = UDim2.new(0, COL1, 0, y + BTN_H + GAP)
     options.BackgroundTransparency = 1
     options.BorderSizePixel = 0
@@ -4060,10 +4061,25 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
     autoButton.MouseButton1Click:Connect(function()
         task.defer(function()
             local active = toggleStates[autoButton] == true
-            options.Visible = active
             GLOBAL.__288MushYOCommand = {feature = "autoFish", enabled = active}
             loadModule("modules/Games/MushYO/Controller.lua")
-            refreshCanvas(f)
+            if active then
+                options.Visible = true
+                options.Size = UDim2.new(0, 430, 0, 0)
+                TweenService:Create(options, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+                    Size = UDim2.new(0, 430, 0, 28)
+                }):Play()
+                task.delay(0.19, function() refreshCanvas(f) end)
+            else
+                local closing = TweenService:Create(options, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+                    Size = UDim2.new(0, 430, 0, 0)
+                })
+                closing:Play()
+                closing.Completed:Once(function()
+                    options.Visible = false
+                    refreshCanvas(f)
+                end)
+            end
         end)
     end)
 
