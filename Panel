@@ -4506,7 +4506,6 @@ end
 local ROBLOX_LOCALE = tostring(game:GetService("LocalizationService").RobloxLocaleId or "en-us"):lower()
 local USE_PORTUGUESE_FALLBACK = ROBLOX_LOCALE:sub(1, 2) == "pt"
 local PORTUGUESE_TEXT = {
-    ["Home"] = "Início", ["Target"] = "Alvo", ["Servers"] = "Servidores", ["About"] = "Sobre",
     ["ONLINE"] = "ONLINE", ["USERS"] = "USUÁRIOS", ["SESSION"] = "SESSÃO",
     ["Friends on other servers:"] = "Amigos em outros servidores:",
     ["Available servers:"] = "Servidores disponíveis:",
@@ -4543,10 +4542,14 @@ end
 
 local localizationUpdating = setmetatable({}, {__mode = "k"})
 local function localizeGuiObject(obj)
-    if not obj or not obj:IsA("GuiBase2d") then return end
+    if not obj or not (obj:IsA("TextLabel") or obj:IsA("TextBox")) then return end
+    local ancestor = obj.Parent
+    while ancestor do
+        if ancestor:IsA("GuiButton") then return end
+        ancestor = ancestor.Parent
+    end
     obj:SetAttribute("288AllowLocalization", true)
     obj.AutoLocalize = true
-    if not (obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox")) then return end
 
     local function refresh()
         if localizationUpdating[obj] then return end
@@ -4569,22 +4572,21 @@ end
 
 local function enableRobloxLocalization(root)
     if not root then return end
-    root:SetAttribute("288AllowLocalization", true)
-    localizeGuiObject(root)
-    for _, child in ipairs(root:GetDescendants()) do localizeGuiObject(child) end
+    if root:IsA("TextLabel") or root:IsA("TextBox") then localizeGuiObject(root) end
+    for _, child in ipairs(root:GetDescendants()) do
+        if child:IsA("TextLabel") or child:IsA("TextBox") then localizeGuiObject(child) end
+    end
     trackConnect(root.DescendantAdded, function(child)
-        task.defer(localizeGuiObject, child)
+        if child:IsA("TextLabel") or child:IsA("TextBox") then
+            task.defer(localizeGuiObject, child)
+        end
     end)
 end
 
-enableRobloxLocalization(Tabs["Home"] and Tabs["Home"].frame)
-enableRobloxLocalization(Tabs["Home"] and Tabs["Home"].btn)
+ enableRobloxLocalization(Tabs["Home"] and Tabs["Home"].frame)
 enableRobloxLocalization(Tabs["Target"] and Tabs["Target"].frame)
-enableRobloxLocalization(Tabs["Target"] and Tabs["Target"].btn)
 enableRobloxLocalization(Tabs["About"] and Tabs["About"].frame)
-enableRobloxLocalization(Tabs["About"] and Tabs["About"].btn)
 enableRobloxLocalization(Tabs["Servers"] and Tabs["Servers"].frame)
-enableRobloxLocalization(Tabs["Servers"] and Tabs["Servers"].btn)
 -- ==================== MODERN VISUAL POLISH ====================
 local function applyModernPolish()
     for _, obj in ipairs(ScreenGui:GetDescendants()) do
