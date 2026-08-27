@@ -3298,9 +3298,9 @@ do
         flyDot.setActive(flyActive)
         flyBtn.BackgroundColor3 = flyActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
         if flyActive then
-            loadModule("modules/Character/Fly.lua")
+            loadModule("modules/Character/Fly")
         else
-            loadModule("modules/Character/FlyOff.lua")
+            loadModule("modules/Character/FlyOff")
         end
     end
 
@@ -3314,7 +3314,7 @@ do
         )
     end)
     registerCleanup("Fly", function()
-        if flyActive then loadModule("modules/Character/FlyOff.lua") end
+        if flyActive then loadModule("modules/Character/FlyOff") end
     end)
 
     trackConnect(UserInputService.InputBegan, function(input, gpe)
