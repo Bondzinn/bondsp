@@ -3997,62 +3997,65 @@ end
 if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
     local f = Tabs[DETECTED_GAME.name].frame
     local y = 10
-    local autoButton = makeToggleButton(f, "Auto Fish", COL1, y, 410, BTN_H)
+    local autoButton = makeToggleButton(f, "Auto Fish", COL1, y, BTN_W, BTN_H)
     local options = Instance.new("Frame")
     options.Name = "AutoFishOptions"
-    options.Size = UDim2.new(0, 430, 0, 54)
-    options.Position = UDim2.new(0, COL1 - 10, 0, y + BTN_H + GAP)
-    options.BackgroundColor3 = THEMES[currentTheme].content
-    options.BackgroundTransparency = 0.08
+    options.Size = UDim2.new(0, 430, 0, 28)
+    options.Position = UDim2.new(0, COL1, 0, y + BTN_H + GAP)
+    options.BackgroundTransparency = 1
     options.BorderSizePixel = 0
-    options.ClipsDescendants = true
     options.Visible = false
     options.ZIndex = 3
     options.Parent = f
-    Instance.new("UICorner", options).CornerRadius = UDim.new(0, 14)
-    local optionsStroke = Instance.new("UIStroke")
-    optionsStroke.Color = ACCENT
-    optionsStroke.Transparency = 0.58
-    optionsStroke.Thickness = 1
-    optionsStroke.Parent = options
-    registerTheme(options, "BackgroundColor3", "content")
 
     local function makeAutomationSwitch(text, feature, x)
-        local button = makeToggleButton(options, text, x, 10, 190, BTN_H)
+        local button = Instance.new("TextButton")
+        button.Name = feature .. "Switch"
+        button.Size = UDim2.fromOffset(BTN_W, 24)
+        button.Position = UDim2.fromOffset(x, 2)
+        button.BackgroundTransparency = 1
+        button.BorderSizePixel = 0
+        button.AutoButtonColor = false
+        button.AutoLocalize = false
+        button.Text = keepEnglish(text)
+        button.TextColor3 = THEMES[currentTheme].textDim
+        button.TextSize = 10
+        button.Font = Enum.Font.GothamMedium
         button.TextXAlignment = Enum.TextXAlignment.Left
-        button.Text = "   " .. keepEnglish(text)
+        button.ZIndex = 4
+        button.Parent = options
+        registerTheme(button, "TextColor3", "textDim")
         local track = Instance.new("Frame")
-        track.Size = UDim2.fromOffset(34, 18)
-        track.Position = UDim2.new(1, -43, 0.5, -9)
+        track.Size = UDim2.fromOffset(30, 14)
+        track.Position = UDim2.new(1, -30, 0.5, -7)
         track.BackgroundColor3 = Color3.fromRGB(72, 70, 80)
         track.BorderSizePixel = 0
-        track.ZIndex = 6
+        track.ZIndex = 5
         track.Parent = button
         Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
         local knob = Instance.new("Frame")
-        knob.Size = UDim2.fromOffset(14, 14)
+        knob.Size = UDim2.fromOffset(10, 10)
         knob.Position = UDim2.fromOffset(2, 2)
         knob.BackgroundColor3 = Color3.fromRGB(225, 222, 230)
         knob.BorderSizePixel = 0
-        knob.ZIndex = 7
+        knob.ZIndex = 6
         knob.Parent = track
         Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
-        local function render(active)
+        local active = false
+        local function render()
             track.BackgroundColor3 = active and ACCENT or Color3.fromRGB(72, 70, 80)
             knob.Position = active and UDim2.fromOffset(18, 2) or UDim2.fromOffset(2, 2)
         end
-        render(false)
+        render()
         button.MouseButton1Click:Connect(function()
-            task.defer(function()
-                local active = toggleStates[button] == true
-                render(active)
-                GLOBAL.__288MushYOCommand = {feature = feature, enabled = active}
-                loadModule("modules/Games/MushYO/Controller.lua")
-            end)
+            active = not active
+            render()
+            GLOBAL.__288MushYOCommand = {feature = feature, enabled = active}
+            loadModule("modules/Games/MushYO/Controller.lua")
         end)
     end
-    makeAutomationSwitch("Auto Venda", "autoSell", 10)
-    makeAutomationSwitch("Auto Reparo", "autoRepair", 230)
+    makeAutomationSwitch("Auto Venda", "autoSell", 0)
+    makeAutomationSwitch("Auto Reparo", "autoRepair", COL2 - COL1)
 
     autoButton.MouseButton1Click:Connect(function()
         task.defer(function()
