@@ -1114,6 +1114,7 @@ task.spawn(function()
         "modules/Games/MM2/Controller", "modules/Games/MM2/Extension",
         "modules/Games/MushYO/Controller", "modules/Games/MushYO/Extension",
         "modules/Games/MushYO/ButterflyFarm", "modules/Games/MushYO/ButterflyFarmOff",
+        "modules/Games/MushYO/TreasureFarm", "modules/Games/MushYO/TreasureFarmOff",
         "modules/More/ESP", "modules/More/Aimbot",
     }
     commonModulePreloadRemaining = #commonModules
@@ -1578,9 +1579,12 @@ local function updateResponsiveScale()
     local camera = workspace.CurrentCamera
     if not camera then return end
     local viewport = camera.ViewportSize
-    local scaleX = (viewport.X - 24) / 620
-    local scaleY = (viewport.Y - 24) / 430
-    MainScale.Scale = math.clamp(math.min(scaleX, scaleY, 1), 0.55, 1)
+    local safeMargin = DEVICE == "mobile" and 8 or 24
+    local scaleX = (viewport.X - safeMargin) / 620
+    local scaleY = (viewport.Y - safeMargin) / 430
+    -- Mantem as duas colunas tambem no mobile, reduzindo o painel inteiro
+    -- quando necessario para nunca ultrapassar a viewport.
+    MainScale.Scale = math.clamp(math.min(scaleX, scaleY, 1), 0.40, 1)
     task.defer(clampMainFrameToWindow)
 end
 updateResponsiveScale()
@@ -2000,6 +2004,15 @@ local COL2 = COL1 + BTN_W + GAP + DOT_SIZE + GAP  -- Coluna 2 (direita)
 -- Posições do DOT para cada coluna
 local DOT1_X = COL1 + BTN_W + GAP
 local DOT2_X = COL2 + BTN_W + GAP
+
+-- Regra unica de grade usada por todas as abas com botoes de acao:
+-- 1/2 na primeira linha, 3/4 na segunda e assim por diante.
+local function gridSlot(order, startY, rowHeight)
+    local index = math.max(1, tonumber(order) or 1)
+    local column = index % 2 == 1 and COL1 or COL2
+    local row = math.floor((index - 1) / 2)
+    return column, (startY or 0) + row * (rowHeight or (BTN_H + GAP))
+end
 
 -- ==================== UI HELPERS ====================
 local function makeButton(parent, text, x, y, w, h, vipOnly)
@@ -2847,9 +2860,7 @@ do
         {"Fake VR", 10, true},
     }
     for _, v in ipairs(vipButtons) do
-        local col = (v[2] % 2 == 1) and COL1 or COL2
-        local row = math.floor((v[2] - 1) / 2)
-        local yPos = y + row * (BTN_H + GAP)
+        local col, yPos = gridSlot(v[2], y)
         local btn = makeToggleButton(f, v[1], col, yPos, BTN_W, BTN_H, v[3])
         btn.BackgroundColor3 = Color3.fromRGB(28,28,28)
         btn.TextColor3       = Color3.fromRGB(120,120,120)
@@ -3105,9 +3116,7 @@ do
     end
 
     for _, v in ipairs(emphasisBtns) do
-        local col = (v.order % 2 == 1) and COL1 or COL2
-        local row = math.floor((v.order - 1) / 2)
-        local yPos = y + row * (BTN_H + GAP)
+        local col, yPos = gridSlot(v.order, y)
         local btn = makeToggleButton(f, v.name, col, yPos, BTN_W, BTN_H)
         btn.TextSize = 13
         btn:SetAttribute("288SilentNotification", true)
@@ -3496,9 +3505,7 @@ do
     local clearingTarget = false
 
     for _, v in ipairs(TARGET_BTNS) do
-        local col = (v.order % 2 == 1) and COL1 or COL2
-        local row = math.floor((v.order - 1) / 2)
-        local yPos = GRID_Y + row * (BTN_H + GAP)
+        local col, yPos = gridSlot(v.order, GRID_Y)
         local btn = makeButton(f, v.name, col, yPos, BTN_W, BTN_H, v.vip)
         btn:SetAttribute("288RequiresTarget", true)
         btn.TextSize = 13
@@ -3968,9 +3975,7 @@ if DETECTED_GAME and DETECTED_GAME.key == "MM2" then
     }
     for _, definition in ipairs(controls) do
         local feature = definition[2]
-        local column = definition[3] % 2 == 1 and COL1 or COL2
-        local row = math.floor((definition[3] - 1) / 2)
-        local yPosition = y + row * (BTN_H + GAP)
+        local column, yPosition = gridSlot(definition[3], y)
         local button = makeToggleButton(f, definition[1], column, yPosition, BTN_W, BTN_H)
         local dot = makeStatusDot(f, definition[3] % 2 == 1 and DOT1_X or DOT2_X, yPosition + BTN_H / 2 - DOT_SIZE / 2, DOT_SIZE)
         button.MouseButton1Click:Connect(function()
@@ -4006,18 +4011,8 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
     local f = Tabs[DETECTED_GAME.name].frame
     local y = 10
 
-    -- O layout da aba controla a pilha vertical. Quando o accordion cresce,
-    -- qualquer controle colocado depois dele e empurrado automaticamente.
-    local mushLayout = Instance.new("UIListLayout")
-    mushLayout.SortOrder = Enum.SortOrder.LayoutOrder
-    mushLayout.Padding = UDim.new(0, GAP)
-    mushLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-    mushLayout.Parent = f
-
-    local mushPadding = Instance.new("UIPadding")
-    mushPadding.PaddingTop = UDim.new(0, y)
-    mushPadding.PaddingLeft = UDim.new(0, COL1)
-    mushPadding.Parent = f
+    -- Controles principais sempre seguem a grade de duas colunas.
+    -- Com tres botoes: dois na primeira linha e um na segunda.
 
     local OPTION_H = 24
     local OPTION_GAP = 4
@@ -4028,6 +4023,7 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
     local accordion = Instance.new("Frame")
     accordion.Name = "AutoFishAccordion"
     accordion.Size = UDim2.new(0, BTN_W, 0, CLOSED_H)
+    accordion.Position = UDim2.new(0, COL1, 0, y)
     accordion.BackgroundTransparency = 1
     accordion.BorderSizePixel = 0
     accordion.ClipsDescendants = true
@@ -4047,8 +4043,8 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
     local butterflyButton = makeToggleButton(
         f,
         "Butterfly Farm",
-        0,
-        0,
+        COL2,
+        y,
         BTN_W,
         BTN_H
     )
@@ -4066,7 +4062,27 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
                 feature = "butterflyFarm",
                 enabled = toggleStates[butterflyButton] == true
             }
-            loadModule("modules/Games/MushYO/Controller.lua")
+            loadModule("modules/Games/MushYO/Controller")
+        end)
+    end)
+
+    local treasureButton = makeToggleButton(
+        f,
+        "Auto Treasure",
+        COL1,
+        y + CLOSED_H + GAP,
+        BTN_W,
+        BTN_H
+    )
+    treasureButton.LayoutOrder = 3
+
+    treasureButton.MouseButton1Click:Connect(function()
+        task.defer(function()
+            GLOBAL.__288MushYOCommand = {
+                feature = "treasureFarm",
+                enabled = toggleStates[treasureButton] == true
+            }
+            loadModule("modules/Games/MushYO/Controller")
         end)
     end)
 
@@ -4170,7 +4186,7 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
                 feature = feature,
                 enabled = active
             }
-            loadModule("modules/Games/MushYO/Controller.lua")
+            loadModule("modules/Games/MushYO/Controller")
 
             -- Ao LIGAR Auto Venda, executa uma venda imediatamente.
             -- O Controller do Auto Fish expoe SellNow depois de carregado.
@@ -4182,7 +4198,7 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
                     else
                         -- Fallback para Controllers que tratem a acao pela command table.
                         GLOBAL.__288MushYOCommand = { action = "sellNow" }
-                        loadModule("modules/Games/MushYO/Controller.lua")
+                        loadModule("modules/Games/MushYO/Controller")
                     end
                 end)
             end
@@ -4214,9 +4230,22 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
             ),
             {
                 -- SOMENTE altura muda. A largura permanece BTN_W.
-                Size = UDim2.new(0, BTN_W, 0, expanded and OPEN_H or CLOSED_H)
+                Size = UDim2.new(0, BTN_W, 0, expanded and OPEN_H or CLOSED_H),
             }
         )
+
+        TweenService:Create(
+            treasureButton,
+            TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+            {
+                Position = UDim2.new(
+                    0,
+                    COL1,
+                    0,
+                    y + (expanded and OPEN_H or CLOSED_H) + GAP
+                )
+            }
+        ):Play()
 
         accordionTween:Play()
         accordionTween.Completed:Once(function()
@@ -4239,7 +4268,7 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
                 feature = "autoFish",
                 enabled = active
             }
-            loadModule("modules/Games/MushYO/Controller.lua")
+            loadModule("modules/Games/MushYO/Controller")
 
             -- O accordion acompanha o estado do Auto Fish.
             setAccordionExpanded(active)
@@ -4248,7 +4277,7 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
 
     registerCleanup("Game/MushYO", function()
         GLOBAL.__288MushYOCommand = {stop = true}
-        loadModule("modules/Games/MushYO/Controller.lua")
+        loadModule("modules/Games/MushYO/Controller")
         GLOBAL.__288MushYOCommand = nil
     end)
 
