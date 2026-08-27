@@ -83,6 +83,7 @@ local VIP_ACCESS_RANKS = {
 
 local function refreshVipAccess(rank, vip)
     _hasVipAccess = VIP_ACCESS_RANKS[rank] == true
+    GLOBAL.__288HasVipAccess = _hasVipAccess
     if VipLockOverlay then VipLockOverlay.Visible = not _hasVipAccess end
 end
 
@@ -1112,6 +1113,7 @@ task.spawn(function()
         "modules/VIP/FakeVR", "modules/VIP/FakeVROff",
         "modules/Games/MM2/Controller", "modules/Games/MM2/Extension",
         "modules/Games/MushYO/Controller", "modules/Games/MushYO/Extension",
+        "modules/Games/MushYO/ButterflyFarm", "modules/Games/MushYO/ButterflyFarmOff",
         "modules/More/ESP", "modules/More/Aimbot",
     }
     commonModulePreloadRemaining = #commonModules
@@ -1882,6 +1884,12 @@ local function setTab(name)
             t.accentBar.BackgroundColor3 = ACCENT
         end
     end
+end
+
+local function requireVipAccess()
+    if _hasVipAccess then return true end
+    setTab("VIP")
+    return false
 end
 
 for _, def in ipairs(TABS_DEF) do
@@ -2834,7 +2842,7 @@ do
         {"Fling", 1}, {"AntiFling", 2, true},
         {"AntiForce", 3}, {"AntiChatSpy", 4, true},
         {"AutoSacrifice", 5}, {"EscapeHandcuffs", 6},
-        {"AutoParry", 7}, {"ButterflyFarm", 8},
+        {"AutoParry", 7},
         {"EggCollect", 9},
         {"Fake VR", 10, true},
     }
@@ -4036,6 +4044,32 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
         BTN_H
     )
 
+    local butterflyButton = makeToggleButton(
+        f,
+        "Butterfly Farm",
+        0,
+        0,
+        BTN_W,
+        BTN_H
+    )
+    butterflyButton.LayoutOrder = 2
+
+    butterflyButton.MouseButton1Click:Connect(function()
+        task.defer(function()
+            if not requireVipAccess() then
+                toggleStates[butterflyButton] = false
+                butterflyButton.BackgroundColor3 = THEMES[currentTheme].btn
+                return
+            end
+
+            GLOBAL.__288MushYOCommand = {
+                feature = "butterflyFarm",
+                enabled = toggleStates[butterflyButton] == true
+            }
+            loadModule("modules/Games/MushYO/Controller.lua")
+        end)
+    end)
+
     -- As opcoes ficam exatamente abaixo do Auto Fish e dentro da mesma largura.
     local options = Instance.new("Frame")
     options.Name = "AutoFishOptions"
@@ -4192,6 +4226,13 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
 
     autoButton.MouseButton1Click:Connect(function()
         task.defer(function()
+            if not requireVipAccess() then
+                toggleStates[autoButton] = false
+                autoButton.BackgroundColor3 = THEMES[currentTheme].btn
+                setAccordionExpanded(false)
+                return
+            end
+
             local active = toggleStates[autoButton] == true
 
             GLOBAL.__288MushYOCommand = {
