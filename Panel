@@ -2855,9 +2855,8 @@ do
         {"Fling", 1}, {"AntiFling", 2, true},
         {"AntiForce", 3}, {"AntiChatSpy", 4, true},
         {"AutoSacrifice", 5}, {"EscapeHandcuffs", 6},
-        {"AutoParry", 7},
-        {"EggCollect", 9},
-        {"Fake VR", 10, true},
+        {"AutoParry", 7}, {"EggCollect", 8},
+        {"Fake VR", 9, true},
     }
     for _, v in ipairs(vipButtons) do
         local col, yPos = gridSlot(v[2], y)
@@ -3503,6 +3502,33 @@ do
     local targetUser = nil
     local targetControls = {}
     local clearingTarget = false
+    local positionalTargetActions = {
+        Focus = true, Follow = true, Stand = true, Bang = true,
+        Drag = true, Headsit = true, Doggy = true, Backpack = true,
+    }
+
+    local function restoreLocalTargetState()
+        local character = LocalPlayer.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        if humanoid then
+            humanoid.AutoRotate = true
+            humanoid.Sit = false
+            humanoid.PlatformStand = false
+            humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+        end
+        if root then
+            root.Anchored = false
+            root.AssemblyAngularVelocity = Vector3.zero
+        end
+    end
+
+    local function anyPositionalActionActive()
+        for _, control in ipairs(targetControls) do
+            if positionalTargetActions[control.name] and control.isActive() then return true end
+        end
+        return false
+    end
 
     for _, v in ipairs(TARGET_BTNS) do
         local col, yPos = gridSlot(v.order, GRID_Y)
@@ -3552,7 +3578,7 @@ do
                 end
                 -- Bring / Teleport -> carrega módulo único
                 local safe = v.name:gsub(" ", "")
-                loadModule("modules/Target/"..safe..".lua")
+                loadModule("modules/Target/"..safe)
             end)
         else
             btn.MouseButton1Click:Connect(function()
@@ -3563,7 +3589,23 @@ do
                 dot.setActive(active)
                 btn.BackgroundColor3 = active and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
                 local safe = v.name:gsub(" ","")
-                loadModule(active and ("modules/Target/"..safe..".lua") or ("modules/Target/"..safe.."Off.lua"))
+                if active and positionalTargetActions[v.name] then
+                    for _, control in ipairs(targetControls) do
+                        if control.name ~= v.name
+                            and positionalTargetActions[control.name]
+                            and control.isActive()
+                        then
+                            control.deactivate()
+                            loadModule("modules/Target/" .. control.name:gsub(" ", "") .. "Off")
+                        end
+                    end
+                end
+                loadModule(active and ("modules/Target/"..safe) or ("modules/Target/"..safe.."Off"))
+                if not active and positionalTargetActions[v.name] then
+                    task.delay(0.15, function()
+                        if not anyPositionalActionActive() then restoreLocalTargetState() end
+                    end)
+                end
             end)
         end
     end
@@ -3576,7 +3618,7 @@ do
         for _, control in ipairs(targetControls) do
             if not control.instant and control.isActive() then
                 local safe = control.name:gsub(" ", "")
-                table.insert(modulesToDisable, "modules/Target/" .. safe .. "Off.lua")
+                table.insert(modulesToDisable, "modules/Target/" .. safe .. "Off")
             end
             control.deactivate()
         end
@@ -3603,6 +3645,8 @@ do
             for _, modulePath in ipairs(modulesToDisable) do
                 loadModule(modulePath)
             end
+            task.wait(0.15)
+            restoreLocalTargetState()
         end)
     end
 
