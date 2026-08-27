@@ -3997,52 +3997,87 @@ end
 if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
     local f = Tabs[DETECTED_GAME.name].frame
     local y = 10
+    local autoButton = makeToggleButton(f, "Auto Fish", COL1, y, 410, BTN_H)
+    local options = Instance.new("Frame")
+    options.Name = "AutoFishOptions"
+    options.Size = UDim2.new(0, 430, 0, 142)
+    options.Position = UDim2.new(0, COL1 - 10, 0, y + BTN_H + GAP)
+    options.BackgroundColor3 = THEMES[currentTheme].content
+    options.BackgroundTransparency = 0.08
+    options.BorderSizePixel = 0
+    options.ClipsDescendants = true
+    options.Visible = false
+    options.ZIndex = 3
+    options.Parent = f
+    Instance.new("UICorner", options).CornerRadius = UDim.new(0, 14)
+    local optionsStroke = Instance.new("UIStroke")
+    optionsStroke.Color = ACCENT
+    optionsStroke.Transparency = 0.58
+    optionsStroke.Thickness = 1
+    optionsStroke.Parent = options
+    registerTheme(options, "BackgroundColor3", "content")
 
-    local autoButton = makeToggleButton(f, "Auto Fish Pro", COL1, y, BTN_W, BTN_H)
-    local autoDot = makeStatusDot(f, DOT1_X, y + BTN_H / 2 - DOT_SIZE / 2, DOT_SIZE)
-    autoButton.MouseButton1Click:Connect(function()
-        task.defer(function()
-            local active = toggleStates[autoButton] == true
-            autoDot.setActive(active)
-            GLOBAL.__288MushYOCommand = {feature = "autoFish", enabled = active}
-            loadModule("modules/Games/MushYO/Controller.lua")
-        end)
-    end)
-
-    local automationToggles = {
-        {"Auto Venda", "autoSell", COL1, DOT1_X},
-        {"Auto Reparo", "autoRepair", COL2, DOT2_X},
-    }
-    for _, definition in ipairs(automationToggles) do
-        local yPosition = y + BTN_H + GAP
-        local button = makeToggleButton(f, definition[1], definition[3], yPosition, BTN_W, BTN_H)
-        local dot = makeStatusDot(f, definition[4], yPosition + BTN_H / 2 - DOT_SIZE / 2, DOT_SIZE)
+    local function makeAutomationSwitch(text, feature, x)
+        local button = makeToggleButton(options, text, x, 10, 190, BTN_H)
+        button.TextXAlignment = Enum.TextXAlignment.Left
+        button.Text = "   " .. keepEnglish(text)
+        local track = Instance.new("Frame")
+        track.Size = UDim2.fromOffset(34, 18)
+        track.Position = UDim2.new(1, -43, 0.5, -9)
+        track.BackgroundColor3 = Color3.fromRGB(72, 70, 80)
+        track.BorderSizePixel = 0
+        track.ZIndex = 6
+        track.Parent = button
+        Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+        local knob = Instance.new("Frame")
+        knob.Size = UDim2.fromOffset(14, 14)
+        knob.Position = UDim2.fromOffset(2, 2)
+        knob.BackgroundColor3 = Color3.fromRGB(225, 222, 230)
+        knob.BorderSizePixel = 0
+        knob.ZIndex = 7
+        knob.Parent = track
+        Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+        local function render(active)
+            track.BackgroundColor3 = active and ACCENT or Color3.fromRGB(72, 70, 80)
+            knob.Position = active and UDim2.fromOffset(18, 2) or UDim2.fromOffset(2, 2)
+        end
+        render(false)
         button.MouseButton1Click:Connect(function()
             task.defer(function()
                 local active = toggleStates[button] == true
-                dot.setActive(active)
-                GLOBAL.__288MushYOCommand = {feature = definition[2], enabled = active}
+                render(active)
+                GLOBAL.__288MushYOCommand = {feature = feature, enabled = active}
                 loadModule("modules/Games/MushYO/Controller.lua")
             end)
         end)
     end
+    makeAutomationSwitch("Auto Venda", "autoSell", 10)
+    makeAutomationSwitch("Auto Reparo", "autoRepair", 230)
 
     local actions = {
-        {"Capturar Agora", "capture", COL2, DOT2_X},
-        {"Vender Agora", "sell", COL1, DOT1_X},
-        {"Reparar Agora", "repair", COL2, DOT2_X},
-        {"Atualizar Dados", "refresh", COL1, DOT1_X},
+        {"Capturar Agora", "capture", 10, 52},
+        {"Vender Agora", "sell", 230, 52},
+        {"Reparar Agora", "repair", 10, 94},
+        {"Atualizar Dados", "refresh", 230, 94},
     }
-    for index, definition in ipairs(actions) do
-        local row = math.floor((index + 3) / 2)
-        local yPosition = y + row * (BTN_H + GAP)
-        local button = makeButton(f, definition[1], definition[3], yPosition, BTN_W, BTN_H)
-        makeMouseDot(f, definition[4], yPosition + BTN_H / 2 - DOT_SIZE / 2, DOT_SIZE)
+    for _, definition in ipairs(actions) do
+        local button = makeButton(options, definition[1], definition[3], definition[4], 190, BTN_H)
+        button:SetAttribute("288SilentNotification", true)
         button.MouseButton1Click:Connect(function()
             GLOBAL.__288MushYOCommand = {action = definition[2]}
             loadModule("modules/Games/MushYO/Controller.lua")
         end)
     end
+
+    autoButton.MouseButton1Click:Connect(function()
+        task.defer(function()
+            local active = toggleStates[autoButton] == true
+            options.Visible = active
+            GLOBAL.__288MushYOCommand = {feature = "autoFish", enabled = active}
+            loadModule("modules/Games/MushYO/Controller.lua")
+            refreshCanvas(f)
+        end)
+    end)
 
     registerCleanup("Game/MushYO", function()
         GLOBAL.__288MushYOCommand = {stop = true}
@@ -4051,7 +4086,6 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
     end)
     refreshCanvas(f)
 end
-
 -- ==================== SERVERS TAB ====================
 do
     local f = Tabs["Servers"].frame
