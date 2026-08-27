@@ -3997,17 +3997,24 @@ end
 if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
     local f = Tabs[DETECTED_GAME.name].frame
     local y = 10
-    local autoButton = makeToggleButton(f, "Auto Fish", COL1, y, BTN_W, BTN_H)
+    local accordion = Instance.new("Frame")
+    accordion.Name = "AutoFishAccordion"
+    accordion.Size = UDim2.new(0, 430, 0, BTN_H)
+    accordion.Position = UDim2.new(0, COL1, 0, y)
+    accordion.BackgroundTransparency = 1
+    accordion.BorderSizePixel = 0
+    accordion.ClipsDescendants = true
+    accordion.ZIndex = 3
+    accordion.Parent = f
+    local autoButton = makeToggleButton(accordion, "Auto Fish", 0, 0, BTN_W, BTN_H)
     local options = Instance.new("Frame")
     options.Name = "AutoFishOptions"
-    options.Size = UDim2.new(0, 430, 0, 0)
-    options.ClipsDescendants = true
-    options.Position = UDim2.new(0, COL1, 0, y + BTN_H + GAP)
+    options.Size = UDim2.new(0, 430, 0, 28)
+    options.Position = UDim2.new(0, 0, 0, BTN_H + GAP)
     options.BackgroundTransparency = 1
     options.BorderSizePixel = 0
-    options.Visible = false
     options.ZIndex = 3
-    options.Parent = f
+    options.Parent = accordion
 
     local function makeAutomationSwitch(text, feature, x)
         local button = Instance.new("TextButton")
@@ -4063,23 +4070,12 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
             local active = toggleStates[autoButton] == true
             GLOBAL.__288MushYOCommand = {feature = "autoFish", enabled = active}
             loadModule("modules/Games/MushYO/Controller.lua")
-            if active then
-                options.Visible = true
-                options.Size = UDim2.new(0, 430, 0, 0)
-                TweenService:Create(options, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-                    Size = UDim2.new(0, 430, 0, 28)
-                }):Play()
-                task.delay(0.19, function() refreshCanvas(f) end)
-            else
-                local closing = TweenService:Create(options, TweenInfo.new(0.14, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
-                    Size = UDim2.new(0, 430, 0, 0)
-                })
-                closing:Play()
-                closing.Completed:Once(function()
-                    options.Visible = false
-                    refreshCanvas(f)
-                end)
-            end
+            local targetHeight = active and (BTN_H + GAP + 28) or BTN_H
+            local tween = TweenService:Create(accordion, TweenInfo.new(0.18, Enum.EasingStyle.Quad, active and Enum.EasingDirection.Out or Enum.EasingDirection.In), {
+                Size = UDim2.new(0, 430, 0, targetHeight)
+            })
+            tween:Play()
+            tween.Completed:Once(function() refreshCanvas(f) end)
         end)
     end)
 
