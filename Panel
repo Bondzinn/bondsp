@@ -3997,40 +3997,68 @@ end
 if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
     local f = Tabs[DETECTED_GAME.name].frame
     local y = 10
+
+    -- O layout da aba controla a pilha vertical. Quando o accordion cresce,
+    -- qualquer controle colocado depois dele e empurrado automaticamente.
     local mushLayout = Instance.new("UIListLayout")
     mushLayout.SortOrder = Enum.SortOrder.LayoutOrder
     mushLayout.Padding = UDim.new(0, GAP)
     mushLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
     mushLayout.Parent = f
+
     local mushPadding = Instance.new("UIPadding")
     mushPadding.PaddingTop = UDim.new(0, y)
     mushPadding.PaddingLeft = UDim.new(0, COL1)
     mushPadding.Parent = f
+
+    local OPTION_H = 24
+    local OPTION_GAP = 4
+    local CLOSED_H = BTN_H
+    local OPEN_H = BTN_H + GAP + OPTION_H * 2 + OPTION_GAP
+
+    -- IMPORTANTE: largura de UMA coluna apenas. Nunca cresce horizontalmente.
     local accordion = Instance.new("Frame")
     accordion.Name = "AutoFishAccordion"
-    accordion.Size = UDim2.new(0, BTN_W, 0, BTN_H)
-    accordion.Position = UDim2.fromOffset(0, 0)
+    accordion.Size = UDim2.new(0, BTN_W, 0, CLOSED_H)
     accordion.BackgroundTransparency = 1
     accordion.BorderSizePixel = 0
     accordion.ClipsDescendants = true
     accordion.ZIndex = 3
+    accordion.LayoutOrder = 1
     accordion.Parent = f
-    local autoButton = makeToggleButton(accordion, "Auto Fish", 0, 0, BTN_W, BTN_H)
+
+    local autoButton = makeToggleButton(
+        accordion,
+        "Auto Fish",
+        0,
+        0,
+        BTN_W,
+        BTN_H
+    )
+
+    -- As opcoes ficam exatamente abaixo do Auto Fish e dentro da mesma largura.
     local options = Instance.new("Frame")
     options.Name = "AutoFishOptions"
-    options.Size = UDim2.new(0, BTN_W, 0, 52)
+    options.Size = UDim2.new(0, BTN_W, 0, OPTION_H * 2 + OPTION_GAP)
     options.Position = UDim2.new(0, 0, 0, BTN_H + GAP)
     options.BackgroundTransparency = 1
     options.BorderSizePixel = 0
     options.ZIndex = 3
     options.Parent = accordion
 
-    local function makeAutomationSwitch(text, feature, optionY)
+    local optionsLayout = Instance.new("UIListLayout")
+    optionsLayout.FillDirection = Enum.FillDirection.Vertical
+    optionsLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    optionsLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+    optionsLayout.Padding = UDim.new(0, OPTION_GAP)
+    optionsLayout.Parent = options
+
+    local function makeAutomationSwitch(text, feature, order)
         local button = Instance.new("TextButton")
         button.Name = feature .. "Switch"
-        button.Size = UDim2.fromOffset(BTN_W, 24)
-        button.Position = UDim2.fromOffset(0, optionY)
-        button.BackgroundTransparency = 1
+        button.Size = UDim2.new(0, BTN_W, 0, OPTION_H)
+        button.BackgroundColor3 = THEMES[currentTheme].btn
+        button.BackgroundTransparency = 0.18
         button.BorderSizePixel = 0
         button.AutoButtonColor = false
         button.AutoLocalize = false
@@ -4039,18 +4067,33 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
         button.TextSize = 10
         button.Font = Enum.Font.GothamMedium
         button.TextXAlignment = Enum.TextXAlignment.Left
+        button.LayoutOrder = order
         button.ZIndex = 4
         button.Parent = options
+        button:SetAttribute("HoverDisabled", true)
+
+        local leftPadding = Instance.new("UIPadding")
+        leftPadding.PaddingLeft = UDim.new(0, 8)
+        leftPadding.PaddingRight = UDim.new(0, 7)
+        leftPadding.Parent = button
+
+        Instance.new("UICorner", button).CornerRadius = UDim.new(0, 7)
+        registerTheme(button, "BackgroundColor3", "btn")
         registerTheme(button, "TextColor3", "textDim")
+
         local track = Instance.new("Frame")
+        track.Name = "Track"
         track.Size = UDim2.fromOffset(30, 14)
-        track.Position = UDim2.new(1, -30, 0.5, -7)
+        track.AnchorPoint = Vector2.new(1, 0.5)
+        track.Position = UDim2.new(1, -7, 0.5, 0)
         track.BackgroundColor3 = Color3.fromRGB(72, 70, 80)
         track.BorderSizePixel = 0
         track.ZIndex = 5
         track.Parent = button
         Instance.new("UICorner", track).CornerRadius = UDim.new(1, 0)
+
         local knob = Instance.new("Frame")
+        knob.Name = "Knob"
         knob.Size = UDim2.fromOffset(10, 10)
         knob.Position = UDim2.fromOffset(2, 2)
         knob.BackgroundColor3 = Color3.fromRGB(225, 222, 230)
@@ -4058,33 +4101,107 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
         knob.ZIndex = 6
         knob.Parent = track
         Instance.new("UICorner", knob).CornerRadius = UDim.new(1, 0)
+
         local active = false
-        local function render()
-            track.BackgroundColor3 = active and ACCENT or Color3.fromRGB(72, 70, 80)
-            knob.Position = active and UDim2.fromOffset(18, 2) or UDim2.fromOffset(2, 2)
+
+        local function render(animated)
+            local info = TweenInfo.new(
+                animated and 0.14 or 0,
+                Enum.EasingStyle.Quad,
+                Enum.EasingDirection.Out
+            )
+
+            TweenService:Create(track, info, {
+                BackgroundColor3 = active and ACCENT or Color3.fromRGB(72, 70, 80)
+            }):Play()
+
+            TweenService:Create(knob, info, {
+                Position = active and UDim2.fromOffset(18, 2) or UDim2.fromOffset(2, 2)
+            }):Play()
+
+            TweenService:Create(button, info, {
+                TextColor3 = active and ACCENT or THEMES[currentTheme].textDim,
+                BackgroundColor3 = active and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
+            }):Play()
         end
-        render()
+
+        render(false)
+
         button.MouseButton1Click:Connect(function()
             active = not active
-            render()
-            GLOBAL.__288MushYOCommand = {feature = feature, enabled = active}
+            render(true)
+
+            -- Primeiro atualiza o estado do recurso dentro do Controller.
+            GLOBAL.__288MushYOCommand = {
+                feature = feature,
+                enabled = active
+            }
             loadModule("modules/Games/MushYO/Controller.lua")
+
+            -- Ao LIGAR Auto Venda, executa uma venda imediatamente.
+            -- O Controller do Auto Fish expoe SellNow depois de carregado.
+            if feature == "autoSell" and active then
+                task.defer(function()
+                    local sellNow = GLOBAL.SellNow
+                    if type(sellNow) == "function" then
+                        pcall(sellNow)
+                    else
+                        -- Fallback para Controllers que tratem a acao pela command table.
+                        GLOBAL.__288MushYOCommand = { action = "sellNow" }
+                        loadModule("modules/Games/MushYO/Controller.lua")
+                    end
+                end)
+            end
+        end)
+
+        return button
+    end
+
+    -- Ambos ficam NA MESMA COLUNA do Auto Fish, um abaixo do outro.
+    makeAutomationSwitch("Auto Venda", "autoSell", 1)
+    makeAutomationSwitch("Auto Reparo", "autoRepair", 2)
+
+    local expanded = false
+    local accordionTween = nil
+
+    local function setAccordionExpanded(value)
+        expanded = value == true
+
+        if accordionTween then
+            pcall(function() accordionTween:Cancel() end)
+        end
+
+        accordionTween = TweenService:Create(
+            accordion,
+            TweenInfo.new(
+                0.18,
+                Enum.EasingStyle.Quad,
+                expanded and Enum.EasingDirection.Out or Enum.EasingDirection.In
+            ),
+            {
+                -- SOMENTE altura muda. A largura permanece BTN_W.
+                Size = UDim2.new(0, BTN_W, 0, expanded and OPEN_H or CLOSED_H)
+            }
+        )
+
+        accordionTween:Play()
+        accordionTween.Completed:Once(function()
+            refreshCanvas(f)
         end)
     end
-    makeAutomationSwitch("Auto Venda", "autoSell", 0)
-    makeAutomationSwitch("Auto Reparo", "autoRepair", 28)
 
     autoButton.MouseButton1Click:Connect(function()
         task.defer(function()
             local active = toggleStates[autoButton] == true
-            GLOBAL.__288MushYOCommand = {feature = "autoFish", enabled = active}
+
+            GLOBAL.__288MushYOCommand = {
+                feature = "autoFish",
+                enabled = active
+            }
             loadModule("modules/Games/MushYO/Controller.lua")
-            local targetHeight = active and (BTN_H + GAP + 52) or BTN_H
-            local tween = TweenService:Create(accordion, TweenInfo.new(0.18, Enum.EasingStyle.Quad, active and Enum.EasingDirection.Out or Enum.EasingDirection.In), {
-                Size = UDim2.new(0, BTN_W, 0, targetHeight)
-            })
-            tween:Play()
-            tween.Completed:Once(function() refreshCanvas(f) end)
+
+            -- O accordion acompanha o estado do Auto Fish.
+            setAccordionExpanded(active)
         end)
     end)
 
@@ -4093,6 +4210,7 @@ if DETECTED_GAME and DETECTED_GAME.key == "MushYO" then
         loadModule("modules/Games/MushYO/Controller.lua")
         GLOBAL.__288MushYOCommand = nil
     end)
+
     refreshCanvas(f)
 end
 -- ==================== SERVERS TAB ====================
