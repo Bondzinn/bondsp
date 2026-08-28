@@ -2815,29 +2815,45 @@ do
     HomeUI.sessionTitle = sessionTitle
     HomeUI.sessionSeparator = sessionSeparator
 
-    local function refreshHomeStats()
-            if not ScreenGui.Parent then return end
-            local okPing, ping = pcall(function() return LocalPlayer:GetNetworkPing() * 1000 end)
-            ping = okPing and ping or 0
-            pingVal.Text = math.floor(ping) .. " ms"
-            pingVal.TextColor3 = ping < 150 and ACCENT or Color3.fromRGB(255, 110, 130)
-
-            local stats = apiGet("/stats")
-            if stats then
-                onlineVal.Text = tostring(stats.online or stats.activeSessions or "--")
-                usersVal.Text  = tostring(stats.totalUsers or "--")
-            end
-
-            local t = os.date("*t")
-            -- mantém a data local enquanto a sessão não informar o timestamp
-            dateLabel.Text = string.format(sessionTitle .. "  " .. sessionSeparator .. "  %02d/%02d/%04d  %02d:%02d",
-                t.day, t.month, t.year, t.hour, t.min)
+    local function refreshHomePing()
+        if not ScreenGui.Parent then return end
+        local okPing, ping = pcall(function()
+            return LocalPlayer:GetNetworkPing() * 1000
+        end)
+        ping = okPing and ping or 0
+        pingVal.Text = math.floor(ping + 0.5) .. " ms"
+        pingVal.TextColor3 = ping < 150 and ACCENT or Color3.fromRGB(255, 110, 130)
     end
 
+    local function refreshHomeStats()
+        if not ScreenGui.Parent then return end
+
+        local stats = apiGet("/stats")
+        if stats then
+            onlineVal.Text = tostring(stats.online or stats.activeSessions or "--")
+            usersVal.Text  = tostring(stats.totalUsers or "--")
+        end
+
+        local t = os.date("*t")
+        dateLabel.Text = string.format(
+            sessionTitle .. "  " .. sessionSeparator .. "  %02d/%02d/%04d  %02d:%02d",
+            t.day, t.month, t.year, t.hour, t.min
+        )
+    end
+
+    -- Ping visual em tempo real, separado das chamadas HTTP da Home.
+    task.spawn(function()
+        while ScreenGui.Parent and not _shuttingDown do
+            refreshHomePing()
+            task.wait(0.15)
+        end
+    end)
+
+    -- Stats remotos continuam em intervalo seguro.
     task.spawn(function()
         refreshHomeStats()
         while task.wait(30) do
-            if not ScreenGui.Parent then break end
+            if not ScreenGui.Parent or _shuttingDown then break end
             refreshHomeStats()
         end
     end)
@@ -4593,61 +4609,198 @@ do
         return card
     end
 
-    local function loadServers()
+    local serverCardsById = {}
+    local loadingServers = false
+
+    local function clearServerCards()
+        table.clear(serverCardsById)
         for _, child in ipairs(serverList:GetChildren()) do
-            if child:IsA("TextButton") then child:Destroy() end
+            if child:IsA("TextButton") then
+                child:Destroy()
+            end
+        end
+    end
+
+    local function updateServerCard(card, server)
+        if not card or not card.Parent then return end
+
+        local infoLbl = card:FindFirstChild("ServerInfo")
+        if infoLbl then
+            infoLbl.Text = string.format(
+                "%d/%d  •  %dms",
+                tonumber(server.players) or 0,
+                tonumber(server.maxPlayers) or 0,
+                tonumber(server.ping) or 0
+            )
         end
 
-        loadFriendsInOtherServers()
+        local pingDot = card:FindFirstChild("PingDot")
+        if pingDot then
+            local ping = tonumber(server.ping) or 0
+            pingDot.BackgroundColor3 =
+                ping < 80 and Color3.fromRGB(80, 220, 100)
+                or (ping < 160 and Color3.fromRGB(255, 180, 70)
+                or Color3.fromRGB(255, 95, 110))
+        end
+    end
 
-        if not http_request then
-            warn("[288] Este ambiente não fornece uma função de HTTP request compatível para listar servidores.")
-            return
+    local function requestServerPage(cursor)
+        local url = "https://games.roblox.com/v1/games/"
+            .. game.PlaceId
+            .. "/servers/Public?sortOrder=Asc&excludeFullGames=false&limit=100"
+
+        if cursor and cursor ~= "" then
+            url = url .. "&cursor=" .. HttpService:UrlEncode(cursor)
         end
 
         local okRequest, response = pcall(http_request, {
-            Url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?limit=10",
+            Url = url,
             Method = "GET"
         })
 
         if not okRequest or not response then
-            warn("[288] Falha ao buscar servidores: " .. tostring(response))
-            return
+            return nil, "request"
         end
 
-        local statusCode = response.StatusCode or response.Status or 0
+        local statusCode = tonumber(response.StatusCode or response.Status or 0) or 0
         if statusCode ~= 200 then
-            warn("[288] Falha ao buscar servidores: " .. tostring(statusCode))
-            return
+            return nil, "http " .. tostring(statusCode)
         end
 
         local okDecode, data = pcall(function()
             return HttpService:JSONDecode(response.Body or "{}")
         end)
 
-        if not okDecode or not data or type(data.data) ~= "table" then
-            warn("[288] Resposta inválida ao buscar servidores")
+        if not okDecode or type(data) ~= "table" or type(data.data) ~= "table" then
+            return nil, "decode"
+        end
+
+        return data
+    end
+
+    local function fetchAllPublicServers()
+        if not http_request then
+            return nil, "HTTP request indisponível"
+        end
+
+        local result = {}
+        local cursor = nil
+        local seenCursors = {}
+
+        repeat
+            local data, err = requestServerPage(cursor)
+            if not data then
+                return nil, err
+            end
+
+            for _, s in ipairs(data.data) do
+                table.insert(result, {
+                    id = tostring(s.id or ""),
+                    players = tonumber(s.playing) or 0,
+                    maxPlayers = tonumber(s.maxPlayers) or 0,
+                    ping = tonumber(s.ping) or 0,
+                })
+            end
+
+            local nextCursor = data.nextPageCursor
+            if not nextCursor or nextCursor == "" or seenCursors[nextCursor] then
+                cursor = nil
+            else
+                seenCursors[nextCursor] = true
+                cursor = nextCursor
+            end
+
+            -- Evita monopolizar a thread quando há muitas páginas.
+            if cursor then
+                task.wait()
+            end
+        until not cursor
+
+        return result
+    end
+
+    local function renderAllServers(servers, rebuild)
+        if rebuild then
+            clearServerCards()
+        end
+
+        for i, server in ipairs(servers) do
+            local card = serverCardsById[server.id]
+            if not card or not card.Parent then
+                card = makeServerCard(server, i)
+                serverCardsById[server.id] = card
+            else
+                card.Position = UDim2.new(
+                    0,
+                    (i % 2 == 1) and CARD_COL1 or CARD_COL2,
+                    0,
+                    math.floor((i - 1) / 2) * (CARD_H + CARD_GAP)
+                )
+                updateServerCard(card, server)
+            end
+        end
+
+        -- Remove servidores que deixaram de existir entre uma atualização e outra.
+        local alive = {}
+        for _, server in ipairs(servers) do
+            alive[server.id] = true
+        end
+        for id, card in pairs(serverCardsById) do
+            if not alive[id] then
+                if card and card.Parent then card:Destroy() end
+                serverCardsById[id] = nil
+            end
+        end
+
+        local rows = math.ceil(#servers / 2)
+        serverList.CanvasSize = UDim2.new(
+            0, 0, 0,
+            math.max(0, rows * (CARD_H + CARD_GAP) - CARD_GAP)
+        )
+    end
+
+    local function loadServers(forceRebuild)
+        if loadingServers then return end
+        loadingServers = true
+
+        loadFriendsInOtherServers()
+
+        if not http_request then
+            warn("[288] Este ambiente não fornece uma função de HTTP request compatível para listar servidores.")
+            loadingServers = false
             return
         end
 
-        for i, s in ipairs(data.data) do
-            makeServerCard({
-                id = s.id,
-                players = tonumber(s.playing) or 0,
-                maxPlayers = tonumber(s.maxPlayers) or 0,
-                ping = tonumber(s.ping) or 0,
-            }, i)
+        local servers, err = fetchAllPublicServers()
+        if servers then
+            renderAllServers(servers, forceRebuild == true)
+        else
+            warn("[288] Falha ao buscar todos os servidores: " .. tostring(err))
         end
 
-        local rows = math.ceil(#data.data / 2)
-        serverList.CanvasSize = UDim2.new(0, 0, 0, math.max(0, rows * (CARD_H + CARD_GAP) - CARD_GAP))
+        loadingServers = false
     end
 
     refreshBtn.MouseButton1Click:Connect(function()
-        task.spawn(loadServers)
+        task.spawn(function()
+            loadServers(true)
+        end)
     end)
 
-    task.spawn(loadServers)
+    -- Primeira carga: lista TODAS as páginas de servidores públicos.
+    task.spawn(function()
+        loadServers(true)
+    end)
+
+    -- Mantém jogadores/ping dos cards atualizados sem recriar a lista inteira.
+    task.spawn(function()
+        while ScreenGui.Parent and not _shuttingDown do
+            task.wait(5)
+            if CurrentTab == "Servers" then
+                loadServers(false)
+            end
+        end
+    end)
 end
 
 -- ==================== ABOUT TAB ====================
