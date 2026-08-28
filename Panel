@@ -995,15 +995,14 @@ local MORE_MODULE_URLS = {
     Aimbot = GITHUB_RAW .. "/modules/More/Aimbot",
     PianoAuto = GITHUB_RAW .. "/modules/More/PianoAuto",
 
-    AnimSpeed = GITHUB_RAW .. "/modules/Emphasis/AnimeSpeed",
-    AnimeSpeed = GITHUB_RAW .. "/modules/Emphasis/AnimeSpeed",
+    AnimSpeed = GITHUB_RAW .. "/modules/Emphasis/AnimSpeed",
     AntiVoid = GITHUB_RAW .. "/modules/Emphasis/AntiVoid",
     ClickTP = GITHUB_RAW .. "/modules/Emphasis/ClickTP",
-    FaceTarget = GITHUB_RAW .. "/modules/Emphasis/FaceTarget",
+    FaceBang = GITHUB_RAW .. "/modules/Emphasis/FaceBang",
     Flashback = GITHUB_RAW .. "/modules/Emphasis/Flashback",
     Impulse = GITHUB_RAW .. "/modules/Emphasis/Impulse",
     Invisible = GITHUB_RAW .. "/modules/Emphasis/Invisible",
-    Emote = GITHUB_RAW .. "/modules/Emphasis/Emote",
+    JerkOff = GITHUB_RAW .. "/modules/Emphasis/JerkOff",
     NoClip = GITHUB_RAW .. "/modules/Emphasis/NoClip",
     Spin = GITHUB_RAW .. "/modules/Emphasis/Spin",
     feFlip = GITHUB_RAW .. "/modules/Emphasis/feFlip",
@@ -1094,7 +1093,7 @@ local function normalizeModuleName(path)
     name = name:gsub("Off$", "")
 
     if name == "AnimeSpeed" then
-        return "AnimeSpeed"
+        return "AnimSpeed"
     end
 
     return name
@@ -3325,9 +3324,9 @@ do
         {name="Invisible", order=1, hint="Mouse: para Ativar/Desativar"},
         {name="ClickTP", order=2, hint="Ctrl + Clique: para teleportar"},
         {name="NoClip", order=3, hint="N: para Ativar/Desativar"},
-        {name="Emote", order=4, hint="Mouse: para Ativar/Desativar"},
+        {name="JerkOff", order=4, hint="Mouse: para Ativar/Desativar"},
         {name="Impulse", order=5, hint="M: para Ativar"},
-        {name="Face Target", order=6, hint="Mouse: para Ativar/Desativar"},
+        {name="FaceBang", order=6, hint="Mouse: para Ativar/Desativar"},
         {name="Spin", order=7, hint="Mouse: para Ativar/Desativar"},
         {name="AnimSpeed", order=8, hint="Q: Lento | E: Rapido"},
         {name="feFlip", order=9, hint="X: Frontflip | C: Backflip"},
@@ -3352,7 +3351,6 @@ do
         makeMouseDot(f, dotX, yPos + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
 
         local moduleName = tostring(v.name):gsub("%s+", "")
-        if moduleName == "AnimSpeed" then moduleName = "AnimeSpeed" end
         local control = {btn=btn, moduleName=moduleName, initialized=false, hint=v.hint, activationNotified=false}
         controls[moduleName] = control
 
@@ -3368,7 +3366,7 @@ do
                 if not loaded then return end
 
                 control.initialized = true
-                local title = moduleName == "AnimeSpeed" and "AnimeSpeed" or v.name
+                local title = v.name
                 if moduleName == "Flashback" then
                     if active and not control.activationNotified then
                         control.activationNotified = true
@@ -3380,7 +3378,7 @@ do
                     if moduleName ~= "feFlip" then
                         notifyPanel(title, "Status: Desativado", "warning")
                     end
-                    if moduleName == "AnimeSpeed" then
+                    if moduleName == "AnimSpeed" then
                         keyStatus.AnimeSlow = false
                         keyStatus.AnimeFast = false
                     end
@@ -3410,16 +3408,16 @@ do
             notifyPanel("NoClip", nextState and "Status: Ativado" or "Status: Desativado", nextState and "success" or "warning")
 
         elseif input.KeyCode == Enum.KeyCode.Q or input.KeyCode == Enum.KeyCode.E then
-            local control = controls.AnimeSpeed
+            local control = controls.AnimSpeed
             if not control or not control.initialized or toggleStates[control.btn] ~= true then return end
             if input.KeyCode == Enum.KeyCode.Q then
                 keyStatus.AnimeSlow = not keyStatus.AnimeSlow
                 keyStatus.AnimeFast = false
-                notifyPanel("AnimeSpeed", keyStatus.AnimeSlow and "Q - Status: Ativado" or "Q - Status: Desativado", keyStatus.AnimeSlow and "success" or "warning")
+                notifyPanel("AnimSpeed", keyStatus.AnimeSlow and "Q - Status: Ativado" or "Q - Status: Desativado", keyStatus.AnimeSlow and "success" or "warning")
             else
                 keyStatus.AnimeFast = not keyStatus.AnimeFast
                 keyStatus.AnimeSlow = false
-                notifyPanel("AnimeSpeed", keyStatus.AnimeFast and "E - Status: Ativado" or "E - Status: Desativado", keyStatus.AnimeFast and "success" or "warning")
+                notifyPanel("AnimSpeed", keyStatus.AnimeFast and "E - Status: Ativado" or "E - Status: Desativado", keyStatus.AnimeFast and "success" or "warning")
             end
 
         end
