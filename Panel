@@ -4331,31 +4331,51 @@ end
 do
     local f = Tabs["Servers"].frame
     f.ScrollingEnabled = false
+
     local http_request = http and http.request or syn and syn.request or request
     local HttpService = game:GetService("HttpService")
-    
-    makeSectionLabel(f, "Friends on other servers:", PAD, 8)
-    
-    local refreshBtn = makeButton(f, "↻ Atualizar", COL2, 4, BTN_W, BTN_H)
+    local TeleportService = game:GetService("TeleportService")
+
+    -- Mantém exatamente o mesmo espaçamento/grid visual usado nas demais abas.
+    local SECTION_TOP = 10
+    local FRIEND_Y = 38
+    local FRIEND_H = 70
+    local SERVER_TITLE_Y = 122
+    local SERVER_Y = 150
+
+    makeSectionLabel(f, "Friends on other servers:", PAD, SECTION_TOP)
+
+    local refreshBtn = makeButton(f, "Refresh", COL2, 6, BTN_W, BTN_H)
+    refreshBtn.Name = "RefreshServersButton"
+    refreshBtn:SetAttribute("288SilentNotification", true)
+
+    local refreshIcon = makeVectorIcon(refreshBtn, "status", 12, 8, 18, ACCENT)
+    refreshIcon.Position = UDim2.new(0, 12, 0.5, -9)
 
     local friendList = Instance.new("ScrollingFrame")
-    friendList.Size = UDim2.new(1, -PAD*2, 0, 66)
-    friendList.Position = UDim2.new(0, PAD, 0, 40)
+    friendList.Name = "FriendsServerList"
+    friendList.Size = UDim2.new(1, -PAD * 2, 0, FRIEND_H)
+    friendList.Position = UDim2.new(0, PAD, 0, FRIEND_Y)
     friendList.BackgroundTransparency = 1
+    friendList.BorderSizePixel = 0
     friendList.ScrollBarThickness = 3
+    friendList.ScrollBarImageColor3 = ACCENT
     friendList.ScrollingDirection = Enum.ScrollingDirection.X
     friendList.CanvasSize = UDim2.new(0, 0, 0, 0)
-    friendList.BorderSizePixel = 0
+    friendList.AutomaticCanvasSize = Enum.AutomaticSize.None
     friendList.ZIndex = 4
     friendList.Parent = f
+    registerTheme(friendList, "ScrollBarImageColor3", "accent")
 
     local friendLayout = Instance.new("UIListLayout")
     friendLayout.FillDirection = Enum.FillDirection.Horizontal
     friendLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-    friendLayout.Padding = UDim.new(0, 8)
+    friendLayout.SortOrder = Enum.SortOrder.LayoutOrder
+    friendLayout.Padding = UDim.new(0, GAP)
     friendLayout.Parent = friendList
 
     local noFriendsLabel = Instance.new("TextLabel")
+    noFriendsLabel.Name = "NoFriendsLabel"
     noFriendsLabel.Size = UDim2.new(1, 0, 1, 0)
     noFriendsLabel.BackgroundTransparency = 1
     noFriendsLabel.Text = "No friends are playing this game on another server."
@@ -4363,25 +4383,50 @@ do
     noFriendsLabel.TextSize = 11
     noFriendsLabel.Font = Enum.Font.Gotham
     noFriendsLabel.TextXAlignment = Enum.TextXAlignment.Left
+    noFriendsLabel.TextYAlignment = Enum.TextYAlignment.Center
     noFriendsLabel.ZIndex = 4
     noFriendsLabel.Parent = friendList
+    registerTheme(noFriendsLabel, "TextColor3", "textDim")
 
-    makeSectionLabel(f, "Available servers:", PAD, 111)
+    makeSectionLabel(f, "Available servers:", PAD, SERVER_TITLE_Y)
 
     local serverList = Instance.new("ScrollingFrame")
-    serverList.Size = UDim2.new(1, -PAD*2, 1, -139)
-    serverList.Position = UDim2.new(0, PAD, 0, 139)
+    serverList.Name = "AvailableServerList"
+    serverList.Size = UDim2.new(1, -PAD * 2, 1, -(SERVER_Y + 10))
+    serverList.Position = UDim2.new(0, PAD, 0, SERVER_Y)
     serverList.BackgroundTransparency = 1
-    serverList.ScrollBarThickness = 4
     serverList.BorderSizePixel = 0
+    serverList.ScrollBarThickness = 3
+    serverList.ScrollBarImageColor3 = ACCENT
+    serverList.CanvasSize = UDim2.new(0, 0, 0, 0)
     serverList.ZIndex = 4
     serverList.Parent = f
+    registerTheme(serverList, "ScrollBarImageColor3", "accent")
 
     local CARD_W = BTN_W
     local CARD_H = BTN_H
-    local GAP_Y = GAP
+    local CARD_GAP = GAP
     local CARD_COL1 = 0
-    local CARD_COL2 = CARD_W + GAP
+    local CARD_COL2 = BTN_W + GAP + DOT_SIZE + GAP
+
+    local function styleServerCard(card)
+        card.BackgroundColor3 = SURFACE
+        card.BackgroundTransparency = 0.16
+        card.AutoButtonColor = false
+        card.BorderSizePixel = 0
+        card.Text = ""
+        Instance.new("UICorner", card).CornerRadius = UDim.new(0, 11)
+        registerTheme(card, "BackgroundColor3", "btn")
+
+        local stroke = Instance.new("UIStroke")
+        stroke.Name = "ServerCardStroke"
+        stroke.Color = STROKE_SOFT
+        stroke.Transparency = 0.58
+        stroke.Thickness = 1
+        stroke.Parent = card
+        registerTheme(stroke, "Color", "stroke")
+        addHover(card, false)
+    end
 
     local function makeFriendCard(friend, layoutOrder)
         local userId = tonumber(friend.VisitorId or friend.UserId or friend.Id)
@@ -4391,35 +4436,35 @@ do
 
         local card = Instance.new("TextButton")
         card.Name = "Friend" .. tostring(userId or layoutOrder)
-        card.Size = UDim2.new(0, 154, 0, 56)
-        card.BackgroundColor3 = Color3.fromRGB(32, 32, 36)
-        card.AutoButtonColor = false
-        card.BorderSizePixel = 0
-        card.Text = ""
+        card.Size = UDim2.new(0, BTN_W, 0, 58)
         card.LayoutOrder = layoutOrder
         card.ZIndex = 5
         card.Parent = friendList
-        Instance.new("UICorner", card).CornerRadius = UDim.new(0, 10)
-
-        local stroke = Instance.new("UIStroke")
-        stroke.Color = ACCENT
-        stroke.Transparency = 0.55
-        stroke.Thickness = 1
-        stroke.Parent = card
+        styleServerCard(card)
 
         local avatar = Instance.new("ImageLabel")
+        avatar.Name = "Avatar"
         avatar.Size = UDim2.new(0, 42, 0, 42)
-        avatar.Position = UDim2.new(0, 7, 0.5, -21)
-        avatar.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+        avatar.Position = UDim2.new(0, 8, 0.5, -21)
+        avatar.BackgroundColor3 = SURFACE_2
+        avatar.BackgroundTransparency = 0.08
         avatar.BorderSizePixel = 0
         avatar.Image = "rbxasset://textures/ui/GuiImagePlaceholder.png"
         avatar.ZIndex = 6
         avatar.Parent = card
         Instance.new("UICorner", avatar).CornerRadius = UDim.new(1, 0)
+        registerTheme(avatar, "BackgroundColor3", "surface2")
+
+        local avatarStroke = Instance.new("UIStroke")
+        avatarStroke.Color = STROKE_SOFT
+        avatarStroke.Transparency = 0.58
+        avatarStroke.Thickness = 1
+        avatarStroke.Parent = avatar
+        registerTheme(avatarStroke, "Color", "stroke")
 
         local nameLabel = Instance.new("TextLabel")
-        nameLabel.Size = UDim2.new(1, -58, 0, 19)
-        nameLabel.Position = UDim2.new(0, 55, 0, 9)
+        nameLabel.Size = UDim2.new(1, -68, 0, 19)
+        nameLabel.Position = UDim2.new(0, 58, 0, 10)
         nameLabel.BackgroundTransparency = 1
         nameLabel.Text = displayName
         nameLabel.TextColor3 = TEXT_MAIN
@@ -4429,24 +4474,29 @@ do
         nameLabel.TextTruncate = Enum.TextTruncate.AtEnd
         nameLabel.ZIndex = 6
         nameLabel.Parent = card
+        registerTheme(nameLabel, "TextColor3", "text")
 
         local joinLabel = Instance.new("TextLabel")
-        joinLabel.Size = UDim2.new(1, -58, 0, 16)
-        joinLabel.Position = UDim2.new(0, 55, 0, 29)
+        joinLabel.Size = UDim2.new(1, -68, 0, 16)
+        joinLabel.Position = UDim2.new(0, 58, 0, 30)
         joinLabel.BackgroundTransparency = 1
         joinLabel.Text = "Join server"
         joinLabel.TextColor3 = ACCENT
         joinLabel.TextSize = 9
-        joinLabel.Font = Enum.Font.Gotham
+        joinLabel.Font = Enum.Font.GothamMedium
         joinLabel.TextXAlignment = Enum.TextXAlignment.Left
         joinLabel.ZIndex = 6
         joinLabel.Parent = card
+        registerTheme(joinLabel, "TextColor3", "accent")
 
         if userId then
             task.spawn(function()
                 local ok, image = pcall(function()
                     return Players:GetUserThumbnailAsync(
-                        userId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+                        userId,
+                        Enum.ThumbnailType.HeadShot,
+                        Enum.ThumbnailSize.Size100x100
+                    )
                 end)
                 if ok and avatar.Parent then avatar.Image = image end
             end)
@@ -4455,8 +4505,7 @@ do
         card.MouseButton1Click:Connect(function()
             if serverId == "" then return end
             pcall(function()
-                game:GetService("TeleportService"):TeleportToPlaceInstance(
-                    game.PlaceId, serverId, LocalPlayer)
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, serverId, LocalPlayer)
             end)
         end)
     end
@@ -4469,12 +4518,15 @@ do
         local ok, onlineFriends = pcall(function()
             return LocalPlayer:GetFriendsOnline(200)
         end)
+
         local found = 0
         if ok and type(onlineFriends) == "table" then
             for _, friend in ipairs(onlineFriends) do
                 local placeId = tonumber(friend.PlaceId)
                 local serverId = tostring(friend.GameId or "")
-                if placeId == game.PlaceId and serverId ~= "" and serverId ~= tostring(game.JobId) then
+                if placeId == game.PlaceId
+                    and serverId ~= ""
+                    and serverId ~= tostring(game.JobId) then
                     found += 1
                     makeFriendCard(friend, found)
                 end
@@ -4482,55 +4534,72 @@ do
         end
 
         noFriendsLabel.Visible = found == 0
-        friendList.CanvasSize = UDim2.new(0, found > 0 and (found * 162 - 8) or 0, 0, 0)
+        friendList.CanvasSize = UDim2.new(
+            0,
+            found > 0 and (found * BTN_W + math.max(0, found - 1) * GAP) or 0,
+            0,
+            0
+        )
     end
 
     local function makeServerCard(server, layoutOrder)
         local card = Instance.new("TextButton")
-        card.Name = "Card" .. layoutOrder
+        card.Name = "ServerCard" .. tostring(layoutOrder)
         card.Size = UDim2.new(0, CARD_W, 0, CARD_H)
-        card.Position = UDim2.new(0, (layoutOrder % 2 == 1) and CARD_COL1 or CARD_COL2, 0, math.floor((layoutOrder - 1) / 2) * (CARD_H + GAP_Y))
-        card.BackgroundColor3 = Color3.fromRGB(32, 32, 32)
-        card.AutoButtonColor = false
-        card.BorderSizePixel = 0
-        card.Text = ""
+        card.Position = UDim2.new(
+            0,
+            (layoutOrder % 2 == 1) and CARD_COL1 or CARD_COL2,
+            0,
+            math.floor((layoutOrder - 1) / 2) * (CARD_H + CARD_GAP)
+        )
         card.ZIndex = 5
         card.Parent = serverList
-        Instance.new("UICorner", card).CornerRadius = UDim.new(0, 8)
-        
-        local cardStroke = Instance.new("UIStroke")
-        cardStroke.Color = Color3.fromRGB(55, 55, 55)
-        cardStroke.Thickness = 1
-        cardStroke.Parent = card
+        styleServerCard(card)
 
         local infoLbl = Instance.new("TextLabel")
-        infoLbl.Size = UDim2.new(1, -40, 1, 0)
-        infoLbl.Position = UDim2.new(0, 14, 0, 0)
+        infoLbl.Name = "ServerInfo"
+        infoLbl.Size = UDim2.new(1, -42, 1, 0)
+        infoLbl.Position = UDim2.new(0, 13, 0, 0)
         infoLbl.BackgroundTransparency = 1
-        infoLbl.RichText = true
-        infoLbl.Text = string.format("%d/%d <font color=\"#%s\">・%dms</font>", 
-            server.players, server.maxPlayers, (server.ping < 80 and "50DC64" or "FFB432"), server.ping)
-        infoLbl.TextColor3 = Color3.fromRGB(220, 220, 220)
-        infoLbl.TextSize = 12
-        infoLbl.Font = Enum.Font.Gotham
+        infoLbl.Text = string.format("%d/%d  •  %dms", server.players, server.maxPlayers, server.ping)
+        infoLbl.TextColor3 = TEXT_MAIN
+        infoLbl.TextSize = 11
+        infoLbl.Font = Enum.Font.GothamMedium
         infoLbl.TextXAlignment = Enum.TextXAlignment.Left
+        infoLbl.TextTruncate = Enum.TextTruncate.AtEnd
         infoLbl.ZIndex = 6
         infoLbl.Parent = card
+        registerTheme(infoLbl, "TextColor3", "text")
+
+        local pingDot = Instance.new("Frame")
+        pingDot.Name = "PingDot"
+        pingDot.Size = UDim2.new(0, 7, 0, 7)
+        pingDot.Position = UDim2.new(1, -20, 0.5, -3.5)
+        pingDot.BackgroundColor3 = server.ping < 80
+            and Color3.fromRGB(80, 220, 100)
+            or (server.ping < 160 and Color3.fromRGB(255, 180, 70) or Color3.fromRGB(255, 95, 110))
+        pingDot.BorderSizePixel = 0
+        pingDot.ZIndex = 6
+        pingDot.Parent = card
+        pingDot:SetAttribute("PreserveThemeColor", true)
+        Instance.new("UICorner", pingDot).CornerRadius = UDim.new(1, 0)
 
         card.MouseButton1Click:Connect(function()
             pcall(function()
-                game:GetService("TeleportService"):TeleportToPlaceInstance(game.PlaceId, server.id, game.Players.LocalPlayer)
+                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, LocalPlayer)
             end)
         end)
+
         return card
     end
 
     local function loadServers()
-        for _, c in pairs(serverList:GetChildren()) do
-            if c:IsA("TextButton") then c:Destroy() end
+        for _, child in ipairs(serverList:GetChildren()) do
+            if child:IsA("TextButton") then child:Destroy() end
         end
+
         loadFriendsInOtherServers()
-        
+
         if not http_request then
             warn("[288] Este ambiente não fornece uma função de HTTP request compatível para listar servidores.")
             return
@@ -4540,37 +4609,44 @@ do
             Url = "https://games.roblox.com/v1/games/" .. game.PlaceId .. "/servers/Public?limit=10",
             Method = "GET"
         })
+
         if not okRequest or not response then
             warn("[288] Falha ao buscar servidores: " .. tostring(response))
             return
         end
 
         local statusCode = response.StatusCode or response.Status or 0
-        if statusCode == 200 then
-            local okDecode, data = pcall(function() return HttpService:JSONDecode(response.Body or "{}") end)
-            if not okDecode then
-                warn("[288] Resposta inválida ao buscar servidores")
-                return
-            end
-            if data and data.data then
-                for i, s in ipairs(data.data) do
-                    local serverData = {
-                        id = s.id,
-                        players = s.playing,
-                        maxPlayers = s.maxPlayers,
-                        ping = s.ping or 0
-                    }
-                    makeServerCard(serverData, i)
-                end
-                local rows = math.ceil(#data.data / 2)
-                serverList.CanvasSize = UDim2.new(0, 0, 0, rows * (CARD_H + GAP_Y))
-            end
-        else
-            warn("Falha ao buscar servidores: " .. tostring(statusCode))
+        if statusCode ~= 200 then
+            warn("[288] Falha ao buscar servidores: " .. tostring(statusCode))
+            return
         end
+
+        local okDecode, data = pcall(function()
+            return HttpService:JSONDecode(response.Body or "{}")
+        end)
+
+        if not okDecode or not data or type(data.data) ~= "table" then
+            warn("[288] Resposta inválida ao buscar servidores")
+            return
+        end
+
+        for i, s in ipairs(data.data) do
+            makeServerCard({
+                id = s.id,
+                players = tonumber(s.playing) or 0,
+                maxPlayers = tonumber(s.maxPlayers) or 0,
+                ping = tonumber(s.ping) or 0,
+            }, i)
+        end
+
+        local rows = math.ceil(#data.data / 2)
+        serverList.CanvasSize = UDim2.new(0, 0, 0, math.max(0, rows * (CARD_H + CARD_GAP) - CARD_GAP))
     end
 
-    refreshBtn.MouseButton1Click:Connect(loadServers)
+    refreshBtn.MouseButton1Click:Connect(function()
+        task.spawn(loadServers)
+    end)
+
     task.spawn(loadServers)
 end
 
