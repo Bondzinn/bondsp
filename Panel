@@ -340,18 +340,20 @@ local function makeVectorIcon(parent, kind, x, y, size, color)
         vectorLine(holder, size * 0.70, size * 0.70, size * 0.34, 2, color, 45, true)
 
     elseif kind == "eye" or kind == "eyeOff" then
-        -- Contorno simetrico, iris vazada e brilho para leitura melhor em tamanhos pequenos.
-        vectorLine(holder, size * 0.28, size * 0.42, size * 0.38, 1.6, color, -22, true)
-        vectorLine(holder, size * 0.72, size * 0.42, size * 0.38, 1.6, color, 22, true)
-        vectorLine(holder, size * 0.28, size * 0.58, size * 0.38, 1.6, color, 22, true)
-        vectorLine(holder, size * 0.72, size * 0.58, size * 0.38, 1.6, color, -22, true)
+        -- Eye compacto e centralizado: contorno em formato de olho + pupila limpa.
+        local eyeW = size * 0.78
+        local eyeH = size * 0.44
+        local halfW = eyeW * 0.5
+        local halfH = eyeH * 0.5
 
-        local iris = vectorOutline(holder, c, c, size * 0.34, size * 0.34, color, size)
-        iris:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(1, 0)
+        vectorLine(holder, c - halfW * 0.52, c - halfH * 0.42, eyeW * 0.54, 1.55, color, -22, true)
+        vectorLine(holder, c + halfW * 0.52, c - halfH * 0.42, eyeW * 0.54, 1.55, color, 22, true)
+        vectorLine(holder, c - halfW * 0.52, c + halfH * 0.42, eyeW * 0.54, 1.55, color, 22, true)
+        vectorLine(holder, c + halfW * 0.52, c + halfH * 0.42, eyeW * 0.54, 1.55, color, -22, true)
 
         local pupil = Instance.new("Frame")
-        pupil.Size = UDim2.new(0, size * 0.13, 0, size * 0.13)
-        pupil.Position = UDim2.new(0.5, -size * 0.065, 0.5, -size * 0.065)
+        pupil.Size = UDim2.new(0, size * 0.25, 0, size * 0.25)
+        pupil.Position = UDim2.new(0.5, -size * 0.125, 0.5, -size * 0.125)
         pupil.BackgroundColor3 = color
         pupil.BorderSizePixel = 0
         pupil.ZIndex = holder.ZIndex + 2
@@ -359,7 +361,8 @@ local function makeVectorIcon(parent, kind, x, y, size, color)
         Instance.new("UICorner", pupil).CornerRadius = UDim.new(1, 0)
 
         if kind == "eyeOff" then
-            vectorLine(holder, c, c, size * 0.92, 2, color, 45, true)
+            -- Corte diagonal com uma pequena margem além do olho.
+            vectorLine(holder, c, c, size * 0.92, 2.1, color, 45, true)
         end
 
     elseif kind == "mouse" then
@@ -367,38 +370,68 @@ local function makeVectorIcon(parent, kind, x, y, size, color)
         vectorLine(holder, c, size * 0.30, 2, size * 0.18, color, 0, true)
 
     elseif kind == "theme" or kind == "sun" then
-        local core = vectorOutline(holder, c, c, size * 0.38, size * 0.38, color, size)
-        core:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(1, 0)
+        -- Sol menor e mais equilibrado para o botão circular de 34px.
+        local core = Instance.new("Frame")
+        core.Size = UDim2.new(0, size * 0.34, 0, size * 0.34)
+        core.Position = UDim2.new(0.5, -size * 0.17, 0.5, -size * 0.17)
+        core.BackgroundColor3 = color
+        core.BorderSizePixel = 0
+        core.ZIndex = holder.ZIndex + 2
+        core.Parent = holder
+        Instance.new("UICorner", core).CornerRadius = UDim.new(1, 0)
+
         for i = 0, 7 do
-            local a = math.rad(i * 45)
-            local x = c + math.cos(a) * size * 0.38
-            local y = c + math.sin(a) * size * 0.38
-            vectorLine(holder, x, y, size * 0.16, 1.5, color, i * 45, true)
+            local angle = i * 45
+            local a = math.rad(angle)
+            local x = c + math.cos(a) * size * 0.37
+            local y = c + math.sin(a) * size * 0.37
+            vectorLine(holder, x, y, size * 0.17, 1.45, color, angle, true)
         end
 
     elseif kind == "moon" then
+        -- Lua crescente desenhada sem depender da cor de fundo do botão.
         local moon = Instance.new("Frame")
-        moon.Size = UDim2.new(0, size * 0.66, 0, size * 0.66)
-        moon.Position = UDim2.new(0, size * 0.13, 0, size * 0.12)
+        moon.Size = UDim2.new(0, size * 0.62, 0, size * 0.62)
+        moon.Position = UDim2.new(0, size * 0.16, 0, size * 0.17)
         moon.BackgroundColor3 = color
         moon.BorderSizePixel = 0
         moon.ZIndex = holder.ZIndex + 2
         moon.Parent = holder
         Instance.new("UICorner", moon).CornerRadius = UDim.new(1, 0)
+
         local cutout = Instance.new("Frame")
-        cutout.Size = UDim2.new(0, size * 0.58, 0, size * 0.58)
-        cutout.Position = UDim2.new(0, size * 0.24, 0, -size * 0.02)
+        cutout.Size = UDim2.new(0, size * 0.54, 0, size * 0.54)
+        cutout.Position = UDim2.new(0, size * 0.34, 0, size * 0.06)
         cutout.BackgroundColor3 = THEMES[currentTheme].btn
+        cutout.BackgroundTransparency = 0
         cutout.BorderSizePixel = 0
         cutout.ZIndex = holder.ZIndex + 3
         cutout.Parent = holder
         Instance.new("UICorner", cutout).CornerRadius = UDim.new(1, 0)
 
     elseif kind == "brush" then
-        vectorLine(holder, size * 0.56, size * 0.42, size * 0.70, size * 0.20, color, -45, true)
-        local tip = vectorOutline(holder, size * 0.29, size * 0.73, size * 0.28, size * 0.36, color, 4)
+        -- Pincel legível em 18px: cabo diagonal + virola + ponta.
+        vectorLine(holder, size * 0.61, size * 0.39, size * 0.64, 2.4, color, -45, true)
+
+        local ferrule = Instance.new("Frame")
+        ferrule.Size = UDim2.new(0, size * 0.25, 0, size * 0.19)
+        ferrule.Position = UDim2.new(0, size * 0.31, 0, size * 0.57)
+        ferrule.BackgroundColor3 = color
+        ferrule.BorderSizePixel = 0
+        ferrule.Rotation = -45
+        ferrule.ZIndex = holder.ZIndex + 2
+        ferrule.Parent = holder
+        Instance.new("UICorner", ferrule).CornerRadius = UDim.new(0, 2)
+
+        local tip = Instance.new("Frame")
+        tip.Size = UDim2.new(0, size * 0.25, 0, size * 0.28)
+        tip.Position = UDim2.new(0, size * 0.19, 0, size * 0.67)
+        tip.BackgroundColor3 = color
+        tip.BorderSizePixel = 0
         tip.Rotation = 45
-        vectorLine(holder, size * 0.70, size * 0.27, size * 0.22, 2, color, -45, true)
+        tip.ZIndex = holder.ZIndex + 2
+        tip.Parent = holder
+        Instance.new("UICorner", tip).CornerRadius = UDim.new(0, 3)
 
     elseif kind == "home" then
         vectorLine(holder, size * 0.35, size * 0.38, size * 0.55, 1.8, color, -42, true)
@@ -2704,6 +2737,7 @@ do
     tagToggleStroke.Transparency = 0.55
     tagToggleStroke.Thickness = 1
     tagToggleStroke.Parent = tagToggleBtn
+    registerTheme(tagToggleStroke, "Color", "accent")
 
     local tagIcon = nil
     local function refreshTagToggleIcon()
@@ -2790,7 +2824,7 @@ do
     end
 
     local pingVal = makeHomeStat("PING", 24, ACCENT)
-    local onlineVal = makeHomeStat("ONLINE", 178, TEXT_MAIN)
+    local onlineVal = makeHomeStat("ONLINE", 178, Color3.fromRGB(80, 220, 100))
     local usersVal = makeHomeStat("USERS", 332, TEXT_MAIN)
     pingVal.Text = "-- ms"
 
@@ -2822,7 +2856,18 @@ do
         end)
         ping = okPing and ping or 0
         pingVal.Text = math.floor(ping + 0.5) .. " ms"
-        pingVal.TextColor3 = ping < 150 and ACCENT or Color3.fromRGB(255, 110, 130)
+
+        -- Cor dinâmica do ping:
+        -- verde = ótimo, amarelo = médio, laranja = alto, vermelho = ruim
+        if ping < 80 then
+            pingVal.TextColor3 = Color3.fromRGB(80, 220, 100)
+        elseif ping < 150 then
+            pingVal.TextColor3 = Color3.fromRGB(255, 200, 70)
+        elseif ping < 250 then
+            pingVal.TextColor3 = Color3.fromRGB(255, 145, 65)
+        else
+            pingVal.TextColor3 = Color3.fromRGB(255, 85, 100)
+        end
     end
 
     local function refreshHomeStats()
@@ -2831,6 +2876,7 @@ do
         local stats = apiGet("/stats")
         if stats then
             onlineVal.Text = tostring(stats.online or stats.activeSessions or "--")
+            onlineVal.TextColor3 = Color3.fromRGB(80, 220, 100)
             usersVal.Text  = tostring(stats.totalUsers or "--")
         end
 
@@ -2941,6 +2987,7 @@ do
     pickerStroke.Color = ACCENT
     pickerStroke.Transparency = 0.35
     pickerStroke.Parent = themePickerBtn
+    registerTheme(pickerStroke, "Color", "accent")
     makeVectorIcon(themePickerBtn, "brush", 8, 8, 18, ACCENT)
     addHover(themePickerBtn, false)
     registerTheme(themePickerBtn, "BackgroundColor3", "btn")
@@ -4946,6 +4993,7 @@ do
     aboutThemeStroke.Color = ACCENT
     aboutThemeStroke.Transparency = 0.45
     aboutThemeStroke.Parent = aboutThemeBtn
+    registerTheme(aboutThemeStroke, "Color", "accent")
     registerTheme(aboutThemeBtn, "BackgroundColor3", "btn")
     addHover(aboutThemeBtn, false)
 
