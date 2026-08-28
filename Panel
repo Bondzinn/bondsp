@@ -46,7 +46,7 @@ end
 -- ==================== CONFIG ====================
 local GLOBAL = (getgenv and getgenv()) or _G
 local PANEL_CONFIG = GLOBAL.__288PanelConfig or {}
-local API_BASE   = PANEL_CONFIG.API_BASE or "https://brake-pictures-though-calls.trycloudflare.com"
+local API_BASE   = PANEL_CONFIG.API_BASE or "https://attacks-terms-visitor-decor.trycloudflare.com"
 local GITHUB_RAW = PANEL_CONFIG.GITHUB_RAW or "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
 -- FaÃ§a upload de assets/panel-background.png no Roblox e informe o asset ID aqui
 -- via getgenv().__288PanelConfig.BACKGROUND_IMAGE = "rbxassetid://SEU_ID".
@@ -1306,16 +1306,16 @@ local commonModulePreloadRemaining = 0
 -- execute from memory and no longer wait for another HTTP request.
 task.spawn(function()
     local commonModules = {
-        "modules/Character/Fly", "modules/Character/FlyOff",
-        "modules/Character/WalkSpeed", "modules/Character/WalkSpeedOff",
-        "modules/Character/JumpPower", "modules/Character/JumpPowerOff",
-        "modules/Character/Checkpoint", "modules/Character/CheckpointOff",
-        "modules/VIP/AntiFling", "modules/VIP/AntiFlingOff",
-        "modules/VIP/FakeVR", "modules/VIP/FakeVROff",
+        "modules/Character/Fly",
+        "modules/Character/WalkSpeed",
+        "modules/Character/JumpPower",
+        "modules/Character/Checkpoint",
+        "modules/VIP/AntiFling",
+        "modules/VIP/FakeVR",
         "modules/Games/MM2/Controller", "modules/Games/MM2/Extension",
         "modules/Games/MushYO/Controller", "modules/Games/MushYO/Extension",
-        "modules/Games/MushYO/ButterflyFarm", "modules/Games/MushYO/ButterflyFarmOff",
-        "modules/Games/MushYO/TreasureFarm", "modules/Games/MushYO/TreasureFarmOff",
+        "modules/Games/MushYO/ButterflyFarm",
+        "modules/Games/MushYO/TreasureFarm",
         "modules/More/ESP", "modules/More/Aimbot",
     }
     commonModulePreloadRemaining = #commonModules
@@ -3094,11 +3094,14 @@ do
         btn.MouseButton1Click:Connect(function()
             local active = toggleStates[btn]
             local safe = v[1]:gsub("%s+", "")
-            loadModule(active and ("modules/VIP/"..safe..".lua") or ("modules/VIP/"..safe.."Off.lua"))
+            local singleFile = safe == "AntiFling" or safe == "FakeVR"
+            loadModule("modules/VIP/" .. safe .. ((active or singleFile) and ".lua" or "Off.lua"))
         end)
         registerCleanup("VIP/" .. v[1], function()
             if toggleStates[btn] then
-                loadModule("modules/VIP/" .. v[1]:gsub("%s+", "") .. "Off.lua")
+                local safe = v[1]:gsub("%s+", "")
+                local singleFile = safe == "AntiFling" or safe == "FakeVR"
+                loadModule("modules/VIP/" .. safe .. (singleFile and ".lua" or "Off.lua"))
             end
         end)
     end
@@ -3445,10 +3448,10 @@ do
         wsDot.setActive(wsActive)
         wsBtn.BackgroundColor3 = wsActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
         GLOBAL.__288WalkSpeedValue = tonumber(wsInput.Text) or DEFAULT_WS
-        loadModule(wsActive and "modules/Character/WalkSpeed.lua" or "modules/Character/WalkSpeedOff.lua")
+        loadModule("modules/Character/WalkSpeed.lua")
     end)
     registerCleanup("WalkSpeed", function()
-        if wsActive then loadModule("modules/Character/WalkSpeedOff.lua") end
+        if wsActive then loadModule("modules/Character/WalkSpeed.lua") end
     end)
     local wsNotificationVersion = 0
     wsInput:GetPropertyChangedSignal("Text"):Connect(function()
@@ -3456,7 +3459,6 @@ do
         local val = tonumber(wsInput.Text)
         if not val then return end
         GLOBAL.__288WalkSpeedValue = val
-        loadModule("modules/Character/WalkSpeed.lua")
         wsNotificationVersion += 1
         local version = wsNotificationVersion
         task.delay(0.45, function()
@@ -3477,10 +3479,10 @@ do
         jpDot.setActive(jpActive)
         jpBtn.BackgroundColor3 = jpActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
         GLOBAL.__288JumpPowerValue = tonumber(jpInput.Text) or DEFAULT_JP
-        loadModule(jpActive and "modules/Character/JumpPower.lua" or "modules/Character/JumpPowerOff.lua")
+        loadModule("modules/Character/JumpPower.lua")
     end)
     registerCleanup("JumpPower", function()
-        if jpActive then loadModule("modules/Character/JumpPowerOff.lua") end
+        if jpActive then loadModule("modules/Character/JumpPower.lua") end
     end)
     local jpNotificationVersion = 0
     jpInput:GetPropertyChangedSignal("Text"):Connect(function()
@@ -3488,7 +3490,6 @@ do
         local val = tonumber(jpInput.Text)
         if not val then return end
         GLOBAL.__288JumpPowerValue = val
-        loadModule("modules/Character/JumpPower.lua")
         jpNotificationVersion += 1
         local version = jpNotificationVersion
         task.delay(0.45, function()
@@ -3525,11 +3526,7 @@ do
         flyActive = state
         flyDot.setActive(flyActive)
         flyBtn.BackgroundColor3 = flyActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        if flyActive then
-            loadModule("modules/Character/Fly")
-        else
-            loadModule("modules/Character/FlyOff")
-        end
+        loadModule("modules/Character/Fly")
     end
 
     flyBtn.MouseButton1Click:Connect(function()
@@ -3542,7 +3539,7 @@ do
         )
     end)
     registerCleanup("Fly", function()
-        if flyActive then loadModule("modules/Character/FlyOff") end
+        if flyActive then loadModule("modules/Character/Fly") end
     end)
 
     trackConnect(UserInputService.InputBegan, function(input, gpe)
@@ -3566,10 +3563,10 @@ do
         ckActive = not ckActive
         ckDot.setActive(ckActive)
         ckBtn.BackgroundColor3 = ckActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-        loadModule(ckActive and "modules/Character/Checkpoint.lua" or "modules/Character/CheckpointOff.lua")
+        loadModule("modules/Character/Checkpoint.lua")
     end)
     registerCleanup("Checkpoint", function()
-        if ckActive then loadModule("modules/Character/CheckpointOff.lua") end
+        if ckActive then loadModule("modules/Character/Checkpoint.lua") end
     end)
 
     refreshCanvas(f)
@@ -3734,6 +3731,9 @@ do
         Focus = true, Follow = true, Stand = true, Bang = true,
         Drag = true, Headsit = true, Doggy = true, Backpack = true,
     }
+    local singleFileTargetActions = {
+        View = true, Follow = true, Headsit = true, Backpack = true,
+    }
 
     local function restoreLocalTargetState()
         local character = LocalPlayer.Character
@@ -3824,11 +3824,12 @@ do
                             and control.isActive()
                         then
                             control.deactivate()
-                            loadModule("modules/Target/" .. control.name:gsub(" ", "") .. "Off")
+                            local otherSafe = control.name:gsub(" ", "")
+                            loadModule("modules/Target/" .. otherSafe .. (singleFileTargetActions[control.name] and "" or "Off"))
                         end
                     end
                 end
-                loadModule(active and ("modules/Target/"..safe) or ("modules/Target/"..safe.."Off"))
+                loadModule("modules/Target/" .. safe .. ((active or singleFileTargetActions[v.name]) and "" or "Off"))
                 if not active and positionalTargetActions[v.name] then
                     task.delay(0.15, function()
                         if not anyPositionalActionActive() then restoreLocalTargetState() end
@@ -3846,13 +3847,13 @@ do
         for _, control in ipairs(targetControls) do
             if not control.instant and control.isActive() then
                 local safe = control.name:gsub(" ", "")
-                table.insert(modulesToDisable, "modules/Target/" .. safe .. "Off")
+                table.insert(modulesToDisable, "modules/Target/" .. safe .. (singleFileTargetActions[control.name] and "" or "Off"))
             end
             control.deactivate()
         end
 
         -- Headsit tambem observa este ID e se encerra imediatamente quando ele
-        -- e limpo, mesmo antes de o modulo Off terminar de carregar.
+        -- e limpo antes de o modulo concluir sua limpeza.
         targetUser = nil
         GLOBAL.__288TargetUserId = nil
         userIdLbl.Visible = false
