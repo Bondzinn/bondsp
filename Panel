@@ -1439,11 +1439,8 @@ local MIRROR_SHINE_RANKS = {
     Owner = true,
 }
 
-local TAG_FONT_FACE = Font.new(
-    "rbxasset://fonts/families/FredokaOne.json",
-    Enum.FontWeight.Regular,
-    Enum.FontStyle.Normal
-)
+local TAG_FONT = Enum.Font.GothamBold
+
 
 -- ==================== GUI ROOT ====================
 if LocalPlayer.PlayerGui:FindFirstChild("288Panel") then
@@ -2534,7 +2531,7 @@ local function createBillboard(character, rank, device, remoteVisible)
         or Color3.fromRGB(0, 0, 0)
     lbl.TextStrokeTransparency = 0
     lbl.TextSize = 14
-    lbl.FontFace = TAG_FONT_FACE
+    lbl.Font = TAG_FONT
     lbl.TextXAlignment = Enum.TextXAlignment.Center
     lbl.TextYAlignment = Enum.TextYAlignment.Center
     lbl.Parent = row
@@ -2579,7 +2576,7 @@ local function createBillboard(character, rank, device, remoteVisible)
         reflectionText.TextTransparency = 0
         reflectionText.TextStrokeTransparency = 1
         reflectionText.TextSize = lbl.TextSize
-        reflectionText.FontFace = TAG_FONT_FACE
+        reflectionText.Font = TAG_FONT
         reflectionText.TextXAlignment = lbl.TextXAlignment
         reflectionText.TextYAlignment = lbl.TextYAlignment
         reflectionText.AutoLocalize = false
