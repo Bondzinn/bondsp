@@ -13,6 +13,31 @@ local StarterGui       = game:GetService("StarterGui")
 local GuiService       = game:GetService("GuiService")
 local LocalPlayer      = Players.LocalPlayer
 
+-- ==================== GUI PARENT (LOADSTRING/EXECUTOR SAFE) ====================
+-- Em executores, gethui() é a forma mais compatível de exibir ScreenGuis.
+-- PlayerGui fica como fallback para ambientes que não expõem gethui().
+local function resolveGuiParent()
+    if typeof(gethui) == "function" then
+        local ok, hui = pcall(gethui)
+        if ok and hui then return hui end
+    end
+
+    local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
+    if not playerGui then
+        local ok, result = pcall(function()
+            return LocalPlayer:WaitForChild("PlayerGui", 10)
+        end)
+        if ok then playerGui = result end
+    end
+    return playerGui
+end
+
+local GUI_PARENT = resolveGuiParent()
+if not GUI_PARENT then
+    warn("[288] Não foi possível localizar gethui()/PlayerGui. Abortando para evitar travamento.")
+    return
+end
+
 -- ==================== DEVICE ====================
 local function getDevice()
     local ok, device = pcall(function()
@@ -760,15 +785,25 @@ local function reportPanelError(source, message, details)
     end)
 end
 
-local PUBLIC_CONFIG = apiGet("/config/public") or {}
-do
-    local packageVersion = tostring(PUBLIC_CONFIG.panelVersion or VERSION):gsub("^v", "")
-    VERSION = "v" .. packageVersion
-end
-local DISCORD_INVITE = tostring(PUBLIC_CONFIG.discordInvite or "https://discord.gg/9XZB7z53wW")
+local PUBLIC_CONFIG = {}
+local DISCORD_INVITE = tostring(PANEL_CONFIG.DISCORD_INVITE or "https://discord.gg/9XZB7z53wW")
 
--- Envia a execução durante o bootstrap e aguarda a API antes de criar qualquer UI.
-do
+-- IMPORTANTE PARA LOADSTRING:
+-- Nenhuma chamada HTTP externa bloqueia a criação da interface. Cloudflare/Roblox/API
+-- podem ficar indisponíveis; por isso config e telemetria rodam em background.
+task.spawn(function()
+    local config = apiGet("/config/public")
+    if type(config) == "table" then
+        PUBLIC_CONFIG = config
+        local packageVersion = tostring(config.panelVersion or VERSION):gsub("^v", "")
+        VERSION = "v" .. packageVersion
+        if config.discordInvite then
+            DISCORD_INVITE = tostring(config.discordInvite)
+        end
+    end
+end)
+
+task.spawn(function()
     local gameName = "Unknown Game"
     pcall(function()
         gameName = game:GetService("MarketplaceService"):GetProductInfo(game.PlaceId).Name
@@ -789,9 +824,9 @@ do
         avatarUrl = avatarUrl,
     })
     if not response or response.success ~= true then
-        warn("[288] Falha ao enviar webhook de execução durante o loading.")
+        warn("[288] Telemetria indisponível; painel continuará normalmente.")
     end
-end
+end)
 local DISCORD_DISMISSED_FILE = "288/discord_dismissed"
 
 local function discordDismissed()
@@ -815,10 +850,8 @@ local function entryDialog(message, buttons)
     gui.IgnoreGuiInset = true
     gui.DisplayOrder = 999999
     gui.AutoLocalize = false
-    -- Nunca parentear a interface do painel no CoreGui. Alguns jogos/executores
-    -- acabam fazendo os módulos internos CoreGui.Locales inspecionarem GUIs
-    -- externas, o que pode gerar "attempt to call a nil value".
-    gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+    -- Usa o mesmo parent seguro do painel principal; gethui() é preferido em executores.
+    gui.Parent = GUI_PARENT
 
     local shade = Instance.new("Frame")
     shade.Size = UDim2.fromScale(1, 1)
@@ -971,9 +1004,10 @@ local function cleanupPanel()
     -- interno do Roblox e pode acionar o módulo CoreGui.Locales.
     warn("[288] Script encerrado. Todos os recursos foram desativados.")
 
-    local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
-    local panelGui = playerGui and playerGui:FindFirstChild("288Panel")
+    local panelGui = GUI_PARENT and GUI_PARENT:FindFirstChild("288Panel")
     if panelGui then panelGui:Destroy() end
+    local notificationsGui = GUI_PARENT and GUI_PARENT:FindFirstChild("288Notifications")
+    if notificationsGui then notificationsGui:Destroy() end
 
     GLOBAL.__288LoadModule = nil
 
@@ -1445,22 +1479,20 @@ local TAG_FONT = Enum.Font.GothamBold
 
 
 -- ==================== GUI ROOT ====================
-if LocalPlayer.PlayerGui:FindFirstChild("288Panel") then
-    LocalPlayer.PlayerGui["288Panel"]:Destroy()
-end
-if LocalPlayer.PlayerGui:FindFirstChild("288Notifications") then
-    LocalPlayer.PlayerGui["288Notifications"]:Destroy()
-end
+local oldPanel = GUI_PARENT:FindFirstChild("288Panel")
+if oldPanel then oldPanel:Destroy() end
+local oldNotifications = GUI_PARENT:FindFirstChild("288Notifications")
+if oldNotifications then oldNotifications:Destroy() end
 
--- Toda a UI do 288 Panel fica exclusivamente no PlayerGui.
--- Não use gethui/CoreGui/StarterGui:SetCore para as GUIs do painel.
+-- Toda a UI usa gethui() quando disponível (ideal para loadstring/executor),
+-- com PlayerGui como fallback. StarterGui:SetCore continua desativado.
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name           = "288Panel"
 ScreenGui.ResetOnSpawn   = false
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.AutoLocalize   = false
-ScreenGui.Parent         = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.Parent         = GUI_PARENT
 themeRoot = ScreenGui
 
 -- Notificacoes proprias do painel. Ficam em um ScreenGui separado para
@@ -1472,7 +1504,7 @@ NotificationGui.IgnoreGuiInset = true
 NotificationGui.DisplayOrder = 1000
 NotificationGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 NotificationGui.AutoLocalize = false
-NotificationGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+NotificationGui.Parent = GUI_PARENT
 
 -- O painel nunca usa o pipeline interno de AutoLocalize do Roblox.
 -- Isso evita que textos do painel sejam encaminhados aos módulos CoreGui.Locales.
