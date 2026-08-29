@@ -46,7 +46,7 @@ end
 -- ==================== CONFIG ====================
 local GLOBAL = (getgenv and getgenv()) or _G
 local PANEL_CONFIG = GLOBAL.__288PanelConfig or {}
-local API_BASE   = PANEL_CONFIG.API_BASE or "https://attacks-terms-visitor-decor.trycloudflare.com"
+local API_BASE   = PANEL_CONFIG.API_BASE or "https://brake-pictures-though-calls.trycloudflare.com"
 local GITHUB_RAW = PANEL_CONFIG.GITHUB_RAW or "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
 -- FaÃ§a upload de assets/panel-background.png no Roblox e informe o asset ID aqui
 -- via getgenv().__288PanelConfig.BACKGROUND_IMAGE = "rbxassetid://SEU_ID".
@@ -340,20 +340,18 @@ local function makeVectorIcon(parent, kind, x, y, size, color)
         vectorLine(holder, size * 0.70, size * 0.70, size * 0.34, 2, color, 45, true)
 
     elseif kind == "eye" or kind == "eyeOff" then
-        -- Eye compacto e centralizado: contorno em formato de olho + pupila limpa.
-        local eyeW = size * 0.78
-        local eyeH = size * 0.44
-        local halfW = eyeW * 0.5
-        local halfH = eyeH * 0.5
+        -- Contorno simetrico, iris vazada e brilho para leitura melhor em tamanhos pequenos.
+        vectorLine(holder, size * 0.28, size * 0.42, size * 0.38, 1.6, color, -22, true)
+        vectorLine(holder, size * 0.72, size * 0.42, size * 0.38, 1.6, color, 22, true)
+        vectorLine(holder, size * 0.28, size * 0.58, size * 0.38, 1.6, color, 22, true)
+        vectorLine(holder, size * 0.72, size * 0.58, size * 0.38, 1.6, color, -22, true)
 
-        vectorLine(holder, c - halfW * 0.52, c - halfH * 0.42, eyeW * 0.54, 1.55, color, -22, true)
-        vectorLine(holder, c + halfW * 0.52, c - halfH * 0.42, eyeW * 0.54, 1.55, color, 22, true)
-        vectorLine(holder, c - halfW * 0.52, c + halfH * 0.42, eyeW * 0.54, 1.55, color, 22, true)
-        vectorLine(holder, c + halfW * 0.52, c + halfH * 0.42, eyeW * 0.54, 1.55, color, -22, true)
+        local iris = vectorOutline(holder, c, c, size * 0.34, size * 0.34, color, size)
+        iris:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(1, 0)
 
         local pupil = Instance.new("Frame")
-        pupil.Size = UDim2.new(0, size * 0.25, 0, size * 0.25)
-        pupil.Position = UDim2.new(0.5, -size * 0.125, 0.5, -size * 0.125)
+        pupil.Size = UDim2.new(0, size * 0.13, 0, size * 0.13)
+        pupil.Position = UDim2.new(0.5, -size * 0.065, 0.5, -size * 0.065)
         pupil.BackgroundColor3 = color
         pupil.BorderSizePixel = 0
         pupil.ZIndex = holder.ZIndex + 2
@@ -361,8 +359,7 @@ local function makeVectorIcon(parent, kind, x, y, size, color)
         Instance.new("UICorner", pupil).CornerRadius = UDim.new(1, 0)
 
         if kind == "eyeOff" then
-            -- Corte diagonal com uma pequena margem além do olho.
-            vectorLine(holder, c, c, size * 0.92, 2.1, color, 45, true)
+            vectorLine(holder, c, c, size * 0.92, 2, color, 45, true)
         end
 
     elseif kind == "mouse" then
@@ -370,68 +367,38 @@ local function makeVectorIcon(parent, kind, x, y, size, color)
         vectorLine(holder, c, size * 0.30, 2, size * 0.18, color, 0, true)
 
     elseif kind == "theme" or kind == "sun" then
-        -- Sol menor e mais equilibrado para o botão circular de 34px.
-        local core = Instance.new("Frame")
-        core.Size = UDim2.new(0, size * 0.34, 0, size * 0.34)
-        core.Position = UDim2.new(0.5, -size * 0.17, 0.5, -size * 0.17)
-        core.BackgroundColor3 = color
-        core.BorderSizePixel = 0
-        core.ZIndex = holder.ZIndex + 2
-        core.Parent = holder
-        Instance.new("UICorner", core).CornerRadius = UDim.new(1, 0)
-
+        local core = vectorOutline(holder, c, c, size * 0.38, size * 0.38, color, size)
+        core:FindFirstChildOfClass("UICorner").CornerRadius = UDim.new(1, 0)
         for i = 0, 7 do
-            local angle = i * 45
-            local a = math.rad(angle)
-            local x = c + math.cos(a) * size * 0.37
-            local y = c + math.sin(a) * size * 0.37
-            vectorLine(holder, x, y, size * 0.17, 1.45, color, angle, true)
+            local a = math.rad(i * 45)
+            local x = c + math.cos(a) * size * 0.38
+            local y = c + math.sin(a) * size * 0.38
+            vectorLine(holder, x, y, size * 0.16, 1.5, color, i * 45, true)
         end
 
     elseif kind == "moon" then
-        -- Lua crescente desenhada sem depender da cor de fundo do botão.
         local moon = Instance.new("Frame")
-        moon.Size = UDim2.new(0, size * 0.62, 0, size * 0.62)
-        moon.Position = UDim2.new(0, size * 0.16, 0, size * 0.17)
+        moon.Size = UDim2.new(0, size * 0.66, 0, size * 0.66)
+        moon.Position = UDim2.new(0, size * 0.13, 0, size * 0.12)
         moon.BackgroundColor3 = color
         moon.BorderSizePixel = 0
         moon.ZIndex = holder.ZIndex + 2
         moon.Parent = holder
         Instance.new("UICorner", moon).CornerRadius = UDim.new(1, 0)
-
         local cutout = Instance.new("Frame")
-        cutout.Size = UDim2.new(0, size * 0.54, 0, size * 0.54)
-        cutout.Position = UDim2.new(0, size * 0.34, 0, size * 0.06)
+        cutout.Size = UDim2.new(0, size * 0.58, 0, size * 0.58)
+        cutout.Position = UDim2.new(0, size * 0.24, 0, -size * 0.02)
         cutout.BackgroundColor3 = THEMES[currentTheme].btn
-        cutout.BackgroundTransparency = 0
         cutout.BorderSizePixel = 0
         cutout.ZIndex = holder.ZIndex + 3
         cutout.Parent = holder
         Instance.new("UICorner", cutout).CornerRadius = UDim.new(1, 0)
 
     elseif kind == "brush" then
-        -- Pincel legível em 18px: cabo diagonal + virola + ponta.
-        vectorLine(holder, size * 0.61, size * 0.39, size * 0.64, 2.4, color, -45, true)
-
-        local ferrule = Instance.new("Frame")
-        ferrule.Size = UDim2.new(0, size * 0.25, 0, size * 0.19)
-        ferrule.Position = UDim2.new(0, size * 0.31, 0, size * 0.57)
-        ferrule.BackgroundColor3 = color
-        ferrule.BorderSizePixel = 0
-        ferrule.Rotation = -45
-        ferrule.ZIndex = holder.ZIndex + 2
-        ferrule.Parent = holder
-        Instance.new("UICorner", ferrule).CornerRadius = UDim.new(0, 2)
-
-        local tip = Instance.new("Frame")
-        tip.Size = UDim2.new(0, size * 0.25, 0, size * 0.28)
-        tip.Position = UDim2.new(0, size * 0.19, 0, size * 0.67)
-        tip.BackgroundColor3 = color
-        tip.BorderSizePixel = 0
+        vectorLine(holder, size * 0.56, size * 0.42, size * 0.70, size * 0.20, color, -45, true)
+        local tip = vectorOutline(holder, size * 0.29, size * 0.73, size * 0.28, size * 0.36, color, 4)
         tip.Rotation = 45
-        tip.ZIndex = holder.ZIndex + 2
-        tip.Parent = holder
-        Instance.new("UICorner", tip).CornerRadius = UDim.new(0, 3)
+        vectorLine(holder, size * 0.70, size * 0.27, size * 0.22, 2, color, -45, true)
 
     elseif kind == "home" then
         vectorLine(holder, size * 0.35, size * 0.38, size * 0.55, 1.8, color, -42, true)
@@ -465,174 +432,6 @@ local function makeVectorIcon(parent, kind, x, y, size, color)
         local d = vectorOutline(holder, c, c, size * 0.58, size * 0.58, color, 2)
         d.Rotation = 45
     end
-
-    return holder
-end
-
--- Ícones compactos específicos dos botões circulares.
--- Eles não reutilizam o makeVectorIcon porque os ícones de 18px ficavam
--- finos e distorcidos dentro dos botões de 34px.
-local function makeCircleIconHolder(parent, name)
-    local holder = Instance.new("Frame")
-    holder.Name = name
-    holder.Size = UDim2.new(0, 22, 0, 22)
-    holder.Position = UDim2.new(0.5, -11, 0.5, -11)
-    holder.BackgroundTransparency = 1
-    holder.BorderSizePixel = 0
-    holder.ZIndex = (parent.ZIndex or 1) + 3
-    holder.Parent = parent
-    return holder
-end
-
-local function makeCleanEyeIcon(parent, visible, color)
-    color = color or ACCENT
-    local holder = makeCircleIconHolder(parent, "CleanEyeIcon")
-
-    -- Corpo do olho: oval forte e limpo.
-    local eye = Instance.new("Frame")
-    eye.AnchorPoint = Vector2.new(0.5, 0.5)
-    eye.Position = UDim2.new(0.5, 0, 0.5, 0)
-    eye.Size = UDim2.new(0, 18, 0, 11)
-    eye.BackgroundTransparency = 1
-    eye.BorderSizePixel = 0
-    eye.ZIndex = holder.ZIndex + 1
-    eye.Parent = holder
-    Instance.new("UICorner", eye).CornerRadius = UDim.new(1, 0)
-
-    local outline = Instance.new("UIStroke")
-    outline.Color = color
-    outline.Thickness = 1.8
-    outline.Transparency = 0
-    outline.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-    outline.Parent = eye
-
-    local pupil = Instance.new("Frame")
-    pupil.AnchorPoint = Vector2.new(0.5, 0.5)
-    pupil.Position = UDim2.new(0.5, 0, 0.5, 0)
-    pupil.Size = UDim2.new(0, 5, 0, 5)
-    pupil.BackgroundColor3 = color
-    pupil.BorderSizePixel = 0
-    pupil.ZIndex = holder.ZIndex + 2
-    pupil.Parent = holder
-    Instance.new("UICorner", pupil).CornerRadius = UDim.new(1, 0)
-
-    -- Pequeno brilho evita o aspecto de "bolinha chapada".
-    local shine = Instance.new("Frame")
-    shine.Size = UDim2.new(0, 1.5, 0, 1.5)
-    shine.Position = UDim2.new(0.5, -0.2, 0.5, -2.0)
-    shine.BackgroundColor3 = THEMES[currentTheme].btn
-    shine.BorderSizePixel = 0
-    shine.ZIndex = holder.ZIndex + 3
-    shine.Parent = holder
-    Instance.new("UICorner", shine).CornerRadius = UDim.new(1, 0)
-
-    if not visible then
-        local slash = vectorLine(holder, 11, 11, 23, 2.2, color, -45, true)
-        slash.ZIndex = holder.ZIndex + 4
-    end
-
-    return holder
-end
-
-local function makeCleanSunIcon(parent, color)
-    color = color or ACCENT
-    local holder = makeCircleIconHolder(parent, "CleanSunIcon")
-
-    local core = Instance.new("Frame")
-    core.AnchorPoint = Vector2.new(0.5, 0.5)
-    core.Position = UDim2.new(0.5, 0, 0.5, 0)
-    core.Size = UDim2.new(0, 8, 0, 8)
-    core.BackgroundTransparency = 1
-    core.BorderSizePixel = 0
-    core.ZIndex = holder.ZIndex + 1
-    core.Parent = holder
-    Instance.new("UICorner", core).CornerRadius = UDim.new(1, 0)
-
-    local coreStroke = Instance.new("UIStroke")
-    coreStroke.Color = color
-    coreStroke.Thickness = 1.8
-    coreStroke.Parent = core
-
-    -- 8 raios curtos, afastados do núcleo.
-    for i = 0, 7 do
-        local angle = i * 45
-        local rad = math.rad(angle)
-        local x = 11 + math.cos(rad) * 8.0
-        local y = 11 + math.sin(rad) * 8.0
-        vectorLine(holder, x, y, 4.2, 1.55, color, angle, true)
-    end
-
-    return holder
-end
-
-local function makeCleanMoonIcon(parent, color)
-    color = color or ACCENT
-    local holder = makeCircleIconHolder(parent, "CleanMoonIcon")
-
-    -- Crescente maior e deslocado para ficar imediatamente reconhecível.
-    local moon = Instance.new("Frame")
-    moon.Size = UDim2.new(0, 14, 0, 14)
-    moon.Position = UDim2.new(0, 3.5, 0, 4)
-    moon.BackgroundColor3 = color
-    moon.BorderSizePixel = 0
-    moon.ZIndex = holder.ZIndex + 1
-    moon.Parent = holder
-    Instance.new("UICorner", moon).CornerRadius = UDim.new(1, 0)
-
-    local cut = Instance.new("Frame")
-    cut.Size = UDim2.new(0, 12, 0, 12)
-    cut.Position = UDim2.new(0, 8.5, 0, 1.8)
-    cut.BackgroundColor3 = THEMES[currentTheme].btn
-    cut.BorderSizePixel = 0
-    cut.ZIndex = holder.ZIndex + 2
-    cut.Parent = holder
-    Instance.new("UICorner", cut).CornerRadius = UDim.new(1, 0)
-
-    return holder
-end
-
-local function makeCleanBrushIcon(parent, color)
-    color = color or ACCENT
-    local holder = makeCircleIconHolder(parent, "CleanBrushIcon")
-
-    -- Cabo: mais grosso e curto para não parecer apenas uma barra.
-    local handle = vectorLine(holder, 13.8, 7.8, 12, 3.0, color, -48, true)
-    handle.ZIndex = holder.ZIndex + 1
-
-    -- Virola metálica estilizada.
-    local ferrule = Instance.new("Frame")
-    ferrule.AnchorPoint = Vector2.new(0.5, 0.5)
-    ferrule.Position = UDim2.new(0, 8.0, 0, 13.3)
-    ferrule.Size = UDim2.new(0, 7.5, 0, 5.0)
-    ferrule.BackgroundColor3 = color
-    ferrule.BorderSizePixel = 0
-    ferrule.Rotation = -48
-    ferrule.ZIndex = holder.ZIndex + 2
-    ferrule.Parent = holder
-    Instance.new("UICorner", ferrule).CornerRadius = UDim.new(0, 2)
-
-    -- Cerdas; um pouco mais largas que a virola.
-    local bristle = Instance.new("Frame")
-    bristle.AnchorPoint = Vector2.new(0.5, 0.5)
-    bristle.Position = UDim2.new(0, 5.2, 0, 16.5)
-    bristle.Size = UDim2.new(0, 7.8, 0, 5.8)
-    bristle.BackgroundColor3 = color
-    bristle.BorderSizePixel = 0
-    bristle.Rotation = -48
-    bristle.ZIndex = holder.ZIndex + 1
-    bristle.Parent = holder
-    Instance.new("UICorner", bristle).CornerRadius = UDim.new(0, 2.5)
-
-    -- Recorte mínimo na ponta para sugerir cerdas.
-    local notch = Instance.new("Frame")
-    notch.AnchorPoint = Vector2.new(0.5, 0.5)
-    notch.Position = UDim2.new(0, 3.0, 0, 18.2)
-    notch.Size = UDim2.new(0, 2.0, 0, 3.0)
-    notch.BackgroundColor3 = THEMES[currentTheme].btn
-    notch.BorderSizePixel = 0
-    notch.Rotation = -48
-    notch.ZIndex = holder.ZIndex + 3
-    notch.Parent = holder
 
     return holder
 end
@@ -995,14 +794,15 @@ local MORE_MODULE_URLS = {
     Aimbot = GITHUB_RAW .. "/modules/More/Aimbot",
     PianoAuto = GITHUB_RAW .. "/modules/More/PianoAuto",
 
-    AnimSpeed = GITHUB_RAW .. "/modules/Emphasis/AnimSpeed",
+    AnimSpeed = GITHUB_RAW .. "/modules/Emphasis/AnimeSpeed",
+    AnimeSpeed = GITHUB_RAW .. "/modules/Emphasis/AnimeSpeed",
     AntiVoid = GITHUB_RAW .. "/modules/Emphasis/AntiVoid",
     ClickTP = GITHUB_RAW .. "/modules/Emphasis/ClickTP",
-    FaceBang = GITHUB_RAW .. "/modules/Emphasis/FaceBang",
+    FaceTarget = GITHUB_RAW .. "/modules/Emphasis/FaceTarget",
     Flashback = GITHUB_RAW .. "/modules/Emphasis/Flashback",
     Impulse = GITHUB_RAW .. "/modules/Emphasis/Impulse",
     Invisible = GITHUB_RAW .. "/modules/Emphasis/Invisible",
-    JerkOff = GITHUB_RAW .. "/modules/Emphasis/JerkOff",
+    Emote = GITHUB_RAW .. "/modules/Emphasis/Emote",
     NoClip = GITHUB_RAW .. "/modules/Emphasis/NoClip",
     Spin = GITHUB_RAW .. "/modules/Emphasis/Spin",
     feFlip = GITHUB_RAW .. "/modules/Emphasis/feFlip",
@@ -1057,90 +857,7 @@ local function fetchModuleSource(url)
     if source then moduleSourceCache[url] = source end
     return source
 end
-local notifyPanel
-local reconstructedModules = {}
-local reconstructedConfig = {
-    AnimSpeed = { keys = {"Q", "E"}, passive = true },
-    AntiVoid = { keys = {"Unknown"}, activateOnInit = true },
-    ClickTP = { keys = {}, passive = true },
-    feFlip = { keys = {"X", "C"}, passive = true },
-    Flashback = { keys = {"V"}, passive = true },
-    Impulse = { keys = {"Unknown"}, activateOnInit = true },
-    Invisible = { keys = {"Unknown"}, activateOnInit = true },
-    JerkOff = { keys = {"Unknown"}, activateOnInit = true },
-    NoClip = { keys = {"Unknown"}, activateOnInit = true },
-    Spin = { keys = {"Unknown"}, activateOnInit = true },
-    Aimbot = { keys = {"Unknown"} },
-    ESP = { keys = {"Unknown"} },
-}
-
-local function initializeReconstructedModule(name, initializer)
-    if name == "ClickTP" then
-        local runtime = reconstructedModules.ClickTP
-        local env = (getgenv and getgenv()) or GLOBAL
-        if runtime and runtime.active then
-            if env.TeleportConnection then
-                pcall(function() env.TeleportConnection:Disconnect() end)
-                env.TeleportConnection = nil
-            end
-            runtime.active = false
-            return true
-        end
-        local ok, err = pcall(initializer, LocalPlayer, UserInputService, function(title, message, duration)
-            notifyPanel(tostring(title), tostring(message), "info", tonumber(duration) or 4)
-        end)
-        if ok then reconstructedModules.ClickTP = { callbacks = {}, active = true } end
-        return ok, err
-    end
-
-    local config = reconstructedConfig[name]
-    if not config then return true end
-
-    local runtime = reconstructedModules[name]
-    if runtime then
-        if not config.passive and runtime.primary then runtime.primary() end
-        return true
-    end
-
-    runtime = { callbacks = {} }
-    reconstructedModules[name] = runtime
-    local function moduleNotify(title, message, duration)
-        notifyPanel(tostring(title), tostring(message), "info", tonumber(duration) or 4)
-    end
-    local function bindModuleButton(callback)
-        if type(callback) == "function" then
-            table.insert(runtime.callbacks, callback)
-            runtime.primary = runtime.primary or callback
-        end
-        return nil
-    end
-    local keys = config.keys or {}
-    local ok, err
-    if name == "ClickTP" then
-        ok, err = pcall(initializer, LocalPlayer, UserInputService, moduleNotify)
-    elseif name == "AnimSpeed" then
-        ok, err = pcall(initializer, LocalPlayer, RunService, UserInputService, moduleNotify, bindModuleButton, keys[1], keys[2], 0, 0)
-    elseif name == "Flashback" then
-        ok, err = pcall(initializer, LocalPlayer, RunService, UserInputService, moduleNotify, bindModuleButton, keys[1], 0, 0)
-    elseif name == "Aimbot" or name == "ESP" then
-        ok, err = pcall(initializer, LocalPlayer, RunService, UserInputService, moduleNotify, bindModuleButton, keys[1], 0, 0)
-    elseif name == "feFlip" then
-        ok, err = pcall(initializer, LocalPlayer, moduleNotify, bindModuleButton, keys[1], keys[2], 0, 0)
-    elseif name == "Invisible" or name == "NoClip" then
-        ok, err = pcall(initializer, LocalPlayer, RunService, UserInputService, moduleNotify, bindModuleButton, keys[1], 0, 0)
-    else
-        ok, err = pcall(initializer, LocalPlayer, UserInputService, moduleNotify, bindModuleButton, keys[1], 0, 0)
-    end
-    if not ok then
-        reconstructedModules[name] = nil
-        return false, tostring(err)
-    end
-    if config.activateOnInit and runtime.primary then runtime.primary() end
-    return true
-end
-
-local function executeModuleSource(source, moduleName)
-    local name = tostring(moduleName or "")
+local function executeModuleSource(source)
     if type(source) ~= "string" or source == "" then return false, "fonte vazia" end
     source = source:gsub("^\239\187\191", "")
     local trimmed = source:match("^%s*(.-)%s*$") or source
@@ -1150,12 +867,8 @@ local function executeModuleSource(source, moduleName)
 
     local chunk, compileErr = loadstring(source)
     if not chunk then return false, "compile: " .. tostring(compileErr) end
-    local okRun, result = pcall(chunk)
-    if not okRun then return false, "runtime: " .. tostring(result) end
-    if type(result) == "function" then
-        local okInit, initErr = initializeReconstructedModule(tostring(moduleName), result)
-        if not okInit then return false, "initialize: " .. tostring(initErr) end
-    end
+    local okRun, runErr = pcall(chunk)
+    if not okRun then return false, "runtime: " .. tostring(runErr) end
     return true
 end
 
@@ -1166,7 +879,7 @@ local function executeRemoteScript(url, label)
         reportPanelError("module-fetch", "Falha ao baixar módulo", tostring(label) .. " | " .. tostring(url))
         return false
     end
-    local ok, err = executeModuleSource(source, label)
+    local ok, err = executeModuleSource(source)
     if not ok then
         warn("[288] module error [" .. tostring(label) .. "]: " .. tostring(err))
         reportPanelError("module-execute", "Falha ao compilar/executar módulo", tostring(label) .. " | " .. tostring(err))
@@ -1180,7 +893,7 @@ local function normalizeModuleName(path)
     name = name:gsub("Off$", "")
 
     if name == "AnimeSpeed" then
-        return "AnimSpeed"
+        return "AnimeSpeed"
     end
 
     return name
@@ -1305,7 +1018,7 @@ local function loadModuleUnsafe(path)
                 checked[localPath] = true
                 local okRead, source = pcall(readfile, localPath)
                 if okRead and type(source) == "string" and source ~= "" then
-                    local okRun, moduleError = executeModuleSource(source, normalizeModuleName(localPath))
+                    local okRun, moduleError = executeModuleSource(source)
                     if okRun then return true end
                     warn("[288] local module failed [" .. localPath .. "]: " .. tostring(moduleError))
                 end
@@ -1340,7 +1053,7 @@ local function loadModuleUnsafe(path)
 
             local source = fetchModuleSource(url)
             if source then
-                local okRun, moduleError = executeModuleSource(source, name)
+                local okRun, moduleError = executeModuleSource(source)
                 if okRun then return true end
                 warn("[288] candidate failed [" .. tostring(url) .. "]: " .. tostring(moduleError))
             end
@@ -1517,7 +1230,7 @@ NotificationLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
 NotificationLayout.Padding = UDim.new(0, 8)
 NotificationLayout.Parent = NotificationStack
 
-notifyPanel = function(title, message, kind, duration)
+local function notifyPanel(title, message, kind, duration)
     if not NotificationGui.Parent then return end
 
     local colors = {
@@ -2991,7 +2704,6 @@ do
     tagToggleStroke.Transparency = 0.55
     tagToggleStroke.Thickness = 1
     tagToggleStroke.Parent = tagToggleBtn
-    registerTheme(tagToggleStroke, "Color", "accent")
 
     local tagIcon = nil
     local function refreshTagToggleIcon()
@@ -2999,9 +2711,12 @@ do
             tagIcon:Destroy()
             tagIcon = nil
         end
-        tagIcon = makeCleanEyeIcon(
+        tagIcon = makeVectorIcon(
             tagToggleBtn,
-            _tagsVisible,
+            _tagsVisible and "eye" or "eyeOff",
+            8,
+            8,
+            18,
             _tagsVisible and ACCENT or TEXT_DIM
         )
         tagToggleStroke.Color = _tagsVisible and ACCENT or TEXT_DIM
@@ -3075,7 +2790,7 @@ do
     end
 
     local pingVal = makeHomeStat("PING", 24, ACCENT)
-    local onlineVal = makeHomeStat("ONLINE", 178, Color3.fromRGB(80, 220, 100))
+    local onlineVal = makeHomeStat("ONLINE", 178, TEXT_MAIN)
     local usersVal = makeHomeStat("USERS", 332, TEXT_MAIN)
     pingVal.Text = "-- ms"
 
@@ -3107,18 +2822,7 @@ do
         end)
         ping = okPing and ping or 0
         pingVal.Text = math.floor(ping + 0.5) .. " ms"
-
-        -- Cor dinâmica do ping:
-        -- verde = ótimo, amarelo = médio, laranja = alto, vermelho = ruim
-        if ping < 80 then
-            pingVal.TextColor3 = Color3.fromRGB(80, 220, 100)
-        elseif ping < 150 then
-            pingVal.TextColor3 = Color3.fromRGB(255, 200, 70)
-        elseif ping < 250 then
-            pingVal.TextColor3 = Color3.fromRGB(255, 145, 65)
-        else
-            pingVal.TextColor3 = Color3.fromRGB(255, 85, 100)
-        end
+        pingVal.TextColor3 = ping < 150 and ACCENT or Color3.fromRGB(255, 110, 130)
     end
 
     local function refreshHomeStats()
@@ -3127,7 +2831,6 @@ do
         local stats = apiGet("/stats")
         if stats then
             onlineVal.Text = tostring(stats.online or stats.activeSessions or "--")
-            onlineVal.TextColor3 = Color3.fromRGB(80, 220, 100)
             usersVal.Text  = tostring(stats.totalUsers or "--")
         end
 
@@ -3222,21 +2925,6 @@ do
     vipLink.ZIndex           = 7
     vipLink.Parent           = overlay
 
-    local vipPlans = Instance.new("TextLabel")
-    vipPlans.Name = "VipPlans"
-    vipPlans.Size = UDim2.new(1, -36, 0, 96)
-    vipPlans.Position = UDim2.new(0, 18, 0.35, 74)
-    vipPlans.BackgroundTransparency = 1
-    vipPlans.Text = "VIP • R$5,99 — Acesso por 3 dias\nVIP • R$9,99 — Acesso por 7 dias (1 semana)\nVIP • R$29,99 — Acesso por 30 dias (1 mês) • Mais popular"
-    vipPlans.TextColor3 = Color3.fromRGB(235,235,235)
-    vipPlans.TextSize = 14
-    vipPlans.Font = Enum.Font.GothamSemibold
-    vipPlans.TextWrapped = true
-    vipPlans.TextXAlignment = Enum.TextXAlignment.Center
-    vipPlans.TextYAlignment = Enum.TextYAlignment.Top
-    vipPlans.ZIndex = 7
-    vipPlans.Parent = overlay
-
     local themePickerBtn = Instance.new("TextButton")
     themePickerBtn.Name = "VipThemePicker"
     themePickerBtn.Size = UDim2.new(0, 34, 0, 34)
@@ -3253,8 +2941,7 @@ do
     pickerStroke.Color = ACCENT
     pickerStroke.Transparency = 0.35
     pickerStroke.Parent = themePickerBtn
-    registerTheme(pickerStroke, "Color", "accent")
-    makeCleanBrushIcon(themePickerBtn, ACCENT)
+    makeVectorIcon(themePickerBtn, "brush", 8, 8, 18, ACCENT)
     addHover(themePickerBtn, false)
     registerTheme(themePickerBtn, "BackgroundColor3", "btn")
 
@@ -3426,9 +3113,9 @@ do
         {name="Invisible", order=1, hint="Mouse: para Ativar/Desativar"},
         {name="ClickTP", order=2, hint="Ctrl + Clique: para teleportar"},
         {name="NoClip", order=3, hint="N: para Ativar/Desativar"},
-        {name="JerkOff", order=4, hint="Mouse: para Ativar/Desativar"},
+        {name="Emote", order=4, hint="Mouse: para Ativar/Desativar"},
         {name="Impulse", order=5, hint="M: para Ativar"},
-        {name="FaceBang", order=6, hint="Mouse: para Ativar/Desativar"},
+        {name="Face Target", order=6, hint="Mouse: para Ativar/Desativar"},
         {name="Spin", order=7, hint="Mouse: para Ativar/Desativar"},
         {name="AnimSpeed", order=8, hint="Q: Lento | E: Rapido"},
         {name="feFlip", order=9, hint="X: Frontflip | C: Backflip"},
@@ -3453,6 +3140,7 @@ do
         makeMouseDot(f, dotX, yPos + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
 
         local moduleName = tostring(v.name):gsub("%s+", "")
+        if moduleName == "AnimSpeed" then moduleName = "AnimeSpeed" end
         local control = {btn=btn, moduleName=moduleName, initialized=false, hint=v.hint, activationNotified=false}
         controls[moduleName] = control
 
@@ -3468,7 +3156,7 @@ do
                 if not loaded then return end
 
                 control.initialized = true
-                local title = v.name
+                local title = moduleName == "AnimeSpeed" and "AnimeSpeed" or v.name
                 if moduleName == "Flashback" then
                     if active and not control.activationNotified then
                         control.activationNotified = true
@@ -3480,7 +3168,7 @@ do
                     if moduleName ~= "feFlip" then
                         notifyPanel(title, "Status: Desativado", "warning")
                     end
-                    if moduleName == "AnimSpeed" then
+                    if moduleName == "AnimeSpeed" then
                         keyStatus.AnimeSlow = false
                         keyStatus.AnimeFast = false
                     end
@@ -3510,16 +3198,16 @@ do
             notifyPanel("NoClip", nextState and "Status: Ativado" or "Status: Desativado", nextState and "success" or "warning")
 
         elseif input.KeyCode == Enum.KeyCode.Q or input.KeyCode == Enum.KeyCode.E then
-            local control = controls.AnimSpeed
+            local control = controls.AnimeSpeed
             if not control or not control.initialized or toggleStates[control.btn] ~= true then return end
             if input.KeyCode == Enum.KeyCode.Q then
                 keyStatus.AnimeSlow = not keyStatus.AnimeSlow
                 keyStatus.AnimeFast = false
-                notifyPanel("AnimSpeed", keyStatus.AnimeSlow and "Q - Status: Ativado" or "Q - Status: Desativado", keyStatus.AnimeSlow and "success" or "warning")
+                notifyPanel("AnimeSpeed", keyStatus.AnimeSlow and "Q - Status: Ativado" or "Q - Status: Desativado", keyStatus.AnimeSlow and "success" or "warning")
             else
                 keyStatus.AnimeFast = not keyStatus.AnimeFast
                 keyStatus.AnimeSlow = false
-                notifyPanel("AnimSpeed", keyStatus.AnimeFast and "E - Status: Ativado" or "E - Status: Desativado", keyStatus.AnimeFast and "success" or "warning")
+                notifyPanel("AnimeSpeed", keyStatus.AnimeFast and "E - Status: Ativado" or "E - Status: Desativado", keyStatus.AnimeFast and "success" or "warning")
             end
 
         end
@@ -5258,7 +4946,6 @@ do
     aboutThemeStroke.Color = ACCENT
     aboutThemeStroke.Transparency = 0.45
     aboutThemeStroke.Parent = aboutThemeBtn
-    registerTheme(aboutThemeStroke, "Color", "accent")
     registerTheme(aboutThemeBtn, "BackgroundColor3", "btn")
     addHover(aboutThemeBtn, false)
 
@@ -5266,11 +4953,8 @@ do
     local function refreshAboutThemeIcon()
         if aboutThemeIcon then aboutThemeIcon:Destroy() end
         -- No tema claro, mostra lua (acao: escurecer); nos demais, sol (acao: clarear).
-        if currentTheme == "light" then
-            aboutThemeIcon = makeCleanMoonIcon(aboutThemeBtn, ACCENT)
-        else
-            aboutThemeIcon = makeCleanSunIcon(aboutThemeBtn, ACCENT)
-        end
+        local kind = currentTheme == "light" and "moon" or "sun"
+        aboutThemeIcon = makeVectorIcon(aboutThemeBtn, kind, 8, 8, 18, ACCENT)
         aboutThemeStroke.Color = ACCENT
     end
     refreshAboutThemeIcon()
