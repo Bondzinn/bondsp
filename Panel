@@ -36,11 +36,11 @@ local DEVICE_LABELS = {
     console = "CONSOLE",
 }
 local DEVICE_LABEL = DEVICE_LABELS[DEVICE] or DEVICE_LABELS.desktop
--- Invisible word joiner prevents Roblox/game localization tables from matching
--- English UI strings while leaving their visual appearance unchanged.
-local ENGLISH_LOCK = utf8.char(0x2060)
+-- AutoLocalize fica desativado em toda a GUI, portanto não precisamos inserir
+-- caracteres invisíveis nos textos para tentar escapar de tabelas de tradução.
+local ENGLISH_LOCK = ""
 local function keepEnglish(value)
-    return tostring(value or "") .. ENGLISH_LOCK
+    return tostring(value or "")
 end
 
 -- ==================== CONFIG ====================
@@ -814,8 +814,11 @@ local function entryDialog(message, buttons)
     gui.ResetOnSpawn = false
     gui.IgnoreGuiInset = true
     gui.DisplayOrder = 999999
-    local parented = pcall(function() gui.Parent = game:GetService("CoreGui") end)
-    if not parented then gui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+    gui.AutoLocalize = false
+    -- Nunca parentear a interface do painel no CoreGui. Alguns jogos/executores
+    -- acabam fazendo os módulos internos CoreGui.Locales inspecionarem GUIs
+    -- externas, o que pode gerar "attempt to call a nil value".
+    gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
     local shade = Instance.new("Frame")
     shade.Size = UDim2.fromScale(1, 1)
@@ -841,6 +844,7 @@ local function entryDialog(message, buttons)
     title.Position = UDim2.fromOffset(16, 12)
     title.BackgroundTransparency = 1
     title.Text = "288 Panel"
+    title.AutoLocalize = false
     title.TextColor3 = ACCENT
     title.Font = Enum.Font.GothamBold
     title.TextSize = 20
@@ -851,6 +855,7 @@ local function entryDialog(message, buttons)
     body.Position = UDim2.fromOffset(20, 48)
     body.BackgroundTransparency = 1
     body.Text = tostring(message)
+    body.AutoLocalize = false
     body.TextWrapped = true
     body.TextColor3 = Color3.fromRGB(245, 242, 249)
     body.Font = Enum.Font.GothamMedium
@@ -867,6 +872,7 @@ local function entryDialog(message, buttons)
         button.BackgroundColor3 = index == 1 and Color3.fromRGB(67, 42, 73) or Color3.fromRGB(31, 27, 40)
         button.TextColor3 = Color3.fromRGB(248, 246, 252)
         button.Text = definition.title
+        button.AutoLocalize = false
         button.Font = Enum.Font.GothamBold
         button.TextSize = 13
         button.Parent = card
@@ -961,13 +967,9 @@ local function cleanupPanel()
         connections[i] = nil
     end
 
-    pcall(function()
-        StarterGui:SetCore("SendNotification", {
-            Title = "288 Panel",
-            Text = "Script encerrado. Todos os recursos foram desativados.",
-            Duration = 5,
-        })
-    end)
+    -- Não usar StarterGui:SetCore("SendNotification"): ele passa pelo CoreGui
+    -- interno do Roblox e pode acionar o módulo CoreGui.Locales.
+    warn("[288] Script encerrado. Todos os recursos foram desativados.")
 
     local playerGui = LocalPlayer:FindFirstChildOfClass("PlayerGui")
     local panelGui = playerGui and playerGui:FindFirstChild("288Panel")
@@ -1450,9 +1452,12 @@ if LocalPlayer.PlayerGui:FindFirstChild("288Notifications") then
     LocalPlayer.PlayerGui["288Notifications"]:Destroy()
 end
 
+-- Toda a UI do 288 Panel fica exclusivamente no PlayerGui.
+-- Não use gethui/CoreGui/StarterGui:SetCore para as GUIs do painel.
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name           = "288Panel"
 ScreenGui.ResetOnSpawn   = false
+ScreenGui.IgnoreGuiInset = true
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.AutoLocalize   = false
 ScreenGui.Parent         = LocalPlayer:WaitForChild("PlayerGui")
@@ -1551,6 +1556,7 @@ notifyPanel = function(title, message, kind, duration)
     titleLabel.Position = UDim2.new(0, 23, 0, 11)
     titleLabel.BackgroundTransparency = 1
     titleLabel.Text = tostring(title or "288 Panel")
+    titleLabel.AutoLocalize = false
     titleLabel.TextColor3 = Color3.fromRGB(245, 245, 248)
     titleLabel.TextSize = 13
     titleLabel.Font = Enum.Font.GothamBold
@@ -5304,13 +5310,16 @@ do
         local opened = pcall(function() GuiService:OpenBrowserWindow(url) end)
         if not opened then
             pcall(function() setclipboard(url) end)
-            pcall(function()
-                StarterGui:SetCore("SendNotification", {
-                    Title = username .. "'s profile",
-                    Text = "Link copied. Paste it into your browser to open the profile.",
-                    Duration = 5,
-                })
-            end)
+            if notifyPanel then
+                notifyPanel(
+                    username .. "'s profile",
+                    "Link copied. Paste it into your browser to open the profile.",
+                    "info",
+                    5
+                )
+            else
+                warn("[288] Profile link copied: " .. url)
+            end
         end
     end
 
