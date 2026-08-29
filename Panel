@@ -46,7 +46,7 @@ end
 -- ==================== CONFIG ====================
 local GLOBAL = (getgenv and getgenv()) or _G
 local PANEL_CONFIG = GLOBAL.__288PanelConfig or {}
-local API_BASE   = PANEL_CONFIG.API_BASE or "https://brake-pictures-though-calls.trycloudflare.com"
+local API_BASE   = PANEL_CONFIG.API_BASE or " https://occupations-pour-categories-bristol.trycloudflare.com"
 local GITHUB_RAW = PANEL_CONFIG.GITHUB_RAW or "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
 -- FaÃ§a upload de assets/panel-background.png no Roblox e informe o asset ID aqui
 -- via getgenv().__288PanelConfig.BACKGROUND_IMAGE = "rbxassetid://SEU_ID".
