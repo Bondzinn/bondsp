@@ -1060,9 +1060,7 @@ local function fetchModuleSource(url)
     if source then moduleSourceCache[url] = source end
     return source
 end
-local notifyPanel
-
-local function executeModuleSource(source, sourceLabel)
+local function executeModuleSource(source)
     if type(source) ~= "string" or source == "" then return false, "fonte vazia" end
     source = source:gsub("^\239\187\191", "")
     local trimmed = source:match("^%s*(.-)%s*$") or source
@@ -1070,8 +1068,7 @@ local function executeModuleSource(source, sourceLabel)
         return false, "resposta remota nao contem Lua"
     end
 
-    local chunkName = "@288/" .. tostring(sourceLabel or "module")
-    local chunk, compileErr = loadstring(source, chunkName)
+    local chunk, compileErr = loadstring(source)
     if not chunk then return false, "compile: " .. tostring(compileErr) end
     local okRun, moduleResult = pcall(chunk)
     if not okRun then return false, "runtime: " .. tostring(moduleResult) end
@@ -1091,8 +1088,9 @@ local function initializeEmphasisModule(name, moduleFactory)
     if emphasisInitialized[name] then return true end
 
     local function moduleNotify(title, message, duration)
-        if type(notifyPanel) ~= "function" then return end
-        local ok, err = pcall(notifyPanel, title, message, "info", duration)
+        local notifier = GLOBAL.__288Notify
+        if type(notifier) ~= "function" then return end
+        local ok, err = pcall(notifier, title, message, "info", duration)
         if not ok then warn("[288 " .. tostring(name) .. "] notification: " .. tostring(err)) end
     end
     local function noMobileButton()
@@ -1142,7 +1140,7 @@ local function executeRemoteScript(url, label)
         reportPanelError("module-fetch", "Falha ao baixar modulo", tostring(label) .. " | " .. tostring(url))
         return false
     end
-    local ok, moduleResult = executeModuleSource(source, label)
+    local ok, moduleResult = executeModuleSource(source)
     if ok then
         local initOk, initErr = initializeEmphasisModule(label, moduleResult)
         if not initOk then ok, moduleResult = false, initErr end
@@ -1286,7 +1284,7 @@ local function loadModuleUnsafe(path)
                 checked[localPath] = true
                 local okRead, source = pcall(readfile, localPath)
                 if okRead and type(source) == "string" and source ~= "" then
-                    local okRun, moduleResult = executeModuleSource(source, localPath)
+                    local okRun, moduleResult = executeModuleSource(source)
                     if okRun then
                         local initOk, initErr = initializeEmphasisModule(name, moduleResult)
                         if initOk then return true end
@@ -1326,7 +1324,7 @@ local function loadModuleUnsafe(path)
 
             local source = fetchModuleSource(url)
             if source then
-                local okRun, moduleResult = executeModuleSource(source, url)
+                local okRun, moduleResult = executeModuleSource(source)
                 if okRun then
                     local initOk, initErr = initializeEmphasisModule(name, moduleResult)
                     if initOk then return true end
@@ -1393,7 +1391,6 @@ task.spawn(function()
         "modules/Games/MushYO/Controller", "modules/Games/MushYO/Extension",
         "modules/Games/MushYO/ButterflyFarm", "modules/Games/MushYO/ButterflyFarmOff",
         "modules/Games/MushYO/TreasureFarm", "modules/Games/MushYO/TreasureFarmOff",
-        "modules/More/ESP", "modules/More/Aimbot",
     }
     commonModulePreloadRemaining = #commonModules
     for _, modulePath in ipairs(commonModules) do
@@ -1508,7 +1505,7 @@ NotificationLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
 NotificationLayout.Padding = UDim.new(0, 8)
 NotificationLayout.Parent = NotificationStack
 
-notifyPanel = function(title, message, kind, duration)
+local function notifyPanel(title, message, kind, duration)
     if not NotificationGui.Parent then return end
 
     local colors = {
