@@ -1423,11 +1423,8 @@ local MIRROR_SHINE_RANKS = {
     Owner = true,
 }
 
-local TAG_FONT_FACE = Font.new(
-    "rbxasset://fonts/families/FredokaOne.json",
-    Enum.FontWeight.Regular,
-    Enum.FontStyle.Normal
-)
+-- Usa uma fonte nativa para não depender de FontFace/arquivo externo.
+local TAG_FONT = Enum.Font.GothamBold
 
 -- ==================== GUI ROOT ====================
 if LocalPlayer.PlayerGui:FindFirstChild("288Panel") then
@@ -1453,7 +1450,7 @@ NotificationGui.ResetOnSpawn = false
 NotificationGui.IgnoreGuiInset = true
 NotificationGui.DisplayOrder = 1000
 NotificationGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-NotificationGui.AutoLocalize = true
+NotificationGui.AutoLocalize = false
 NotificationGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local function allowsRobloxLocalization(obj)
@@ -1469,7 +1466,7 @@ local function keepEnglishText(root)
     trackConnect(root.DescendantAdded, function(obj)
         if obj:IsA("GuiBase2d") then
             if allowsRobloxLocalization(obj) then
-                obj.AutoLocalize = true
+                obj.AutoLocalize = false
                 return
             end
             obj.AutoLocalize = false
@@ -1563,7 +1560,7 @@ local function notifyPanel(title, message, kind, duration)
     messageLabel.TextYAlignment = Enum.TextYAlignment.Top
     messageLabel.Name = "NotificationDescription"
     messageLabel:SetAttribute("288AllowLocalization", true)
-    messageLabel.AutoLocalize = true
+    messageLabel.AutoLocalize = false
     messageLabel.Parent = toast
 
     TweenService:Create(toast, TweenInfo.new(0.22, Enum.EasingStyle.Quad), {
@@ -2518,7 +2515,7 @@ local function createBillboard(character, rank, device, remoteVisible)
         or Color3.fromRGB(0, 0, 0)
     lbl.TextStrokeTransparency = 0
     lbl.TextSize = 14
-    lbl.FontFace = TAG_FONT_FACE
+    lbl.Font = TAG_FONT
     lbl.TextXAlignment = Enum.TextXAlignment.Center
     lbl.TextYAlignment = Enum.TextYAlignment.Center
     lbl.Parent = row
@@ -2563,7 +2560,7 @@ local function createBillboard(character, rank, device, remoteVisible)
         reflectionText.TextTransparency = 0
         reflectionText.TextStrokeTransparency = 1
         reflectionText.TextSize = lbl.TextSize
-        reflectionText.FontFace = TAG_FONT_FACE
+        reflectionText.Font = TAG_FONT
         reflectionText.TextXAlignment = lbl.TextXAlignment
         reflectionText.TextYAlignment = lbl.TextYAlignment
         reflectionText.AutoLocalize = false
@@ -3683,7 +3680,7 @@ do
     hintLbl.TextWrapped      = true
     hintLbl.ZIndex           = 4
     hintLbl:SetAttribute("288AllowLocalization", true)
-    hintLbl.AutoLocalize     = true
+    hintLbl.AutoLocalize     = false
     hintLbl.Parent           = f
     registerTheme(hintLbl,"TextColor3","textDim")
 
@@ -5230,7 +5227,9 @@ local function localizeGuiObject(obj)
         ancestor = ancestor.Parent
     end
     obj:SetAttribute("288AllowLocalization", true)
-    obj.AutoLocalize = true
+    -- Não usa AutoLocalize do Roblox: alguns executores quebram no módulo
+    -- CoreGui.RobloxGui.Modules.Common.Locales.en-us.
+    obj.AutoLocalize = false
 
     local function refresh()
         if localizationUpdating[obj] then return end
@@ -5273,7 +5272,9 @@ local function applyModernPolish()
     for _, obj in ipairs(ScreenGui:GetDescendants()) do
         if obj:IsA("GuiBase2d") then
             local allowLocalization = allowsRobloxLocalization(obj)
-            obj.AutoLocalize = allowLocalization
+            -- Tradução é tratada pelo fallback manual; nunca aciona o
+            -- pipeline interno de localização do CoreGui.
+            obj.AutoLocalize = false
             if not allowLocalization and (obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox")) then
                 local englishText = obj.Text
                 if obj.Name ~= "TagText" and englishText ~= ""
