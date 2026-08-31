@@ -995,8 +995,8 @@ local MORE_MODULE_URLS = {
     Aimbot = GITHUB_RAW .. "/modules/More/Aimbot",
     PianoAuto = GITHUB_RAW .. "/modules/More/PianoAuto",
 
-    AnimSpeed = GITHUB_RAW .. "/modules/Emphasis/AnimeSpeed",
-    AnimeSpeed = GITHUB_RAW .. "/modules/Emphasis/AnimeSpeed",
+    AnimSpeed = GITHUB_RAW .. "/modules/Emphasis/AnimSpeed",
+    AnimeSpeed = GITHUB_RAW .. "/modules/Emphasis/AnimSpeed",
     AntiVoid = GITHUB_RAW .. "/modules/Emphasis/AntiVoid",
     ClickTP = GITHUB_RAW .. "/modules/Emphasis/ClickTP",
     FaceBang = GITHUB_RAW .. "/modules/Emphasis/FaceBang",
@@ -1070,8 +1070,63 @@ local function executeModuleSource(source)
 
     local chunk, compileErr = loadstring(source)
     if not chunk then return false, "compile: " .. tostring(compileErr) end
-    local okRun, runErr = pcall(chunk)
-    if not okRun then return false, "runtime: " .. tostring(runErr) end
+    local okRun, moduleResult = pcall(chunk)
+    if not okRun then return false, "runtime: " .. tostring(moduleResult) end
+    return true, moduleResult
+end
+
+local EMPHASIS_FACTORIES = {
+    AnimSpeed = true, AntiVoid = true, ClickTP = true, FaceBang = true,
+    feFlip = true, Flashback = true, Impulse = true, Invisible = true,
+    JerkOff = true, NoClip = true, Spin = true, ESP = true, Aimbot = true,
+}
+local emphasisInitialized = GLOBAL.__288EmphasisInitialized or {}
+GLOBAL.__288EmphasisInitialized = emphasisInitialized
+
+local function initializeEmphasisModule(name, moduleFactory)
+    if not EMPHASIS_FACTORIES[name] then return true end
+    if emphasisInitialized[name] then return true end
+
+    local function moduleNotify(title, message, duration)
+        notifyPanel(title, message, "info", duration)
+    end
+    local function noMobileButton()
+        return nil
+    end
+
+    local ok, err = true, nil
+    if name == "FaceBang" then
+        -- FaceBang e standalone e ja foi inicializado ao executar o chunk.
+    elseif type(moduleFactory) ~= "function" then
+        return false, "o modulo nao retornou sua funcao de inicializacao"
+    elseif name == "AnimSpeed" then
+        ok, err = pcall(moduleFactory, LocalPlayer, RunService, UserInputService, moduleNotify, noMobileButton, "Q", "E", 0, 0)
+    elseif name == "AntiVoid" then
+        ok, err = pcall(moduleFactory, LocalPlayer, RunService, UserInputService, moduleNotify, noMobileButton, "J", 0, 0)
+    elseif name == "ClickTP" then
+        ok, err = pcall(moduleFactory, LocalPlayer, UserInputService, moduleNotify)
+    elseif name == "feFlip" then
+        ok, err = pcall(moduleFactory, LocalPlayer, moduleNotify, noMobileButton, "X", "C", 0, 0)
+    elseif name == "Flashback" then
+        ok, err = pcall(moduleFactory, LocalPlayer, RunService, UserInputService, moduleNotify, noMobileButton, "V", 0, 0)
+    elseif name == "Impulse" then
+        ok, err = pcall(moduleFactory, LocalPlayer, UserInputService, moduleNotify, noMobileButton, "M", 0, 0)
+    elseif name == "Invisible" then
+        ok, err = pcall(moduleFactory, LocalPlayer, RunService, UserInputService, moduleNotify, noMobileButton, "E", 0, 0)
+    elseif name == "JerkOff" then
+        ok, err = pcall(moduleFactory, LocalPlayer, UserInputService, moduleNotify, noMobileButton, "R", 0, 0)
+    elseif name == "NoClip" then
+        ok, err = pcall(moduleFactory, LocalPlayer, RunService, UserInputService, moduleNotify, noMobileButton, "N", 0, 0)
+    elseif name == "Spin" then
+        ok, err = pcall(moduleFactory, LocalPlayer, UserInputService, moduleNotify, noMobileButton, "T", 0, 0)
+    elseif name == "ESP" then
+        ok, err = pcall(moduleFactory, LocalPlayer, RunService, UserInputService, moduleNotify, noMobileButton, "E", 0, 0)
+    elseif name == "Aimbot" then
+        ok, err = pcall(moduleFactory, LocalPlayer, RunService, UserInputService, moduleNotify, noMobileButton, "F", 0, 0)
+    end
+
+    if not ok then return false, "inicializacao: " .. tostring(err) end
+    emphasisInitialized[name] = true
     return true
 end
 
@@ -1079,13 +1134,17 @@ local function executeRemoteScript(url, label)
     local source = fetchModuleSource(url)
     if not source then
         warn("[288] fetch error [" .. tostring(label) .. "]: " .. tostring(url))
-        reportPanelError("module-fetch", "Falha ao baixar módulo", tostring(label) .. " | " .. tostring(url))
+        reportPanelError("module-fetch", "Falha ao baixar modulo", tostring(label) .. " | " .. tostring(url))
         return false
     end
-    local ok, err = executeModuleSource(source)
+    local ok, moduleResult = executeModuleSource(source)
+    if ok then
+        local initOk, initErr = initializeEmphasisModule(label, moduleResult)
+        if not initOk then ok, moduleResult = false, initErr end
+    end
     if not ok then
-        warn("[288] module error [" .. tostring(label) .. "]: " .. tostring(err))
-        reportPanelError("module-execute", "Falha ao compilar/executar módulo", tostring(label) .. " | " .. tostring(err))
+        warn("[288] module error [" .. tostring(label) .. "]: " .. tostring(moduleResult))
+        reportPanelError("module-execute", "Falha ao compilar/executar modulo", tostring(label) .. " | " .. tostring(moduleResult))
     end
     return ok
 end
@@ -1209,6 +1268,7 @@ end
 
 local function loadModuleUnsafe(path)
     local name = normalizeModuleName(path)
+    if EMPHASIS_FACTORIES[name] and emphasisInitialized[name] then return true end
     local exactUrl = MORE_MODULE_URLS[name]
 
     if USE_LOCAL_SPECIAL_MODULES and type(readfile) == "function" then
@@ -1221,8 +1281,13 @@ local function loadModuleUnsafe(path)
                 checked[localPath] = true
                 local okRead, source = pcall(readfile, localPath)
                 if okRead and type(source) == "string" and source ~= "" then
-                    local okRun, moduleError = executeModuleSource(source)
-                    if okRun then return true end
+                    local okRun, moduleResult = executeModuleSource(source)
+                    if okRun then
+                        local initOk, initErr = initializeEmphasisModule(name, moduleResult)
+                        if initOk then return true end
+                        moduleResult = initErr
+                    end
+                    local moduleError = moduleResult
                     warn("[288] local module failed [" .. localPath .. "]: " .. tostring(moduleError))
                 end
             end
@@ -1256,8 +1321,13 @@ local function loadModuleUnsafe(path)
 
             local source = fetchModuleSource(url)
             if source then
-                local okRun, moduleError = executeModuleSource(source)
-                if okRun then return true end
+                local okRun, moduleResult = executeModuleSource(source)
+                if okRun then
+                    local initOk, initErr = initializeEmphasisModule(name, moduleResult)
+                    if initOk then return true end
+                    moduleResult = initErr
+                end
+                local moduleError = moduleResult
                 warn("[288] candidate failed [" .. tostring(url) .. "]: " .. tostring(moduleError))
             end
         end
@@ -3318,13 +3388,8 @@ do
     local f = Tabs["Emphasis"].frame
     local y = 10
     local controls = {}
-    local keyStatus = {
-        Flashback = false,
-        AnimeSlow = false,
-        AnimeFast = false,
-    }
     local emphasisBtns = {
-        {name="AnimeSpeed", module="AnimeSpeed", order=1, hint="Q Slow, E Speed"},
+        {name="AnimeSpeed", module="AnimSpeed", order=1, hint="Q Slow, E Speed"},
         {name="AntiVoid", module="AntiVoid", order=2, hint="J"},
         {name="CtrlClickTP", module="ClickTP", order=3, hint="LeftControl+MouseButton1.Teleport"},
         {name="Facebang", module="FaceBang", order=4, hint="Z"},
@@ -3362,6 +3427,10 @@ do
             task.defer(function()
                 if not btn.Parent then return end
                 local active = toggleStates[btn] == true
+                if control.initialized then
+                    setControlState(control, true)
+                    return
+                end
                 if moduleName == "ClickTP" then
                     GLOBAL.__288ClickTPDesiredState = active
                 end
@@ -3369,22 +3438,9 @@ do
                 if not loaded then return end
 
                 control.initialized = true
-                local title = moduleName == "AnimeSpeed" and "AnimeSpeed" or v.name
-                if moduleName == "Flashback" then
-                    if active and not control.activationNotified then
-                        control.activationNotified = true
-                        notifyPanel(title, v.hint, "success")
-                    end
-                elseif active then
-                    notifyPanel(title, v.hint, "success")
-                else
-                    if moduleName ~= "feFlip" then
-                        notifyPanel(title, "Status: Desativado", "warning")
-                    end
-                    if moduleName == "AnimeSpeed" then
-                        keyStatus.AnimeSlow = false
-                        keyStatus.AnimeFast = false
-                    end
+                setControlState(control, true)
+                if moduleName == "FaceBang" then
+                    notifyPanel(v.name, v.hint, "success")
                 end
             end)
         end)
@@ -3398,34 +3454,6 @@ do
             end
         end)
     end
-
-    trackConnect(UserInputService.InputBegan, function(input, gpe)
-        if gpe then return end
-
-        if input.KeyCode == Enum.KeyCode.N then
-            local control = controls.NoClip
-            if not control or not control.initialized then return end
-            local nextState = not (toggleStates[control.btn] == true)
-            if not loadModule("modules/Emphasis/" .. control.moduleName) then return end
-            setControlState(control, nextState)
-            notifyPanel("NoClip", nextState and "Status: Ativado" or "Status: Desativado", nextState and "success" or "warning")
-
-        elseif input.KeyCode == Enum.KeyCode.Q or input.KeyCode == Enum.KeyCode.E then
-            local control = controls.AnimeSpeed
-            if not control or not control.initialized or toggleStates[control.btn] ~= true then return end
-            if input.KeyCode == Enum.KeyCode.Q then
-                keyStatus.AnimeSlow = not keyStatus.AnimeSlow
-                keyStatus.AnimeFast = false
-                notifyPanel("AnimeSpeed", keyStatus.AnimeSlow and "Q - Status: Ativado" or "Q - Status: Desativado", keyStatus.AnimeSlow and "success" or "warning")
-            else
-                keyStatus.AnimeFast = not keyStatus.AnimeFast
-                keyStatus.AnimeSlow = false
-                notifyPanel("AnimeSpeed", keyStatus.AnimeFast and "E - Status: Ativado" or "E - Status: Desativado", keyStatus.AnimeFast and "success" or "warning")
-            end
-
-        end
-    end)
-
 
     refreshCanvas(f)
 end
@@ -4125,7 +4153,8 @@ do
         return true
     end
     espBtn.MouseButton1Click:Connect(function()
-        if setEsp(not espActive) then espInitialized = true end
+        if espInitialized then return end
+        if setEsp(true) then espInitialized = true end
     end)
     registerCleanup("ESP", function()
         if espActive then runPanelModule("ESP") end
@@ -4150,51 +4179,14 @@ do
         return true
     end
     aimBtn.MouseButton1Click:Connect(function()
-        if setAimbot(not aimActive) then aimInitialized = true end
+        if aimInitialized then return end
+        if setAimbot(true) then aimInitialized = true end
     end)
     registerCleanup("Aimbot", function()
         if aimActive then runPanelModule("Aimbot") end
     end)
     y = y + BTN_H + GAP
 
-    trackConnect(UserInputService.InputBegan, function(input, gpe)
-        if gpe then return end
-        if input.KeyCode == Enum.KeyCode.E and espInitialized then
-            if setEsp(not espActive) then
-                notifyPanel("ESP", espActive and "Feature enabled via E." or "Feature disabled via E.", espActive and "success" or "warning")
-            end
-        elseif input.KeyCode == Enum.KeyCode.F and aimInitialized then
-            if setAimbot(not aimActive) then
-                notifyPanel("Aimbot", aimActive and "Feature enabled via F." or "Feature disabled via F.", aimActive and "success" or "warning")
-            end
-        end
-    end)
-    refreshCanvas(f)
-end
-
--- ==================== MISC TAB ====================
-do
-    local f = Tabs["Misc"].frame
-    local y = 10
-
-    -- Linha 1
-    local antiAfkBtn = makeButton(f,"Anti AFK",COL1,y,BTN_W,BTN_H,true)
-    local antiAfkDot = makeStatusDot(f, DOT1_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
-    local antiAfkActive = false
-    local function setAntiAfk(state)
-        if state == antiAfkActive then return end
-        local loaded = loadModule("modules/Misc/AntiAFK")
-        if not loaded then return end
-        antiAfkActive = state
-        antiAfkDot.setActive(antiAfkActive)
-        antiAfkBtn.BackgroundColor3 = antiAfkActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
-    end
-    antiAfkBtn.MouseButton1Click:Connect(function() setAntiAfk(not antiAfkActive) end)
-    registerCleanup("AntiAFK", function() setAntiAfk(false) end)
-
-    local tpBtn = makeButton(f,"TpToOwner",COL2,y,BTN_W,BTN_H)
-    makeMouseDot(f, DOT2_X, y+BTN_H/2-DOT_SIZE/2, DOT_SIZE)
-    tpBtn.MouseButton1Click:Connect(function() loadModule("modules/Misc/TpToOwner") end)
     y = y + BTN_H + GAP
 
     -- Linha 2
