@@ -814,8 +814,11 @@ local function entryDialog(message, buttons)
     gui.ResetOnSpawn = false
     gui.IgnoreGuiInset = true
     gui.DisplayOrder = 999999
-    local parented = pcall(function() gui.Parent = game:GetService("CoreGui") end)
-    if not parented then gui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+    -- Nunca injeta a interface no CoreGui. Alguns executores quebram o
+    -- LocalScript interno CoreGui.RobloxGui.Modules.Common.Locales.en-us
+    -- assim que um ScreenGui externo entra no CoreGui.
+    gui.AutoLocalize = false
+    gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
     local shade = Instance.new("Frame")
     shade.Size = UDim2.fromScale(1, 1)
@@ -844,6 +847,7 @@ local function entryDialog(message, buttons)
     title.TextColor3 = ACCENT
     title.Font = Enum.Font.GothamBold
     title.TextSize = 20
+    title.AutoLocalize = false
     title.Parent = card
 
     local body = Instance.new("TextLabel")
@@ -855,6 +859,7 @@ local function entryDialog(message, buttons)
     body.TextColor3 = Color3.fromRGB(245, 242, 249)
     body.Font = Enum.Font.GothamMedium
     body.TextSize = 15
+    body.AutoLocalize = false
     body.Parent = card
 
     local finished = Instance.new("BindableEvent")
@@ -869,6 +874,7 @@ local function entryDialog(message, buttons)
         button.Text = definition.title
         button.Font = Enum.Font.GothamBold
         button.TextSize = 13
+        button.AutoLocalize = false
         button.Parent = card
         Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
         button.MouseButton1Click:Connect(function()
@@ -1075,16 +1081,17 @@ local function executeModuleSource(source)
     return true, moduleResult
 end
 
-GLOBAL.__288ModuleFactories = {
+local EMPHASIS_FACTORIES = {
     AnimSpeed = true, AntiVoid = true, ClickTP = true, FaceBang = true,
     feFlip = true, Flashback = true, Impulse = true, Invisible = true,
     JerkOff = true, NoClip = true, Spin = true, ESP = true, Aimbot = true,
 }
-GLOBAL.__288ModuleInitialized = GLOBAL.__288ModuleInitialized or {}
+local emphasisInitialized = GLOBAL.__288EmphasisInitialized or {}
+GLOBAL.__288EmphasisInitialized = emphasisInitialized
 
-GLOBAL.__288InitializeModule = function(name, moduleFactory)
-    if not GLOBAL.__288ModuleFactories[name] then return true end
-    if GLOBAL.__288ModuleInitialized[name] then return true end
+local function initializeEmphasisModule(name, moduleFactory)
+    if not EMPHASIS_FACTORIES[name] then return true end
+    if emphasisInitialized[name] then return true end
 
     local function moduleNotify(title, message, duration)
         local notifier = GLOBAL.__288Notify
@@ -1128,7 +1135,7 @@ GLOBAL.__288InitializeModule = function(name, moduleFactory)
     end
 
     if not ok then return false, "inicializacao: " .. tostring(err) end
-    GLOBAL.__288ModuleInitialized[name] = true
+    emphasisInitialized[name] = true
     return true
 end
 
@@ -1141,7 +1148,7 @@ local function executeRemoteScript(url, label)
     end
     local ok, moduleResult = executeModuleSource(source)
     if ok then
-        local initOk, initErr = GLOBAL.__288InitializeModule(label, moduleResult)
+        local initOk, initErr = initializeEmphasisModule(label, moduleResult)
         if not initOk then ok, moduleResult = false, initErr end
     end
     if not ok then
@@ -1270,7 +1277,7 @@ end
 
 local function loadModuleUnsafe(path)
     local name = normalizeModuleName(path)
-    if GLOBAL.__288ModuleFactories[name] and GLOBAL.__288ModuleInitialized[name] then return true end
+    if EMPHASIS_FACTORIES[name] and emphasisInitialized[name] then return true end
     local exactUrl = MORE_MODULE_URLS[name]
 
     if USE_LOCAL_SPECIAL_MODULES and type(readfile) == "function" then
@@ -1285,7 +1292,7 @@ local function loadModuleUnsafe(path)
                 if okRead and type(source) == "string" and source ~= "" then
                     local okRun, moduleResult = executeModuleSource(source)
                     if okRun then
-                        local initOk, initErr = GLOBAL.__288InitializeModule(name, moduleResult)
+                        local initOk, initErr = initializeEmphasisModule(name, moduleResult)
                         if initOk then return true end
                         moduleResult = initErr
                     end
@@ -1325,7 +1332,7 @@ local function loadModuleUnsafe(path)
             if source then
                 local okRun, moduleResult = executeModuleSource(source)
                 if okRun then
-                    local initOk, initErr = GLOBAL.__288InitializeModule(name, moduleResult)
+                    local initOk, initErr = initializeEmphasisModule(name, moduleResult)
                     if initOk then return true end
                     moduleResult = initErr
                 end
@@ -1422,11 +1429,8 @@ local MIRROR_SHINE_RANKS = {
     Owner = true,
 }
 
-local TAG_FONT_FACE = Font.new(
-    "rbxasset://fonts/families/FredokaOne.json",
-    Enum.FontWeight.Regular,
-    Enum.FontStyle.Normal
-)
+-- Usa uma fonte nativa para não depender de FontFace/arquivo externo.
+local TAG_FONT = Enum.Font.GothamBold
 
 -- ==================== GUI ROOT ====================
 if LocalPlayer.PlayerGui:FindFirstChild("288Panel") then
@@ -1452,7 +1456,7 @@ NotificationGui.ResetOnSpawn = false
 NotificationGui.IgnoreGuiInset = true
 NotificationGui.DisplayOrder = 1000
 NotificationGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-NotificationGui.AutoLocalize = true
+NotificationGui.AutoLocalize = false
 NotificationGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local function allowsRobloxLocalization(obj)
@@ -1468,7 +1472,7 @@ local function keepEnglishText(root)
     trackConnect(root.DescendantAdded, function(obj)
         if obj:IsA("GuiBase2d") then
             if allowsRobloxLocalization(obj) then
-                obj.AutoLocalize = true
+                obj.AutoLocalize = false
                 return
             end
             obj.AutoLocalize = false
@@ -1562,7 +1566,7 @@ local function notifyPanel(title, message, kind, duration)
     messageLabel.TextYAlignment = Enum.TextYAlignment.Top
     messageLabel.Name = "NotificationDescription"
     messageLabel:SetAttribute("288AllowLocalization", true)
-    messageLabel.AutoLocalize = true
+    messageLabel.AutoLocalize = false
     messageLabel.Parent = toast
 
     TweenService:Create(toast, TweenInfo.new(0.22, Enum.EasingStyle.Quad), {
@@ -2517,7 +2521,7 @@ local function createBillboard(character, rank, device, remoteVisible)
         or Color3.fromRGB(0, 0, 0)
     lbl.TextStrokeTransparency = 0
     lbl.TextSize = 14
-    lbl.FontFace = TAG_FONT_FACE
+    lbl.Font = TAG_FONT
     lbl.TextXAlignment = Enum.TextXAlignment.Center
     lbl.TextYAlignment = Enum.TextYAlignment.Center
     lbl.Parent = row
@@ -2562,7 +2566,7 @@ local function createBillboard(character, rank, device, remoteVisible)
         reflectionText.TextTransparency = 0
         reflectionText.TextStrokeTransparency = 1
         reflectionText.TextSize = lbl.TextSize
-        reflectionText.FontFace = TAG_FONT_FACE
+        reflectionText.Font = TAG_FONT
         reflectionText.TextXAlignment = lbl.TextXAlignment
         reflectionText.TextYAlignment = lbl.TextYAlignment
         reflectionText.AutoLocalize = false
@@ -3682,7 +3686,7 @@ do
     hintLbl.TextWrapped      = true
     hintLbl.ZIndex           = 4
     hintLbl:SetAttribute("288AllowLocalization", true)
-    hintLbl.AutoLocalize     = true
+    hintLbl.AutoLocalize     = false
     hintLbl.Parent           = f
     registerTheme(hintLbl,"TextColor3","textDim")
 
@@ -5229,7 +5233,9 @@ local function localizeGuiObject(obj)
         ancestor = ancestor.Parent
     end
     obj:SetAttribute("288AllowLocalization", true)
-    obj.AutoLocalize = true
+    -- Não usa AutoLocalize do Roblox: alguns executores quebram no módulo
+    -- CoreGui.RobloxGui.Modules.Common.Locales.en-us.
+    obj.AutoLocalize = false
 
     local function refresh()
         if localizationUpdating[obj] then return end
@@ -5272,7 +5278,9 @@ local function applyModernPolish()
     for _, obj in ipairs(ScreenGui:GetDescendants()) do
         if obj:IsA("GuiBase2d") then
             local allowLocalization = allowsRobloxLocalization(obj)
-            obj.AutoLocalize = allowLocalization
+            -- Tradução é tratada pelo fallback manual; nunca aciona o
+            -- pipeline interno de localização do CoreGui.
+            obj.AutoLocalize = false
             if not allowLocalization and (obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox")) then
                 local englishText = obj.Text
                 if obj.Name ~= "TagText" and englishText ~= ""
