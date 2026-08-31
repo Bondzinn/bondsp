@@ -1062,7 +1062,7 @@ local function fetchModuleSource(url)
 end
 local notifyPanel
 
-local function executeModuleSource(source)
+local function executeModuleSource(source, sourceLabel)
     if type(source) ~= "string" or source == "" then return false, "fonte vazia" end
     source = source:gsub("^\239\187\191", "")
     local trimmed = source:match("^%s*(.-)%s*$") or source
@@ -1070,7 +1070,8 @@ local function executeModuleSource(source)
         return false, "resposta remota nao contem Lua"
     end
 
-    local chunk, compileErr = loadstring(source)
+    local chunkName = "@288/" .. tostring(sourceLabel or "module")
+    local chunk, compileErr = loadstring(source, chunkName)
     if not chunk then return false, "compile: " .. tostring(compileErr) end
     local okRun, moduleResult = pcall(chunk)
     if not okRun then return false, "runtime: " .. tostring(moduleResult) end
@@ -1090,7 +1091,9 @@ local function initializeEmphasisModule(name, moduleFactory)
     if emphasisInitialized[name] then return true end
 
     local function moduleNotify(title, message, duration)
-        notifyPanel(title, message, "info", duration)
+        if type(notifyPanel) ~= "function" then return end
+        local ok, err = pcall(notifyPanel, title, message, "info", duration)
+        if not ok then warn("[288 " .. tostring(name) .. "] notification: " .. tostring(err)) end
     end
     local function noMobileButton()
         return nil
@@ -1139,7 +1142,7 @@ local function executeRemoteScript(url, label)
         reportPanelError("module-fetch", "Falha ao baixar modulo", tostring(label) .. " | " .. tostring(url))
         return false
     end
-    local ok, moduleResult = executeModuleSource(source)
+    local ok, moduleResult = executeModuleSource(source, label)
     if ok then
         local initOk, initErr = initializeEmphasisModule(label, moduleResult)
         if not initOk then ok, moduleResult = false, initErr end
@@ -1283,7 +1286,7 @@ local function loadModuleUnsafe(path)
                 checked[localPath] = true
                 local okRead, source = pcall(readfile, localPath)
                 if okRead and type(source) == "string" and source ~= "" then
-                    local okRun, moduleResult = executeModuleSource(source)
+                    local okRun, moduleResult = executeModuleSource(source, localPath)
                     if okRun then
                         local initOk, initErr = initializeEmphasisModule(name, moduleResult)
                         if initOk then return true end
@@ -1323,7 +1326,7 @@ local function loadModuleUnsafe(path)
 
             local source = fetchModuleSource(url)
             if source then
-                local okRun, moduleResult = executeModuleSource(source)
+                local okRun, moduleResult = executeModuleSource(source, url)
                 if okRun then
                     local initOk, initErr = initializeEmphasisModule(name, moduleResult)
                     if initOk then return true end
