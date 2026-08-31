@@ -46,7 +46,7 @@ end
 -- ==================== CONFIG ====================
 local GLOBAL = (getgenv and getgenv()) or _G
 local PANEL_CONFIG = GLOBAL.__288PanelConfig or {}
-local API_BASE   = PANEL_CONFIG.API_BASE or "https://shepherd-advice-needs-apr.trycloudflare.com"
+local API_BASE   = PANEL_CONFIG.API_BASE or "https://because-sale-tent-polyphonic.trycloudflare.com"
 local GITHUB_RAW = PANEL_CONFIG.GITHUB_RAW or "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
 -- FaÃ§a upload de assets/panel-background.png no Roblox e informe o asset ID aqui
 -- via getgenv().__288PanelConfig.BACKGROUND_IMAGE = "rbxassetid://SEU_ID".
@@ -999,10 +999,12 @@ local MORE_MODULE_URLS = {
     AnimeSpeed = GITHUB_RAW .. "/modules/Emphasis/AnimeSpeed",
     AntiVoid = GITHUB_RAW .. "/modules/Emphasis/AntiVoid",
     ClickTP = GITHUB_RAW .. "/modules/Emphasis/ClickTP",
+    FaceBang = GITHUB_RAW .. "/modules/Emphasis/FaceBang",
     FaceTarget = GITHUB_RAW .. "/modules/Emphasis/FaceTarget",
     Flashback = GITHUB_RAW .. "/modules/Emphasis/Flashback",
     Impulse = GITHUB_RAW .. "/modules/Emphasis/Impulse",
     Invisible = GITHUB_RAW .. "/modules/Emphasis/Invisible",
+    JerkOff = GITHUB_RAW .. "/modules/Emphasis/JerkOff",
     Emote = GITHUB_RAW .. "/modules/Emphasis/Emote",
     NoClip = GITHUB_RAW .. "/modules/Emphasis/NoClip",
     Spin = GITHUB_RAW .. "/modules/Emphasis/Spin",
@@ -3322,17 +3324,17 @@ do
         AnimeFast = false,
     }
     local emphasisBtns = {
-        {name="Invisible", order=1, hint="Mouse: para Ativar/Desativar"},
-        {name="ClickTP", order=2, hint="Ctrl + Clique: para teleportar"},
-        {name="NoClip", order=3, hint="N: para Ativar/Desativar"},
-        {name="Emote", order=4, hint="Mouse: para Ativar/Desativar"},
-        {name="Impulse", order=5, hint="M: para Ativar"},
-        {name="Face Target", order=6, hint="Mouse: para Ativar/Desativar"},
-        {name="Spin", order=7, hint="Mouse: para Ativar/Desativar"},
-        {name="AnimSpeed", order=8, hint="Q: Lento | E: Rapido"},
-        {name="feFlip", order=9, hint="X: Frontflip | C: Backflip"},
-        {name="Flashback", order=10, hint="Segure V para voltar; solte para parar"},
-        {name="AntiVoid", order=11, hint="Mouse: para Ativar/Desativar"},
+        {name="AnimeSpeed", module="AnimeSpeed", order=1, hint="Q Slow, E Speed"},
+        {name="AntiVoid", module="AntiVoid", order=2, hint="J"},
+        {name="CtrlClickTP", module="ClickTP", order=3, hint="LeftControl+MouseButton1.Teleport"},
+        {name="Facebang", module="FaceBang", order=4, hint="Z"},
+        {name="feFlip", module="feFlip", order=5, hint="X frontFlip, C backFlip"},
+        {name="Flashback", module="Flashback", order=6, hint="V"},
+        {name="Impulse", module="Impulse", order=7, hint="M"},
+        {name="Invisible", module="Invisible", order=8, hint="E"},
+        {name="JerkOff", module="JerkOff", order=9, hint="R"},
+        {name="NoClip", module="NoClip", order=10, hint="N"},
+        {name="Spin", module="Spin", order=11, hint="T"},
     }
 
     local function setControlState(control, active)
@@ -3351,8 +3353,7 @@ do
         local dotX = (v.order % 2 == 1) and DOT1_X or DOT2_X
         makeMouseDot(f, dotX, yPos + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
 
-        local moduleName = tostring(v.name):gsub("%s+", "")
-        if moduleName == "AnimSpeed" then moduleName = "AnimeSpeed" end
+        local moduleName = v.module or tostring(v.name):gsub("%s+", "")
         local control = {btn=btn, moduleName=moduleName, initialized=false, hint=v.hint, activationNotified=false}
         controls[moduleName] = control
 
