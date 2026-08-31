@@ -1060,6 +1060,8 @@ local function fetchModuleSource(url)
     if source then moduleSourceCache[url] = source end
     return source
 end
+local notifyPanel
+
 local function executeModuleSource(source)
     if type(source) ~= "string" or source == "" then return false, "fonte vazia" end
     source = source:gsub("^\239\187\191", "")
@@ -1503,7 +1505,7 @@ NotificationLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
 NotificationLayout.Padding = UDim.new(0, 8)
 NotificationLayout.Parent = NotificationStack
 
-local function notifyPanel(title, message, kind, duration)
+notifyPanel = function(title, message, kind, duration)
     if not NotificationGui.Parent then return end
 
     local colors = {
