@@ -46,7 +46,7 @@ end
 -- ==================== CONFIG ====================
 local GLOBAL = (getgenv and getgenv()) or _G
 local PANEL_CONFIG = GLOBAL.__288PanelConfig or {}
-local API_BASE   = PANEL_CONFIG.API_BASE or " https://because-sale-tent-polyphonic.trycloudflare.com"
+local API_BASE   = PANEL_CONFIG.API_BASE or "https://because-sale-tent-polyphonic.trycloudflare.com"
 local GITHUB_RAW = PANEL_CONFIG.GITHUB_RAW or "https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main"
 -- FaÃ§a upload de assets/panel-background.png no Roblox e informe o asset ID aqui
 -- via getgenv().__288PanelConfig.BACKGROUND_IMAGE = "rbxassetid://SEU_ID".
@@ -96,100 +96,6 @@ local function trackConnect(signal, callback)
     table.insert(connections, conn)
     return conn
 end
-
-local LocalizationManager = {
-    boundObjects = setmetatable({}, {__mode = "k"}),
-    updating = setmetatable({}, {__mode = "k"}),
-    boundRoots = setmetatable({}, {__mode = "k"}),
-    translator = function(source)
-        return tostring(source or ""):gsub(ENGLISH_LOCK, "")
-    end,
-    active = true,
-}
-
-local function isPanelTextObject(obj)
-    return obj and (
-        obj:IsA("TextLabel")
-        or obj:IsA("TextButton")
-        or obj:IsA("TextBox")
-    )
-end
-
-function LocalizationManager:Refresh(obj)
-    if not self.active or not isPanelTextObject(obj) or self.updating[obj] then return end
-    self.updating[obj] = true
-    obj.AutoLocalize = false
-
-    local original = tostring(obj.Text or "")
-    local translated = self.translator(original)
-    if translated ~= original then obj.Text = translated end
-
-    if obj:IsA("TextBox") then
-        local placeholder = tostring(obj.PlaceholderText or "")
-        local translatedPlaceholder = self.translator(placeholder)
-        if translatedPlaceholder ~= placeholder then obj.PlaceholderText = translatedPlaceholder end
-    end
-    self.updating[obj] = nil
-end
-
-function LocalizationManager:BindObject(obj)
-    if not self.active or not isPanelTextObject(obj) then return end
-    obj.AutoLocalize = false
-    if self.boundObjects[obj] then
-        self:Refresh(obj)
-        return
-    end
-
-    self.boundObjects[obj] = true
-    self:Refresh(obj)
-    trackConnect(obj:GetPropertyChangedSignal("Text"), function()
-        if self.active and obj.Parent then self:Refresh(obj) end
-    end)
-    if obj:IsA("TextBox") then
-        trackConnect(obj:GetPropertyChangedSignal("PlaceholderText"), function()
-            if self.active and obj.Parent then self:Refresh(obj) end
-        end)
-    end
-end
-
-function LocalizationManager:Process(obj)
-    if not self.active or not obj then return end
-    if obj:IsA("GuiBase2d") then obj.AutoLocalize = false end
-    if isPanelTextObject(obj) then self:BindObject(obj) end
-end
-
-function LocalizationManager:BindRoot(root)
-    if not self.active or not root then return end
-    self:Process(root)
-    if self.boundRoots[root] then return end
-    self.boundRoots[root] = true
-
-    for _, descendant in ipairs(root:GetDescendants()) do self:Process(descendant) end
-    trackConnect(root.DescendantAdded, function(descendant)
-        task.defer(function()
-            if self.active and root.Parent and descendant.Parent then self:Process(descendant) end
-        end)
-    end)
-end
-
-function LocalizationManager:SetTranslator(translator)
-    if type(translator) ~= "function" then return end
-    self.translator = translator
-    for obj in pairs(self.boundObjects) do
-        if obj.Parent then self:Refresh(obj) end
-    end
-end
-
-function LocalizationManager:Destroy()
-    self.active = false
-    table.clear(self.boundObjects)
-    table.clear(self.updating)
-    table.clear(self.boundRoots)
-end
-
-registerCleanup("LocalizationManager", function()
-    LocalizationManager:Destroy()
-end)
 
 -- ==================== TEMA ====================
 local ACCENT = Color3.fromRGB(238, 126, 255)
@@ -1089,14 +995,17 @@ local MORE_MODULE_URLS = {
     Aimbot = GITHUB_RAW .. "/modules/More/Aimbot",
     PianoAuto = GITHUB_RAW .. "/modules/More/PianoAuto",
 
-    AnimSpeed = GITHUB_RAW .. "/modules/Emphasis/AnimSpeed",
+    AnimSpeed = GITHUB_RAW .. "/modules/Emphasis/AnimeSpeed",
+    AnimeSpeed = GITHUB_RAW .. "/modules/Emphasis/AnimeSpeed",
     AntiVoid = GITHUB_RAW .. "/modules/Emphasis/AntiVoid",
     ClickTP = GITHUB_RAW .. "/modules/Emphasis/ClickTP",
     FaceBang = GITHUB_RAW .. "/modules/Emphasis/FaceBang",
+    FaceTarget = GITHUB_RAW .. "/modules/Emphasis/FaceTarget",
     Flashback = GITHUB_RAW .. "/modules/Emphasis/Flashback",
     Impulse = GITHUB_RAW .. "/modules/Emphasis/Impulse",
     Invisible = GITHUB_RAW .. "/modules/Emphasis/Invisible",
     JerkOff = GITHUB_RAW .. "/modules/Emphasis/JerkOff",
+    Emote = GITHUB_RAW .. "/modules/Emphasis/Emote",
     NoClip = GITHUB_RAW .. "/modules/Emphasis/NoClip",
     Spin = GITHUB_RAW .. "/modules/Emphasis/Spin",
     feFlip = GITHUB_RAW .. "/modules/Emphasis/feFlip",
@@ -1151,90 +1060,7 @@ local function fetchModuleSource(url)
     if source then moduleSourceCache[url] = source end
     return source
 end
-local notifyPanel
-local reconstructedModules = {}
-local reconstructedConfig = {
-    AnimSpeed = { keys = {"Q", "E"}, passive = true },
-    AntiVoid = { keys = {"Mouse"}, activateOnInit = true },
-    ClickTP = { keys = {}, passive = true },
-    feFlip = { keys = {"X", "C"}, passive = true },
-    Flashback = { keys = {"V"}, passive = true },
-    Impulse = { keys = {"M"}, activateOnInit = true },
-    Invisible = { keys = {"Mouse"}, activateOnInit = true },
-    JerkOff = { keys = {"Mouse"}, activateOnInit = true },
-    NoClip = { keys = {"N"}, activateOnInit = true },
-    Spin = { keys = {"Mouse"}, activateOnInit = true },
-    Aimbot = { keys = {"F"} },
-    ESP = { keys = {"E"} },
-}
-
-local function initializeReconstructedModule(name, initializer)
-    if name == "ClickTP" then
-        local runtime = reconstructedModules.ClickTP
-        local env = (getgenv and getgenv()) or GLOBAL
-        if runtime and runtime.active then
-            if env.TeleportConnection then
-                pcall(function() env.TeleportConnection:Disconnect() end)
-                env.TeleportConnection = nil
-            end
-            runtime.active = false
-            return true
-        end
-        local ok, err = pcall(initializer, LocalPlayer, UserInputService, function(title, message, duration)
-            notifyPanel(tostring(title), tostring(message), "info", tonumber(duration) or 4)
-        end)
-        if ok then reconstructedModules.ClickTP = { callbacks = {}, active = true } end
-        return ok, err
-    end
-
-    local config = reconstructedConfig[name]
-    if not config then return true end
-
-    local runtime = reconstructedModules[name]
-    if runtime then
-        if not config.passive and runtime.primary then runtime.primary() end
-        return true
-    end
-
-    runtime = { callbacks = {} }
-    reconstructedModules[name] = runtime
-    local function moduleNotify(title, message, duration)
-        notifyPanel(tostring(title), tostring(message), "info", tonumber(duration) or 4)
-    end
-    local function bindModuleButton(callback)
-        if type(callback) == "function" then
-            table.insert(runtime.callbacks, callback)
-            runtime.primary = runtime.primary or callback
-        end
-        return nil
-    end
-    local keys = config.keys or {}
-    local ok, err
-    if name == "ClickTP" then
-        ok, err = pcall(initializer, LocalPlayer, UserInputService, moduleNotify)
-    elseif name == "AnimSpeed" then
-        ok, err = pcall(initializer, LocalPlayer, RunService, UserInputService, moduleNotify, bindModuleButton, keys[1], keys[2], 0, 0)
-    elseif name == "Flashback" then
-        ok, err = pcall(initializer, LocalPlayer, RunService, UserInputService, moduleNotify, bindModuleButton, keys[1], 0, 0)
-    elseif name == "Aimbot" or name == "ESP" then
-        ok, err = pcall(initializer, LocalPlayer, RunService, UserInputService, moduleNotify, bindModuleButton, keys[1], 0, 0)
-    elseif name == "feFlip" then
-        ok, err = pcall(initializer, LocalPlayer, moduleNotify, bindModuleButton, keys[1], keys[2], 0, 0)
-    elseif name == "Invisible" or name == "NoClip" then
-        ok, err = pcall(initializer, LocalPlayer, RunService, UserInputService, moduleNotify, bindModuleButton, keys[1], 0, 0)
-    else
-        ok, err = pcall(initializer, LocalPlayer, UserInputService, moduleNotify, bindModuleButton, keys[1], 0, 0)
-    end
-    if not ok then
-        reconstructedModules[name] = nil
-        return false, tostring(err)
-    end
-    if config.activateOnInit and runtime.primary then runtime.primary() end
-    return true
-end
-
-local function executeModuleSource(source, moduleName)
-    local name = tostring(moduleName or "")
+local function executeModuleSource(source)
     if type(source) ~= "string" or source == "" then return false, "fonte vazia" end
     source = source:gsub("^\239\187\191", "")
     local trimmed = source:match("^%s*(.-)%s*$") or source
@@ -1242,18 +1068,10 @@ local function executeModuleSource(source, moduleName)
         return false, "resposta remota nao contem Lua"
     end
 
-    GLOBAL.__288ModuleNotify = function(title, message, duration)
-        notifyPanel(tostring(title), tostring(message), "info", tonumber(duration) or 5)
-    end
-
     local chunk, compileErr = loadstring(source)
     if not chunk then return false, "compile: " .. tostring(compileErr) end
-    local okRun, result = pcall(chunk)
-    if not okRun then return false, "runtime: " .. tostring(result) end
-    if type(result) == "function" then
-        local okInit, initErr = initializeReconstructedModule(tostring(moduleName), result)
-        if not okInit then return false, "initialize: " .. tostring(initErr) end
-    end
+    local okRun, runErr = pcall(chunk)
+    if not okRun then return false, "runtime: " .. tostring(runErr) end
     return true
 end
 
@@ -1264,7 +1082,7 @@ local function executeRemoteScript(url, label)
         reportPanelError("module-fetch", "Falha ao baixar módulo", tostring(label) .. " | " .. tostring(url))
         return false
     end
-    local ok, err = executeModuleSource(source, label)
+    local ok, err = executeModuleSource(source)
     if not ok then
         warn("[288] module error [" .. tostring(label) .. "]: " .. tostring(err))
         reportPanelError("module-execute", "Falha ao compilar/executar módulo", tostring(label) .. " | " .. tostring(err))
@@ -1278,7 +1096,7 @@ local function normalizeModuleName(path)
     name = name:gsub("Off$", "")
 
     if name == "AnimeSpeed" then
-        return "AnimSpeed"
+        return "AnimeSpeed"
     end
 
     return name
@@ -1403,7 +1221,7 @@ local function loadModuleUnsafe(path)
                 checked[localPath] = true
                 local okRead, source = pcall(readfile, localPath)
                 if okRead and type(source) == "string" and source ~= "" then
-                    local okRun, moduleError = executeModuleSource(source, normalizeModuleName(localPath))
+                    local okRun, moduleError = executeModuleSource(source)
                     if okRun then return true end
                     warn("[288] local module failed [" .. localPath .. "]: " .. tostring(moduleError))
                 end
@@ -1438,7 +1256,7 @@ local function loadModuleUnsafe(path)
 
             local source = fetchModuleSource(url)
             if source then
-                local okRun, moduleError = executeModuleSource(source, name)
+                local okRun, moduleError = executeModuleSource(source)
                 if okRun then return true end
                 warn("[288] candidate failed [" .. tostring(url) .. "]: " .. tostring(moduleError))
             end
@@ -1533,8 +1351,11 @@ local MIRROR_SHINE_RANKS = {
     Owner = true,
 }
 
-local TAG_FONT = Enum.Font.GothamBold
-
+local TAG_FONT_FACE = Font.new(
+    "rbxasset://fonts/families/FredokaOne.json",
+    Enum.FontWeight.Regular,
+    Enum.FontStyle.Normal
+)
 
 -- ==================== GUI ROOT ====================
 if LocalPlayer.PlayerGui:FindFirstChild("288Panel") then
@@ -1560,11 +1381,42 @@ NotificationGui.ResetOnSpawn = false
 NotificationGui.IgnoreGuiInset = true
 NotificationGui.DisplayOrder = 1000
 NotificationGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-NotificationGui.AutoLocalize = false
+NotificationGui.AutoLocalize = true
 NotificationGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-LocalizationManager:BindRoot(ScreenGui)
-LocalizationManager:BindRoot(NotificationGui)
+local function allowsRobloxLocalization(obj)
+    local current = obj
+    while current do
+        if current:GetAttribute("288AllowLocalization") then return true end
+        current = current.Parent
+    end
+    return false
+end
+
+local function keepEnglishText(root)
+    trackConnect(root.DescendantAdded, function(obj)
+        if obj:IsA("GuiBase2d") then
+            if allowsRobloxLocalization(obj) then
+                obj.AutoLocalize = true
+                return
+            end
+            obj.AutoLocalize = false
+            if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
+                local englishText = obj.Text
+                if obj.Name ~= "TagText" and englishText ~= ""
+                    and englishText:sub(-#ENGLISH_LOCK) ~= ENGLISH_LOCK then
+                    obj.Text = englishText .. ENGLISH_LOCK
+                end
+                if obj:IsA("TextBox") and obj.PlaceholderText ~= ""
+                    and obj.PlaceholderText:sub(-#ENGLISH_LOCK) ~= ENGLISH_LOCK then
+                    obj.PlaceholderText = obj.PlaceholderText .. ENGLISH_LOCK
+                end
+            end
+        end
+    end)
+end
+keepEnglishText(ScreenGui)
+keepEnglishText(NotificationGui)
 
 local NotificationStack = Instance.new("Frame")
 NotificationStack.Name = "Stack"
@@ -1581,7 +1433,7 @@ NotificationLayout.VerticalAlignment = Enum.VerticalAlignment.Bottom
 NotificationLayout.Padding = UDim.new(0, 8)
 NotificationLayout.Parent = NotificationStack
 
-notifyPanel = function(title, message, kind, duration)
+local function notifyPanel(title, message, kind, duration)
     if not NotificationGui.Parent then return end
 
     local colors = {
@@ -1638,7 +1490,8 @@ notifyPanel = function(title, message, kind, duration)
     messageLabel.TextXAlignment = Enum.TextXAlignment.Left
     messageLabel.TextYAlignment = Enum.TextYAlignment.Top
     messageLabel.Name = "NotificationDescription"
-    messageLabel.AutoLocalize = false
+    messageLabel:SetAttribute("288AllowLocalization", true)
+    messageLabel.AutoLocalize = true
     messageLabel.Parent = toast
 
     TweenService:Create(toast, TweenInfo.new(0.22, Enum.EasingStyle.Quad), {
@@ -2593,7 +2446,7 @@ local function createBillboard(character, rank, device, remoteVisible)
         or Color3.fromRGB(0, 0, 0)
     lbl.TextStrokeTransparency = 0
     lbl.TextSize = 14
-    lbl.Font = TAG_FONT
+    lbl.FontFace = TAG_FONT_FACE
     lbl.TextXAlignment = Enum.TextXAlignment.Center
     lbl.TextYAlignment = Enum.TextYAlignment.Center
     lbl.Parent = row
@@ -2638,7 +2491,7 @@ local function createBillboard(character, rank, device, remoteVisible)
         reflectionText.TextTransparency = 0
         reflectionText.TextStrokeTransparency = 1
         reflectionText.TextSize = lbl.TextSize
-        reflectionText.Font = TAG_FONT
+        reflectionText.FontFace = TAG_FONT_FACE
         reflectionText.TextXAlignment = lbl.TextXAlignment
         reflectionText.TextYAlignment = lbl.TextYAlignment
         reflectionText.AutoLocalize = false
@@ -3254,7 +3107,7 @@ do
     local overlay = Instance.new("Frame")
     overlay.Name             = "VipLockOverlay"
     overlay.Size             = UDim2.new(1,0,1,0)
-    overlay.BackgroundColor3 = THEMES[currentTheme].bg
+    overlay.BackgroundColor3 = Color3.fromRGB(10,10,10)
     overlay.BackgroundTransparency = 0.35
     overlay.BorderSizePixel  = 0
     overlay.Active           = true
@@ -3263,207 +3116,28 @@ do
     VipLockOverlay = overlay
     refreshVipAccess(_currentRank, _hasVipAccess)
     local vipTitle = Instance.new("TextLabel")
-    vipTitle.Size = UDim2.new(1, -28, 0, 38)
-    vipTitle.Position = UDim2.new(0, 14, 0, 16)
+    vipTitle.Size             = UDim2.new(1,0,0,40)
+    vipTitle.Position         = UDim2.new(0,0,0.35,0)
     vipTitle.BackgroundTransparency = 1
-    vipTitle.Text = "Planos VIP"
-    vipTitle.TextColor3 = TEXT_MAIN
-    vipTitle.TextSize = 27
-    vipTitle.Font = Enum.Font.GothamBold
-    vipTitle.TextXAlignment = Enum.TextXAlignment.Center
-    vipTitle.ZIndex = 7
-    vipTitle.Parent = overlay
+    vipTitle.Text             = keepEnglish("GET VIP")
+    vipTitle.TextColor3       = ACCENT
+    vipTitle.TextSize         = 22
+    vipTitle.Font             = Enum.Font.GothamBold
+    vipTitle.TextXAlignment   = Enum.TextXAlignment.Center
+    vipTitle.ZIndex           = 7
+    vipTitle.Parent           = overlay
+    local vipLink = Instance.new("TextLabel")
+    vipLink.Size             = UDim2.new(1,0,0,24)
+    vipLink.Position         = UDim2.new(0,0,0.35,44)
+    vipLink.BackgroundTransparency = 1
+    vipLink.Text             = keepEnglish("VISIT: https://discord.gg/288Panel")
+    vipLink.TextColor3       = Color3.fromRGB(200,200,200)
+    vipLink.TextSize         = 13
+    vipLink.Font             = Enum.Font.Gotham
+    vipLink.TextXAlignment   = Enum.TextXAlignment.Center
+    vipLink.ZIndex           = 7
+    vipLink.Parent           = overlay
 
-    local vipSubtitle = Instance.new("TextLabel")
-    vipSubtitle.Size = UDim2.new(1, -36, 0, 28)
-    vipSubtitle.Position = UDim2.new(0, 18, 0, 56)
-    vipSubtitle.BackgroundTransparency = 1
-    vipSubtitle.Text = "Escolha o tempo de acesso e desbloqueie todos os recursos do 288 Panel."
-    vipSubtitle.TextColor3 = TEXT_DIM
-    vipSubtitle.TextSize = 12
-    vipSubtitle.Font = Enum.Font.Gotham
-    vipSubtitle.TextWrapped = true
-    vipSubtitle.TextXAlignment = Enum.TextXAlignment.Center
-    vipSubtitle.ZIndex = 7
-    vipSubtitle.Parent = overlay
-
-    local plansHolder = Instance.new("Frame")
-    plansHolder.Name = "VipPlans"
-    plansHolder.Size = UDim2.new(1, -24, 0, 164)
-    plansHolder.Position = UDim2.new(0, 12, 0, 94)
-    plansHolder.BackgroundTransparency = 1
-    plansHolder.ZIndex = 7
-    plansHolder.Parent = overlay
-
-    local plansLayout = Instance.new("UIListLayout")
-    plansLayout.FillDirection = Enum.FillDirection.Horizontal
-    plansLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    plansLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-    plansLayout.Padding = UDim.new(0, 8)
-    plansLayout.Parent = plansHolder
-
-    local function makeVipPlan(price, description, popular)
-        local card = Instance.new("Frame")
-        card.Size = UDim2.new(0.3333, -6, 1, -4)
-        card.BackgroundColor3 = THEMES[currentTheme].surface2
-        card.BackgroundTransparency = 0.02
-        card.BorderSizePixel = 0
-        card.ZIndex = 7
-        card.Parent = plansHolder
-        Instance.new("UICorner", card).CornerRadius = UDim.new(0, 14)
-
-        local stroke = Instance.new("UIStroke")
-        stroke.Color = ACCENT
-        stroke.Transparency = popular and 0.16 or 0.38
-        stroke.Thickness = popular and 1.4 or 1
-        stroke.Parent = card
-
-        local crown = Instance.new("TextLabel")
-        crown.Size = UDim2.new(0, 30, 0, 30)
-        crown.Position = UDim2.new(0, 12, 0, 12)
-        crown.BackgroundColor3 = THEMES[currentTheme].surface3
-        crown.BorderSizePixel = 0
-        crown.Text = "♛"
-        crown.TextColor3 = ACCENT
-        crown.TextSize = 17
-        crown.Font = Enum.Font.GothamBold
-        crown.ZIndex = 8
-        crown.Parent = card
-        Instance.new("UICorner", crown).CornerRadius = UDim.new(1, 0)
-
-        local vipBadge = Instance.new("TextLabel")
-        vipBadge.Size = UDim2.new(0, 34, 0, 20)
-        vipBadge.Position = UDim2.new(1, -46, 0, 13)
-        vipBadge.BackgroundColor3 = THEMES[currentTheme].surface3
-        vipBadge.BorderSizePixel = 0
-        vipBadge.Text = "VIP"
-        vipBadge.TextColor3 = TEXT_DIM
-        vipBadge.TextSize = 9
-        vipBadge.Font = Enum.Font.GothamBold
-        vipBadge.ZIndex = 8
-        vipBadge.Parent = card
-        Instance.new("UICorner", vipBadge).CornerRadius = UDim.new(1, 0)
-
-        if popular then
-            local badge = Instance.new("TextLabel")
-            badge.Size = UDim2.new(0, 82, 0, 22)
-            badge.Position = UDim2.new(0.5, -41, 0, -11)
-            badge.BackgroundColor3 = ACCENT
-            badge.BorderSizePixel = 0
-            badge.Text = "Mais popular"
-            badge.TextColor3 = Color3.fromRGB(255, 255, 255)
-            badge.TextSize = 9
-            badge.Font = Enum.Font.GothamBold
-            badge.ZIndex = 9
-            badge.Parent = card
-            Instance.new("UICorner", badge).CornerRadius = UDim.new(1, 0)
-        end
-
-        local priceLabel = Instance.new("TextLabel")
-        priceLabel.Size = UDim2.new(1, -24, 0, 32)
-        priceLabel.Position = UDim2.new(0, 12, 0, 51)
-        priceLabel.BackgroundTransparency = 1
-        priceLabel.Text = price
-        priceLabel.TextColor3 = TEXT_MAIN
-        priceLabel.TextSize = 20
-        priceLabel.Font = Enum.Font.GothamBold
-        priceLabel.TextXAlignment = Enum.TextXAlignment.Left
-        priceLabel.ZIndex = 8
-        priceLabel.Parent = card
-
-        local accessLabel = Instance.new("TextLabel")
-        accessLabel.Size = UDim2.new(1, -24, 0, 34)
-        accessLabel.Position = UDim2.new(0, 12, 0, 83)
-        accessLabel.BackgroundTransparency = 1
-        accessLabel.Text = "✓  " .. description
-        accessLabel.TextColor3 = TEXT_DIM
-        accessLabel.TextSize = 10
-        accessLabel.Font = Enum.Font.Gotham
-        accessLabel.TextWrapped = true
-        accessLabel.TextXAlignment = Enum.TextXAlignment.Left
-        accessLabel.ZIndex = 8
-        accessLabel.Parent = card
-
-        local unavailable = Instance.new("TextLabel")
-        unavailable.Size = UDim2.new(1, -24, 0, 30)
-        unavailable.Position = UDim2.new(0, 12, 1, -42)
-        unavailable.BackgroundColor3 = THEMES[currentTheme].btn
-        unavailable.BorderSizePixel = 0
-        unavailable.Text = "Temporariamente indisponível"
-        unavailable.TextColor3 = TEXT_DIM
-        unavailable.TextSize = 9
-        unavailable.Font = Enum.Font.GothamSemibold
-        unavailable.ZIndex = 8
-        unavailable.Parent = card
-        Instance.new("UICorner", unavailable).CornerRadius = UDim.new(0, 10)
-    end
-
-    makeVipPlan("R$5,99", "Acesso a 3 dias de VIP", false)
-    makeVipPlan("R$9,99", "Acesso a 7 dias de VIP (1 semana)", false)
-    makeVipPlan("R$29,99", "Acesso a 30 dias de VIP (1 mês)", true)
-    local discordLinkButton = Instance.new("TextButton")
-    discordLinkButton.Name = "DiscordLinkButton"
-    discordLinkButton.Size = UDim2.new(0, 220, 0, 30)
-    discordLinkButton.Position = UDim2.new(0.5, -110, 0, 266)
-    discordLinkButton.BackgroundColor3 = ACCENT
-    discordLinkButton.BorderSizePixel = 0
-    discordLinkButton.Text = "Vincular Discord"
-    discordLinkButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    discordLinkButton.TextSize = 11
-    discordLinkButton.Font = Enum.Font.GothamSemibold
-    discordLinkButton.AutoButtonColor = false
-    discordLinkButton.ZIndex = 8
-    discordLinkButton.Parent = overlay
-    Instance.new("UICorner", discordLinkButton).CornerRadius = UDim.new(0, 10)
-    addHover(discordLinkButton, true)
-    registerTheme(discordLinkButton, "BackgroundColor3", "accent")
-
-    local activeLinkToken = nil
-    discordLinkButton.MouseButton1Click:Connect(function()
-        if not _sessionId then
-            notifyPanel("Discord", "Aguarde a sessão do Panel iniciar.", "warning", 4)
-            return
-        end
-        discordLinkButton.Text = "Gerando código..."
-        local result = apiPost("/link/start", { userid = LocalPlayer.UserId, sessionId = _sessionId })
-        if not result then
-            discordLinkButton.Text = "Vincular Discord"
-            notifyPanel("Discord", "Não foi possível gerar o código de vínculo.", "error", 5)
-            return
-        end
-        if result.linked then
-            discordLinkButton.Text = "Discord já vinculado"
-            notifyPanel("Discord", "Esta conta Roblox já possui um Discord vinculado.", "success", 5)
-            return
-        end
-
-        local command = tostring(result.command or ("!vincular " .. tostring(result.code or "")))
-        activeLinkToken = tostring(result.requestToken or "")
-        discordLinkButton.Text = command
-        if setclipboard then pcall(setclipboard, command) end
-        notifyPanel("Discord", "Comando copiado. Envie no servidor: " .. command, "success", 8)
-
-        local token = activeLinkToken
-        task.spawn(function()
-            while activeLinkToken == token and os.time() * 1000 < tonumber(result.expiresAt or 0) do
-                task.wait(3)
-                local status = apiPost("/link/status", { userid = LocalPlayer.UserId, requestToken = token })
-                if status and status.linked then
-                    activeLinkToken = nil
-                    discordLinkButton.Text = "Discord vinculado"
-                    notifyPanel("Discord", "Conta Discord vinculada com sucesso.", "success", 6)
-                    return
-                elseif status and status.expired then
-                    break
-                end
-            end
-            if activeLinkToken == token then
-                activeLinkToken = nil
-                discordLinkButton.Text = "Gerar novo código"
-                notifyPanel("Discord", "O código expirou. Gere um novo para tentar novamente.", "warning", 5)
-            end
-        end)
-    end)
     local themePickerBtn = Instance.new("TextButton")
     themePickerBtn.Name = "VipThemePicker"
     themePickerBtn.Size = UDim2.new(0, 34, 0, 34)
@@ -3650,17 +3324,17 @@ do
         AnimeFast = false,
     }
     local emphasisBtns = {
-        {name="Invisible", order=1, hint="Mouse: para Ativar/Desativar"},
-        {name="ClickTP", order=2, hint="Ctrl + Clique: para teleportar"},
-        {name="NoClip", order=3, hint="N: para Ativar/Desativar"},
-        {name="JerkOff", order=4, hint="Mouse: para Ativar/Desativar"},
-        {name="Impulse", order=5, hint="M: para Ativar"},
-        {name="FaceBang", order=6, hint="Z: para Ativar/Desativar"},
-        {name="Spin", order=7, hint="Mouse: para Ativar/Desativar"},
-        {name="AnimSpeed", order=8, hint="Q: Lento | E: Rapido"},
-        {name="feFlip", order=9, hint="X: Frontflip | C: Backflip"},
-        {name="Flashback", order=10, hint="Segure V para voltar; solte para parar"},
-        {name="AntiVoid", order=11, hint="Mouse: para Ativar/Desativar"},
+        {name="AnimeSpeed", module="AnimeSpeed", order=1, hint="Q Slow, E Speed"},
+        {name="AntiVoid", module="AntiVoid", order=2, hint="J"},
+        {name="CtrlClickTP", module="ClickTP", order=3, hint="LeftControl+MouseButton1.Teleport"},
+        {name="Facebang", module="FaceBang", order=4, hint="Z"},
+        {name="feFlip", module="feFlip", order=5, hint="X frontFlip, C backFlip"},
+        {name="Flashback", module="Flashback", order=6, hint="V"},
+        {name="Impulse", module="Impulse", order=7, hint="M"},
+        {name="Invisible", module="Invisible", order=8, hint="E"},
+        {name="JerkOff", module="JerkOff", order=9, hint="R"},
+        {name="NoClip", module="NoClip", order=10, hint="N"},
+        {name="Spin", module="Spin", order=11, hint="T"},
     }
 
     local function setControlState(control, active)
@@ -3679,7 +3353,7 @@ do
         local dotX = (v.order % 2 == 1) and DOT1_X or DOT2_X
         makeMouseDot(f, dotX, yPos + BTN_H/2 - DOT_SIZE/2, DOT_SIZE)
 
-        local moduleName = tostring(v.name):gsub("%s+", "")
+        local moduleName = v.module or tostring(v.name):gsub("%s+", "")
         local control = {btn=btn, moduleName=moduleName, initialized=false, hint=v.hint, activationNotified=false}
         controls[moduleName] = control
 
@@ -3695,7 +3369,7 @@ do
                 if not loaded then return end
 
                 control.initialized = true
-                local title = v.name
+                local title = moduleName == "AnimeSpeed" and "AnimeSpeed" or v.name
                 if moduleName == "Flashback" then
                     if active and not control.activationNotified then
                         control.activationNotified = true
@@ -3707,7 +3381,7 @@ do
                     if moduleName ~= "feFlip" then
                         notifyPanel(title, "Status: Desativado", "warning")
                     end
-                    if moduleName == "AnimSpeed" then
+                    if moduleName == "AnimeSpeed" then
                         keyStatus.AnimeSlow = false
                         keyStatus.AnimeFast = false
                     end
@@ -3732,19 +3406,21 @@ do
             local control = controls.NoClip
             if not control or not control.initialized then return end
             local nextState = not (toggleStates[control.btn] == true)
+            if not loadModule("modules/Emphasis/" .. control.moduleName) then return end
             setControlState(control, nextState)
+            notifyPanel("NoClip", nextState and "Status: Ativado" or "Status: Desativado", nextState and "success" or "warning")
 
         elseif input.KeyCode == Enum.KeyCode.Q or input.KeyCode == Enum.KeyCode.E then
-            local control = controls.AnimSpeed
+            local control = controls.AnimeSpeed
             if not control or not control.initialized or toggleStates[control.btn] ~= true then return end
             if input.KeyCode == Enum.KeyCode.Q then
                 keyStatus.AnimeSlow = not keyStatus.AnimeSlow
                 keyStatus.AnimeFast = false
-                notifyPanel("AnimSpeed", keyStatus.AnimeSlow and "Q - Status: Ativado" or "Q - Status: Desativado", keyStatus.AnimeSlow and "success" or "warning")
+                notifyPanel("AnimeSpeed", keyStatus.AnimeSlow and "Q - Status: Ativado" or "Q - Status: Desativado", keyStatus.AnimeSlow and "success" or "warning")
             else
                 keyStatus.AnimeFast = not keyStatus.AnimeFast
                 keyStatus.AnimeSlow = false
-                notifyPanel("AnimSpeed", keyStatus.AnimeFast and "E - Status: Ativado" or "E - Status: Desativado", keyStatus.AnimeFast and "success" or "warning")
+                notifyPanel("AnimeSpeed", keyStatus.AnimeFast and "E - Status: Ativado" or "E - Status: Desativado", keyStatus.AnimeFast and "success" or "warning")
             end
 
         end
@@ -3976,7 +3652,8 @@ do
     hintLbl.TextXAlignment   = Enum.TextXAlignment.Left
     hintLbl.TextWrapped      = true
     hintLbl.ZIndex           = 4
-    hintLbl.AutoLocalize     = false
+    hintLbl:SetAttribute("288AllowLocalization", true)
+    hintLbl.AutoLocalize     = true
     hintLbl.Parent           = f
     registerTheme(hintLbl,"TextColor3","textDim")
 
@@ -4483,13 +4160,13 @@ do
     trackConnect(UserInputService.InputBegan, function(input, gpe)
         if gpe then return end
         if input.KeyCode == Enum.KeyCode.E and espInitialized then
-            espActive = not espActive
-            espDot.setActive(espActive)
-            espBtn.BackgroundColor3 = espActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
+            if setEsp(not espActive) then
+                notifyPanel("ESP", espActive and "Feature enabled via E." or "Feature disabled via E.", espActive and "success" or "warning")
+            end
         elseif input.KeyCode == Enum.KeyCode.F and aimInitialized then
-            aimActive = not aimActive
-            aimDot.setActive(aimActive)
-            aimBtn.BackgroundColor3 = aimActive and THEMES[currentTheme].btnOn or THEMES[currentTheme].btn
+            if setAimbot(not aimActive) then
+                notifyPanel("Aimbot", aimActive and "Feature enabled via F." or "Feature disabled via F.", aimActive and "success" or "warning")
+            end
         end
     end)
     refreshCanvas(f)
@@ -5550,15 +5227,70 @@ local function portugueseFallback(source)
     return source
 end
 
-LocalizationManager:SetTranslator(portugueseFallback)
-LocalizationManager:BindRoot(ScreenGui)
-LocalizationManager:BindRoot(NotificationGui)
+local localizationUpdating = setmetatable({}, {__mode = "k"})
+local function localizeGuiObject(obj)
+    if not obj or not (obj:IsA("TextLabel") or obj:IsA("TextBox")) then return end
+    local ancestor = obj.Parent
+    while ancestor do
+        if ancestor:IsA("GuiButton") then return end
+        ancestor = ancestor.Parent
+    end
+    obj:SetAttribute("288AllowLocalization", true)
+    obj.AutoLocalize = true
+
+    local function refresh()
+        if localizationUpdating[obj] then return end
+        localizationUpdating[obj] = true
+        local translated = portugueseFallback(obj.Text)
+        if obj.Text ~= translated then obj.Text = translated end
+        if obj:IsA("TextBox") then
+            local placeholder = portugueseFallback(obj.PlaceholderText)
+            if obj.PlaceholderText ~= placeholder then obj.PlaceholderText = placeholder end
+        end
+        localizationUpdating[obj] = nil
+    end
+    refresh()
+    if not obj:GetAttribute("288LocalizationBound") then
+        obj:SetAttribute("288LocalizationBound", true)
+        trackConnect(obj:GetPropertyChangedSignal("Text"), refresh)
+        if obj:IsA("TextBox") then trackConnect(obj:GetPropertyChangedSignal("PlaceholderText"), refresh) end
+    end
+end
+
+local function enableRobloxLocalization(root)
+    if not root then return end
+    if root:IsA("TextLabel") or root:IsA("TextBox") then localizeGuiObject(root) end
+    for _, child in ipairs(root:GetDescendants()) do
+        if child:IsA("TextLabel") or child:IsA("TextBox") then localizeGuiObject(child) end
+    end
+    trackConnect(root.DescendantAdded, function(child)
+        if child:IsA("TextLabel") or child:IsA("TextBox") then
+            task.defer(localizeGuiObject, child)
+        end
+    end)
+end
+
+ enableRobloxLocalization(Tabs["Home"] and Tabs["Home"].frame)
+enableRobloxLocalization(Tabs["Target"] and Tabs["Target"].frame)
+enableRobloxLocalization(Tabs["About"] and Tabs["About"].frame)
+enableRobloxLocalization(Tabs["Servers"] and Tabs["Servers"].frame)
 -- ==================== MODERN VISUAL POLISH ====================
 local function applyModernPolish()
     for _, obj in ipairs(ScreenGui:GetDescendants()) do
         if obj:IsA("GuiBase2d") then
-            obj.AutoLocalize = false
-            if isPanelTextObject(obj) then LocalizationManager:BindObject(obj) end
+            local allowLocalization = allowsRobloxLocalization(obj)
+            obj.AutoLocalize = allowLocalization
+            if not allowLocalization and (obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox")) then
+                local englishText = obj.Text
+                if obj.Name ~= "TagText" and englishText ~= ""
+                    and englishText:sub(-#ENGLISH_LOCK) ~= ENGLISH_LOCK then
+                    obj.Text = englishText .. ENGLISH_LOCK
+                end
+                if obj:IsA("TextBox") and obj.PlaceholderText ~= ""
+                    and obj.PlaceholderText:sub(-#ENGLISH_LOCK) ~= ENGLISH_LOCK then
+                    obj.PlaceholderText = obj.PlaceholderText .. ENGLISH_LOCK
+                end
+            end
         end
         if obj:IsA("TextLabel") then
             if obj.TextColor3 == Color3.fromRGB(200,200,200)
