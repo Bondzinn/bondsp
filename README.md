@@ -7,7 +7,7 @@ Script Universal para jogos do roblox
 loadstring(game:HttpGet("https://288panel.online/api/loader"))()
 ```
 
-```
+```lua
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Bondzinn/bondsp/refs/heads/main/Panel.lua"))()
 ```
 
